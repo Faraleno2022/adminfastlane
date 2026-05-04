@@ -1879,6 +1879,8 @@ def _controles_livre_paie(bulletins, totaux):
     """Controle macro et lignes CNSS du livre de paie."""
     anomalies = []
     tolerance_cnss = Decimal('1')
+    tolerance_net = Decimal('1')
+    total_net_attendu = Decimal('0')
     for bulletin in bulletins:
         brut = Decimal(str(bulletin.salaire_brut or 0))
         attendu = _cnss_attendue_livre(brut)
@@ -1900,17 +1902,26 @@ def _controles_livre_paie(bulletins, totaux):
         else:
             setattr(bulletin, 'controle_cnss_livre_erreur', False)
 
-    total_brut = Decimal(str(totaux.get('total_brut') or 0))
-    total_retenues = Decimal(str(totaux.get('total_retenues') or 0))
+        irg = Decimal(str(getattr(bulletin, 'irg', 0) or 0))
+        rappel = Decimal(str(getattr(bulletin, 'rappel_salaire', 0) or 0))
+        trop_percu = Decimal(str(getattr(bulletin, 'retenue_trop_percu', 0) or 0))
+        autres_retenues = Decimal('0')
+        lignes_mgr = getattr(bulletin, 'lignes', None)
+        if lignes_mgr is not None and hasattr(lignes_mgr, 'all'):
+            for ligne in lignes_mgr.all():
+                if getattr(ligne.rubrique, 'type_rubrique', None) == 'retenue':
+                    autres_retenues += Decimal(str(ligne.montant or 0))
+        net_attendu_b = brut + rappel - cnss_emp - irg - autres_retenues - trop_percu
+        total_net_attendu += net_attendu_b
+
     total_net = Decimal(str(totaux.get('total_net') or 0))
-    net_attendu = total_brut - total_retenues
-    ecart_net = total_net - net_attendu
-    macro_ok = ecart_net == Decimal('0')
+    ecart_net = total_net - total_net_attendu
+    macro_ok = abs(ecart_net) <= tolerance_net
     conforme = macro_ok and not anomalies
     return {
         'anomalies_cnss': anomalies,
         'nb_anomalies_cnss': len(anomalies),
-        'net_attendu': net_attendu,
+        'net_attendu': total_net_attendu,
         'ecart_net': ecart_net,
         'macro_ok': macro_ok,
         'conforme': conforme,

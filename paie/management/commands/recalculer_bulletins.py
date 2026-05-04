@@ -187,7 +187,6 @@ class Command(BaseCommand):
                     bulletin.cnss_employeur = nouveaux_montants['cnss_employeur']
                     bulletin.irg = nouveaux_montants['irg']
                     bulletin.net_a_payer = nouveaux_montants['net']
-                    bulletin.total_retenues = nouveaux_montants['total_retenues']
                     bulletin.base_vf = nouveaux_montants['base_vf']
                     bulletin.versement_forfaitaire = nouveaux_montants['versement_forfaitaire']
                     bulletin.taxe_apprentissage = nouveaux_montants['taxe_apprentissage']

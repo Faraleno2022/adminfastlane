@@ -302,14 +302,28 @@ class CNSSCalculTests(SimpleTestCase):
         self.assertEqual(controles['anomalies_cnss'][0]['cnss_employeur_attendu'], Decimal('450000'))
 
     def test_livre_paie_detecte_ecart_macro_net(self):
-        controles = _controles_livre_paie([], {
-            'total_brut': Decimal('1737409437'),
-            'total_retenues': Decimal('112292381'),
-            'total_net': Decimal('1624717056'),
+        """Le controle macro doit detecter un net stocke incoherent avec les retenues du bulletin."""
+        employe = SimpleNamespace(matricule='EMP-001', nom='Nom', prenoms='Prenom')
+        # Brut 3 000 000, CNSS 125 000, IRG 56 250, aucune autre retenue.
+        # Net attendu = 3 000 000 - 125 000 - 56 250 = 2 818 750. On stocke un net ecart de 400 000.
+        bulletin = SimpleNamespace(
+            numero_bulletin='BUL-001',
+            employe=employe,
+            salaire_brut=Decimal('3000000'),
+            cnss_employe=Decimal('125000'),
+            cnss_employeur=Decimal('450000'),
+            irg=Decimal('56250'),
+            net_a_payer=Decimal('2418750'),
+        )
+
+        controles = _controles_livre_paie([bulletin], {
+            'total_brut': Decimal('3000000'),
+            'total_retenues': Decimal('181250'),
+            'total_net': Decimal('2418750'),
         })
 
         self.assertFalse(controles['macro_ok'])
-        self.assertEqual(controles['net_attendu'], Decimal('1625117056'))
+        self.assertEqual(controles['net_attendu'], Decimal('2818750'))
         self.assertEqual(controles['ecart_net'], Decimal('-400000'))
 
 
