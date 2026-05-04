@@ -179,6 +179,42 @@ class LivrePaiePdfTests(TestCase):
         self.assertContains(response, 'Anomalies CNSS', status_code=409)
         self.assertContains(response, 'Generation du PDF officiel bloquee', status_code=409)
 
+    def test_export_cnss_pdf_bloque_si_cnss_incoherente(self):
+        BulletinPaie.objects.filter(numero_bulletin='BUL-LIVRE-01').update(
+            cnss_employe=Decimal('100081'),
+            cnss_employeur=Decimal('360292'),
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('paie:export_cnss_pdf'), {'annee': '2026', 'mois': '1'})
+
+        self.assertEqual(response.status_code, 409)
+        self.assertContains(response, 'Anomalies CNSS', status_code=409)
+
+    def test_export_dmu_excel_bloque_si_cnss_incoherente(self):
+        BulletinPaie.objects.filter(numero_bulletin='BUL-LIVRE-01').update(
+            cnss_employe=Decimal('100081'),
+            cnss_employeur=Decimal('360292'),
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('paie:export_dmu_excel'), {'annee': '2026', 'mois': '1'})
+
+        self.assertEqual(response.status_code, 409)
+        self.assertContains(response, 'Anomalies CNSS', status_code=409)
+
+    def test_export_etax_pdf_bloque_si_cnss_incoherente(self):
+        BulletinPaie.objects.filter(numero_bulletin='BUL-LIVRE-01').update(
+            cnss_employe=Decimal('100081'),
+            cnss_employeur=Decimal('360292'),
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('paie:declaration_etax_pdf'), {'annee': '2026', 'mois': '1'})
+
+        self.assertEqual(response.status_code, 409)
+        self.assertContains(response, 'Anomalies CNSS', status_code=409)
+
 
 class CNSSCalculTests(SimpleTestCase):
     """TU-01 à TU-03: Tests CNSS salarié et employeur"""

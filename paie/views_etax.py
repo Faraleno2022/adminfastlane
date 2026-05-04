@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 
 from core.decorators import entreprise_active_required, reauth_required
 from .models import BulletinPaie, DeclarationEtax, PeriodePaie
+from .views import verifier_conformite_export_social
 
 try:
     import openpyxl
@@ -228,6 +229,11 @@ def declaration_etax_excel(request):
     annee = int(request.GET.get('annee', timezone.now().year))
     mois = int(request.GET.get('mois', timezone.now().month))
     entreprise = request.user.entreprise
+
+    blocage = verifier_conformite_export_social(entreprise, annee, mois, document='eTax Excel')
+    if blocage is not None:
+        return blocage
+
     data = get_etax_data(entreprise, annee, mois)
 
     wb = openpyxl.Workbook()
@@ -318,6 +324,11 @@ def declaration_etax_pdf(request):
     annee = int(request.GET.get('annee', timezone.now().year))
     mois = int(request.GET.get('mois', timezone.now().month))
     entreprise = request.user.entreprise
+
+    blocage = verifier_conformite_export_social(entreprise, annee, mois, document='eTax PDF')
+    if blocage is not None:
+        return blocage
+
     data = get_etax_data(entreprise, annee, mois)
 
     buffer = io.BytesIO()

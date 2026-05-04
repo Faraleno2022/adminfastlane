@@ -1982,6 +1982,106 @@ def _bloquer_pdf_livre_paie(controles_livre, fmt):
     return HttpResponse(html, status=409, content_type='text/html; charset=utf-8')
 
 
+def _format_montant_gnf(val):
+    """Helper local de formatage utilise pour les pages de blocage."""
+    try:
+        n = float(val or 0)
+    except Exception:
+        n = 0
+    return f"{n:,.0f}".replace(",", " ")
+
+
+def verifier_conformite_export_social(entreprise, annee, mois=None, document='document'):
+    """Verifie la conformite des bulletins avant export social/fiscal.
+
+    Retourne None si la periode est conforme, sinon une HttpResponse 409
+    decrivant les anomalies detectees.
+    """
+    from django.db.models import F
+
+    periodes = PeriodePaie.objects.filter(entreprise=entreprise, annee=annee)
+    if mois:
+        periodes = periodes.filter(mois=mois)
+
+    bulletins = (
+        BulletinPaie.objects
+        .filter(periode__in=periodes, employe__entreprise=entreprise)
+        .select_related('employe', 'periode')
+        .prefetch_related('lignes__rubrique')
+        .annotate(total_retenues_livre=F('cnss_employe') + F('irg'))
+    )
+
+    if not bulletins.exists():
+        return None
+
+    totaux = bulletins.aggregate(
+        total_brut=Sum('salaire_brut'),
+        total_net=Sum('net_a_payer'),
+        total_retenues=Sum(F('cnss_employe') + F('irg')),
+    )
+    controles = _controles_livre_paie(bulletins, totaux)
+    if controles['conforme']:
+        return None
+
+    return _bloquer_export_social(controles, document)
+
+
+def _bloquer_export_social(controles, document):
+    """Page 409 indiquant qu'un export social/fiscal est bloque."""
+    from django.utils.html import escape
+
+    fmt = _format_montant_gnf
+    anomalies = controles.get('anomalies_cnss', [])[:10]
+    lignes = ''.join(
+        '<li>{numero} - {matricule} - CNSS salariee {actuelle} GNF, attendue {attendue} GNF</li>'.format(
+            numero=escape(a.get('numero') or '-'),
+            matricule=escape(a.get('matricule') or '-'),
+            actuelle=fmt(a.get('cnss_employe')),
+            attendue=fmt(a.get('cnss_employe_attendu')),
+        )
+        for a in anomalies
+    )
+    if controles.get('nb_anomalies_cnss', 0) > len(anomalies):
+        lignes += '<li>... autres anomalies CNSS non affichees</li>'
+
+    html = """
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Export non conforme</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; margin: 32px; color: #212529; }}
+    .box {{ border: 1px solid #dc3545; border-radius: 8px; padding: 20px; max-width: 820px; }}
+    h1 {{ color: #dc3545; margin-top: 0; }}
+    .metric {{ margin: 8px 0; }}
+    .hint {{ margin-top: 18px; padding: 12px; background: #fff3cd; border: 1px solid #ffe69c; }}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Export {document} bloque - paie non conforme</h1>
+    <p>La generation est interrompue car les bulletins de la periode ne respectent pas les regles legales (CNSS / coherence net).
+       Corrigez les bulletins puis relancez l'export.</p>
+    <div class="metric"><strong>Statut :</strong> NON CONFORME</div>
+    <div class="metric"><strong>Net attendu :</strong> {net_attendu} GNF</div>
+    <div class="metric"><strong>Ecart net :</strong> {ecart_net} GNF</div>
+    <div class="metric"><strong>Anomalies CNSS :</strong> {nb_anomalies}</div>
+    <ul>{lignes}</ul>
+    <div class="hint">Action recommandee : utiliser <code>python manage.py recalculer_bulletins</code> pour appliquer le plafond CNSS legal, puis relancer.</div>
+  </div>
+</body>
+</html>
+""".format(
+        document=escape(document),
+        net_attendu=fmt(controles.get('net_attendu')),
+        ecart_net=fmt(controles.get('ecart_net')),
+        nb_anomalies=controles.get('nb_anomalies_cnss', 0),
+        lignes=lignes or '<li>Aucune anomalie CNSS detaillee.</li>',
+    )
+    return HttpResponse(html, status=409, content_type='text/html; charset=utf-8')
+
+
 @login_required
 @entreprise_active_required
 @reauth_required
