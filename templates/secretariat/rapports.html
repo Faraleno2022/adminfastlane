@@ -1,0 +1,55 @@
+{% extends 'secretariat/base_secretariat.html' %}
+
+{% block title %}Rapports{% endblock %}
+
+{% block secr_content %}
+<div class="secr-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-graph-up me-2"></i>Rapports & statistiques</h4>
+    <button onclick="window.print()" class="btn btn-light btn-sm"><i class="bi bi-printer me-1"></i>Imprimer / PDF</button>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card"><div class="card-header bg-white fw-bold"><i class="bi bi-envelope me-1"></i>Courriers par statut</div>
+            <div class="card-body"><table class="table table-sm mb-0">
+                {% for row in stats.courriers_par_statut %}<tr><td>{{ row.statut }}</td><td class="text-end"><strong>{{ row.n }}</strong></td></tr>{% empty %}<tr><td class="text-muted">Aucune donnée</td></tr>{% endfor %}
+            </table></div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header bg-white fw-bold"><i class="bi bi-envelope-paper me-1"></i>Courriers par type</div>
+            <div class="card-body"><table class="table table-sm mb-0">
+                {% for row in stats.courriers_par_type %}<tr><td>{{ row.type_courrier }}</td><td class="text-end"><strong>{{ row.n }}</strong></td></tr>{% empty %}<tr><td class="text-muted">Aucune donnée</td></tr>{% endfor %}
+            </table></div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header bg-white fw-bold"><i class="bi bi-calendar-event me-1"></i>Rendez-vous par statut</div>
+            <div class="card-body"><table class="table table-sm mb-0">
+                {% for row in stats.rdv_par_statut %}<tr><td>{{ row.statut }}</td><td class="text-end"><strong>{{ row.n }}</strong></td></tr>{% empty %}<tr><td class="text-muted">Aucune donnée</td></tr>{% endfor %}
+            </table></div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header bg-white fw-bold"><i class="bi bi-telephone me-1"></i>Appels par type</div>
+            <div class="card-body"><table class="table table-sm mb-0">
+                {% for row in stats.appels_par_type %}<tr><td>{{ row.type_appel }}</td><td class="text-end"><strong>{{ row.n }}</strong></td></tr>{% empty %}<tr><td class="text-muted">Aucune donnée</td></tr>{% endfor %}
+            </table></div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header bg-white fw-bold"><i class="bi bi-check2-square me-1"></i>Tâches par état</div>
+            <div class="card-body"><table class="table table-sm mb-0">
+                {% for row in stats.taches_par_etat %}<tr><td>{{ row.etat }}</td><td class="text-end"><strong>{{ row.n }}</strong></td></tr>{% empty %}<tr><td class="text-muted">Aucune donnée</td></tr>{% endfor %}
+            </table></div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header bg-white fw-bold"><i class="bi bi-folder2-open me-1"></i>Documents par catégorie</div>
+            <div class="card-body"><table class="table table-sm mb-0">
+                {% for row in stats.documents_par_categorie %}<tr><td>{{ row.categorie }}</td><td class="text-end"><strong>{{ row.n }}</strong></td></tr>{% empty %}<tr><td class="text-muted">Aucune donnée</td></tr>{% endfor %}
+            </table></div></div>
+    </div>
+    <div class="col-12">
+        <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-person-badge me-1"></i>Total visiteurs enregistrés</span>
+            <h4 class="mb-0">{{ stats.visiteurs_total }}</h4>
+        </div></div>
+    </div>
+</div>
+{% endblock %}

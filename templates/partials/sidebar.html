@@ -254,6 +254,12 @@
                 <i class="bi bi-person-workspace"></i> Portail Employé
             </a>
         </li>
+
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'secretariat:dashboard' %}">
+                <i class="bi bi-folder-open"></i> Secrétariat
+            </a>
+        </li>
         {% endif %}  <!-- Fin condition has_rh -->
         
         {% if user.entreprise.has_compta %}

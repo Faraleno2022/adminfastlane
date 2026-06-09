@@ -1,0 +1,66 @@
+{% extends 'secretariat/base_secretariat.html' %}
+
+{% block title %}{{ reunion.titre }}{% endblock %}
+
+{% block secr_content %}
+<div class="secr-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-1"><i class="bi bi-people me-2"></i>{{ reunion.titre }}</h4>
+        <small>{{ reunion.date_reunion|date:"l d F Y à H:i" }}{% if reunion.lieu %} — {{ reunion.lieu }}{% endif %}</small>
+    </div>
+    <div>
+        <a href="{% url 'secretariat:reunion_edit' reunion.pk %}" class="btn btn-light btn-sm"><i class="bi bi-pencil me-1"></i>Modifier</a>
+        <a href="{% url 'secretariat:reunion_list' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left me-1"></i>Retour</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card mb-3"><div class="card-header bg-white fw-bold">Participants</div>
+            <div class="card-body"><p class="mb-0" style="white-space: pre-line;">{{ reunion.participants|default:"—" }}</p></div></div>
+        <div class="card mb-3"><div class="card-header bg-white fw-bold">Ordre du jour</div>
+            <div class="card-body"><p class="mb-0" style="white-space: pre-line;">{{ reunion.ordre_du_jour|default:"—" }}</p></div></div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card mb-3"><div class="card-header bg-white fw-bold">Compte rendu</div>
+            <div class="card-body"><p class="mb-0" style="white-space: pre-line;">{{ reunion.compte_rendu|default:"—" }}</p></div></div>
+        <div class="card mb-3"><div class="card-header bg-white fw-bold">Décisions prises</div>
+            <div class="card-body"><p class="mb-0" style="white-space: pre-line;">{{ reunion.decisions|default:"—" }}</p></div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-bold"><i class="bi bi-list-task me-1"></i>Suivi des actions</div>
+    <div class="card-body">
+        <table class="table table-sm align-middle">
+            <thead class="table-orange-light">
+                <tr><th>Action</th><th>Responsable</th><th>Échéance</th><th>État</th><th class="text-end"></th></tr>
+            </thead>
+            <tbody>
+                {% for action in actions %}
+                <tr>
+                    <td>{{ action.description }}</td>
+                    <td>{{ action.responsable|default:"-" }}</td>
+                    <td>{% if action.echeance %}{{ action.echeance|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                    <td><span class="badge {% if action.etat == 'termine' %}bg-success{% elif action.etat == 'en_cours' %}bg-info{% else %}bg-secondary{% endif %}">{{ action.get_etat_display }}</span></td>
+                    <td class="text-end"><a href="{% url 'secretariat:action_delete' action.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-muted text-center py-3">Aucune action de suivi.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <hr>
+        <h6 class="fw-bold">Ajouter une action</h6>
+        <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <div class="col-md-4"><label class="form-label small">Action</label>{{ form.description }}</div>
+            <div class="col-md-3"><label class="form-label small">Responsable</label>{{ form.responsable }}</div>
+            <div class="col-md-2"><label class="form-label small">Échéance</label>{{ form.echeance }}</div>
+            <div class="col-md-2"><label class="form-label small">État</label>{{ form.etat }}</div>
+            <div class="col-md-1"><button type="submit" class="btn btn-warning w-100"><i class="bi bi-plus"></i></button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'secretariat/base_secretariat.html' %}
+
+{% block title %}Appels{% endblock %}
+
+{% block secr_content %}
+<div class="secr-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-telephone me-2"></i>Gestion des appels</h4>
+    <a href="{% url 'secretariat:appel_create' %}" class="btn btn-light btn-sm"><i class="bi bi-plus-circle me-1"></i>Nouvel appel</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">Type d'appel</label>
+                <select name="type" class="form-select">
+                    <option value="">Tous</option>
+                    {% for val, lbl in types %}<option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2"><button type="submit" class="btn btn-warning w-100"><i class="bi bi-search"></i> Filtrer</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-orange-light">
+                <tr><th>Date</th><th>Type</th><th>Appelant</th><th>Téléphone</th><th>Objet</th><th>Suivi</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for a in appels %}
+                <tr>
+                    <td>{{ a.date_appel|date:"d/m/Y H:i" }}</td>
+                    <td><span class="badge {% if a.type_appel == 'entrant' %}bg-success{% elif a.type_appel == 'sortant' %}bg-primary{% else %}bg-danger{% endif %}">{{ a.get_type_appel_display }}</span></td>
+                    <td>{{ a.nom_appelant }}</td>
+                    <td>{{ a.telephone|default:"-" }}</td>
+                    <td>{{ a.objet }}{% if a.message %}<br><small class="text-muted">{{ a.message|truncatechars:50 }}</small>{% endif %}</td>
+                    <td>
+                        {% if a.suivi_a_faire and not a.suivi_effectue %}<span class="badge bg-warning text-dark">À suivre</span>
+                        {% elif a.suivi_effectue %}<span class="badge bg-success">Suivi fait</span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'secretariat:appel_edit' a.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                        <a href="{% url 'secretariat:appel_delete' a.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">Aucun appel enregistré.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

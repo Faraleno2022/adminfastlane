@@ -1,0 +1,180 @@
+{% extends 'secretariat/base_secretariat.html' %}
+
+{% block title %}Secrétariat - Tableau de bord{% endblock %}
+
+{% block secr_content %}
+<div class="secr-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-1"><i class="bi bi-folder-open me-2"></i>Module Secrétariat</h4>
+        <small>{{ request.user.entreprise.nom_entreprise }}</small>
+    </div>
+    <div class="text-end">
+        <span class="badge bg-light text-dark"><i class="bi bi-calendar-check me-1"></i>{% now "l d F Y" %}</span>
+    </div>
+</div>
+
+<!-- Statistiques rapides -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="stat-card-secr">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.rdv_jour }}</h3><small class="text-muted">RDV du jour</small></div>
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-calendar-event"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-secr">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.courriers_a_traiter }}</h3><small class="text-muted">Courriers à traiter</small></div>
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-envelope"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-secr">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.taches_urgentes }}</h3><small class="text-muted">Tâches urgentes</small></div>
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-exclamation-triangle"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-secr">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.appels_manques }}</h3><small class="text-muted">Appels manqués</small></div>
+                <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-telephone-x"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-secr">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.visiteurs_presents }}</h3><small class="text-muted">Visiteurs présents</small></div>
+                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-person-badge"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-secr">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.total_documents }}</h3><small class="text-muted">Documents</small></div>
+                <div class="stat-icon bg-secondary bg-opacity-10 text-secondary"><i class="bi bi-folder2-open"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-secr">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.total_contacts }}</h3><small class="text-muted">Contacts</small></div>
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-person-lines-fill"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-secr">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.reunions_planifiees }}</h3><small class="text-muted">Réunions planifiées</small></div>
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-people"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- RDV du jour -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-calendar-event text-primary me-1"></i> Rendez-vous du jour</div>
+            <div class="card-body p-0">
+                {% if rdv_jour %}
+                <table class="table table-hover mb-0">
+                    <tbody>
+                        {% for rdv in rdv_jour %}
+                        <tr>
+                            <td><strong>{{ rdv.date_rdv|time:"H:i" }}</strong></td>
+                            <td>{{ rdv.nom_visiteur }}<br><small class="text-muted">{{ rdv.motif }}</small></td>
+                            <td class="text-end"><span class="badge bg-secondary">{{ rdv.get_statut_display }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-4 mb-0">Aucun rendez-vous aujourd'hui.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tâches urgentes -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-exclamation-triangle text-danger me-1"></i> Tâches urgentes</div>
+            <div class="card-body p-0">
+                {% if taches_urgentes %}
+                <table class="table table-hover mb-0">
+                    <tbody>
+                        {% for t in taches_urgentes %}
+                        <tr>
+                            <td>{{ t.titre }}<br><small class="text-muted">{{ t.responsable }}</small></td>
+                            <td class="text-end">
+                                {% if t.date_limite %}<small class="{% if t.en_retard %}text-danger fw-bold{% endif %}">{{ t.date_limite|date:"d/m/Y" }}</small>{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-4 mb-0">Aucune tâche urgente.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Courriers à traiter -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-envelope text-warning me-1"></i> Courriers à traiter</div>
+            <div class="card-body p-0">
+                {% if courriers_a_traiter %}
+                <table class="table table-hover mb-0">
+                    <tbody>
+                        {% for c in courriers_a_traiter %}
+                        <tr>
+                            <td><small class="text-muted">{{ c.numero_ordre }}</small><br>{{ c.objet }}</td>
+                            <td class="text-end"><span class="badge bg-info">{{ c.get_statut_display }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-4 mb-0">Aucun courrier en attente.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Appels manqués -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-telephone-x text-info me-1"></i> Appels manqués</div>
+            <div class="card-body p-0">
+                {% if appels_manques %}
+                <table class="table table-hover mb-0">
+                    <tbody>
+                        {% for a in appels_manques %}
+                        <tr>
+                            <td>{{ a.nom_appelant }}<br><small class="text-muted">{{ a.telephone }}</small></td>
+                            <td class="text-end"><small>{{ a.date_appel|date:"d/m H:i" }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-4 mb-0">Aucun appel manqué.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
