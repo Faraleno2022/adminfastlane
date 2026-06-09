@@ -274,8 +274,8 @@ def register_entreprise(request):
                     f'Entreprise {entreprise.nom_entreprise} créée avec succès! Bienvenue {admin_user.get_full_name()}!'
                 )
                 # Rediriger selon le type de module choisi
-                if entreprise.type_module == 'compta':
-                    return redirect('dashboard:index')
+                if entreprise.type_module == 'secretariat':
+                    return redirect('secretariat:dashboard')
                 else:
                     return redirect('dashboard:index')
         else:

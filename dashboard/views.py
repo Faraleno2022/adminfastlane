@@ -255,6 +255,10 @@ def index(request):
     # Rediriger les utilisateurs comptabilité vers le module comptabilité
     if entreprise and entreprise.type_module == 'compta':
         return redirect('comptabilite:compte-bancaire-list')
+
+    # Rediriger les comptes Secrétariat seul vers le module secrétariat
+    if entreprise and entreprise.type_module == 'secretariat':
+        return redirect('secretariat:dashboard')
     
     entreprise_id = request.user.entreprise_id
 
