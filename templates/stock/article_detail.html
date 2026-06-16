@@ -55,12 +55,34 @@
     </div>
 </div>
 
+<div class="card mb-3">
+    <div class="card-header bg-white fw-bold"><i class="bi bi-building me-1"></i>Stock par dépôt</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>Dépôt</th><th>Type</th><th class="text-end">Quantité</th></tr>
+            </thead>
+            <tbody>
+                {% for sad in stocks_depots %}
+                <tr>
+                    <td>{{ sad.depot.nom }}{% if sad.depot.par_defaut %} <span class="badge bg-success">défaut</span>{% endif %}</td>
+                    <td>{{ sad.depot.get_type_depot_display }}</td>
+                    <td class="text-end"><strong>{{ sad.quantite|floatformat:0 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="text-center text-muted py-3">Aucun stock réparti. Enregistrez une entrée dans un dépôt.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header bg-white fw-bold"><i class="bi bi-clock-history me-1"></i>Historique des mouvements</div>
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle">
             <thead class="table-stock-light">
-                <tr><th>Date</th><th>Type</th><th class="text-end">Quantité</th><th class="text-end">Avant</th><th class="text-end">Après</th><th>Motif</th></tr>
+                <tr><th>Date</th><th>Type</th><th>Dépôt</th><th class="text-end">Quantité</th><th class="text-end">Avant</th><th class="text-end">Après</th><th>Motif</th></tr>
             </thead>
             <tbody>
                 {% for m in mouvements %}
@@ -69,15 +91,17 @@
                     <td>
                         {% if m.type_mouvement == 'entree' %}<span class="badge bg-success">Entrée</span>
                         {% elif m.type_mouvement == 'sortie' %}<span class="badge bg-danger">Sortie</span>
+                        {% elif m.type_mouvement == 'transfert' %}<span class="badge bg-primary">Transfert</span>
                         {% else %}<span class="badge bg-info">Ajustement</span>{% endif %}
                     </td>
+                    <td>{{ m.depot.nom|default:"-" }}</td>
                     <td class="text-end">{{ m.quantite|floatformat:0 }}</td>
                     <td class="text-end text-muted">{{ m.quantite_avant|floatformat:0 }}</td>
                     <td class="text-end"><strong>{{ m.quantite_apres|floatformat:0 }}</strong></td>
                     <td>{{ m.motif|default:"-" }}</td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="6" class="text-center text-muted py-4">Aucun mouvement enregistré.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">Aucun mouvement enregistré.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

@@ -111,8 +111,18 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if 'depot' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:depot_list' %}">
+                                <i class="bi bi-building"></i> Dépôts
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if 'mouvement' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:mouvement_list' %}">
                                 <i class="bi bi-arrow-left-right"></i> Mouvements
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'transfert' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:transfert_list' %}">
+                                <i class="bi bi-shuffle"></i> Transferts
                             </a>
                         </li>
                         <li class="nav-item">

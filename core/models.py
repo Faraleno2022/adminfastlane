@@ -959,3 +959,13 @@ class TentativeCodeAcces(models.Model):
             succes=succes,
             user_agent=(request.META.get('HTTP_USER_AGENT', '') or '')[:500]
         )
+
+
+# ---------------------------------------------------------------------------
+# Enregistrement des modèles de licence (définis dans models_licence.py)
+# ---------------------------------------------------------------------------
+# Ces modèles vivent dans un module séparé importé seulement par les vues.
+# On les importe ici pour qu'ils soient enregistrés dans l'app `core` dès le
+# chargement : sinon `makemigrations` ne les « voit » pas et génère à tort une
+# migration de suppression (Licence/LicenceLocale) à chaque exécution.
+from core.models_licence import Licence, LicenceLocale  # noqa: E402,F401

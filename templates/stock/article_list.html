@@ -25,6 +25,8 @@
                     <option value="">Tous</option>
                     <option value="alerte" {% if etat_filter == 'alerte' %}selected{% endif %}>En alerte</option>
                     <option value="rupture" {% if etat_filter == 'rupture' %}selected{% endif %}>En rupture</option>
+                    <option value="surstock" {% if etat_filter == 'surstock' %}selected{% endif %}>En surstock</option>
+                    <option value="dormant" {% if etat_filter == 'dormant' %}selected{% endif %}>Dormants</option>
                 </select>
             </div>
             <div class="col-md-4">
@@ -53,8 +55,10 @@
                 <tr>
                     <td><strong>{{ a.reference }}</strong></td>
                     <td>
+                        {% if a.photo %}<img src="{{ a.photo.url }}" alt="" class="rounded me-1" style="width:32px;height:32px;object-fit:cover;">{% endif %}
                         <a href="{% url 'stock:article_detail' a.pk %}">{{ a.designation }}</a>
                         {% if not a.actif %}<span class="badge bg-secondary">Inactif</span>{% endif %}
+                        {% if a.code_barres %}<br><small class="text-muted"><i class="bi bi-upc-scan"></i> {{ a.code_barres }}</small>{% endif %}
                     </td>
                     <td>{{ a.categorie.nom|default:"-" }}</td>
                     <td>{{ a.get_unite_display }}</td>

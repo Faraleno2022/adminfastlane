@@ -6,7 +6,9 @@
 <div class="stock-header d-flex justify-content-between align-items-center">
     <div>
         <h4 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Inventaire {{ inventaire.reference }}</h4>
-        <small>{{ inventaire.date_inventaire|date:"d/m/Y" }} —
+        <small>
+            <i class="bi bi-building me-1"></i>{{ inventaire.depot.nom|default:"Tous dépôts" }} ·
+            {{ inventaire.date_inventaire|date:"d/m/Y" }} —
             {% if inventaire.statut == 'valide' %}Validé{% elif inventaire.statut == 'annule' %}Annulé{% else %}En cours{% endif %}
         </small>
     </div>

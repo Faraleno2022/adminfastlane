@@ -42,7 +42,7 @@
         <table class="table table-hover mb-0 align-middle">
             <thead class="table-stock-light">
                 <tr>
-                    <th>Date</th><th>Type</th><th>Article</th><th class="text-end">Quantité</th>
+                    <th>Date</th><th>Type</th><th>Article</th><th>Dépôt</th><th class="text-end">Quantité</th>
                     <th class="text-end">Avant</th><th class="text-end">Après</th><th>Motif</th><th>Réf. doc.</th>
                 </tr>
             </thead>
@@ -53,9 +53,11 @@
                     <td>
                         {% if m.type_mouvement == 'entree' %}<span class="badge bg-success">Entrée</span>
                         {% elif m.type_mouvement == 'sortie' %}<span class="badge bg-danger">Sortie</span>
+                        {% elif m.type_mouvement == 'transfert' %}<span class="badge bg-primary">Transfert</span>
                         {% else %}<span class="badge bg-info">Ajustement</span>{% endif %}
                     </td>
                     <td><a href="{% url 'stock:article_detail' m.article.pk %}">{{ m.article.designation }}</a></td>
+                    <td>{{ m.depot.nom|default:"-" }}</td>
                     <td class="text-end">{{ m.quantite|floatformat:0 }}</td>
                     <td class="text-end text-muted">{{ m.quantite_avant|floatformat:0 }}</td>
                     <td class="text-end"><strong>{{ m.quantite_apres|floatformat:0 }}</strong></td>
@@ -63,7 +65,7 @@
                     <td>{{ m.reference_document|default:"-" }}</td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="8" class="text-center text-muted py-4">Aucun mouvement enregistré.</td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-4">Aucun mouvement enregistré.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

@@ -12,12 +12,13 @@
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle">
             <thead class="table-stock-light">
-                <tr><th>Référence</th><th>Date</th><th class="text-center">Articles</th><th class="text-center">Écarts</th><th class="text-center">Statut</th><th class="text-end">Actions</th></tr>
+                <tr><th>Référence</th><th>Dépôt</th><th>Date</th><th class="text-center">Articles</th><th class="text-center">Écarts</th><th class="text-center">Statut</th><th class="text-end">Actions</th></tr>
             </thead>
             <tbody>
                 {% for inv in inventaires %}
                 <tr>
                     <td><strong>{{ inv.reference }}</strong></td>
+                    <td>{{ inv.depot.nom|default:"—" }}</td>
                     <td>{{ inv.date_inventaire|date:"d/m/Y" }}</td>
                     <td class="text-center">{{ inv.lignes.count }}</td>
                     <td class="text-center">{% if inv.nb_ecarts %}<span class="badge bg-warning text-dark">{{ inv.nb_ecarts }}</span>{% else %}<span class="badge bg-success">0</span>{% endif %}</td>
@@ -32,7 +33,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="6" class="text-center text-muted py-4">Aucun inventaire.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">Aucun inventaire.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

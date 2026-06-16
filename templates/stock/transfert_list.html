@@ -1,0 +1,39 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Transferts{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-shuffle me-2"></i>Transferts entre dépôts</h4>
+    <a href="{% url 'stock:transfert_create' %}" class="btn btn-light btn-sm"><i class="bi bi-plus-circle me-1"></i>Nouveau transfert</a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr>
+                    <th>Référence</th><th>Date</th><th>Article</th>
+                    <th>Source</th><th></th><th>Destination</th><th class="text-end">Quantité</th><th>Motif</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transferts %}
+                <tr>
+                    <td><strong>{{ t.reference }}</strong></td>
+                    <td>{{ t.date_transfert|date:"d/m/Y H:i" }}</td>
+                    <td><a href="{% url 'stock:article_detail' t.article.pk %}">{{ t.article.designation }}</a></td>
+                    <td><span class="badge bg-danger-subtle text-danger">{{ t.depot_source.nom }}</span></td>
+                    <td class="text-center"><i class="bi bi-arrow-right"></i></td>
+                    <td><span class="badge bg-success-subtle text-success">{{ t.depot_destination.nom }}</span></td>
+                    <td class="text-end"><strong>{{ t.quantite|floatformat:0 }}</strong></td>
+                    <td>{{ t.motif|default:"-"|truncatechars:40 }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">Aucun transfert enregistré.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

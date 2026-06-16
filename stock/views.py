@@ -3,14 +3,14 @@ Module Gestion du Stock — Vues
 Tableau de bord, articles, catégories, fournisseurs, mouvements de stock
 (entrées / sorties / ajustements), inventaires physiques et rapports.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Q, Count, Sum, F, DecimalField, ExpressionWrapper
+from django.db.models import Q, Count, Sum, F, Max, DecimalField, ExpressionWrapper
 
 from django.utils import timezone
 
@@ -18,12 +18,43 @@ from core.decorators import reauth_required
 
 from .models import (
     CategorieArticle, Fournisseur, Article, MouvementStock,
-    Inventaire, LigneInventaire,
+    Inventaire, LigneInventaire, Depot, StockArticleDepot, Transfert,
 )
 from .forms import (
     CategorieArticleForm, FournisseurForm, ArticleForm,
-    MouvementStockForm, InventaireForm,
+    MouvementStockForm, InventaireForm, DepotForm, TransfertForm,
 )
+
+# Nombre de jours sans mouvement au-delà duquel un article est « dormant ».
+JOURS_DORMANT = 90
+
+
+def appliquer_mouvement_depot(article, depot, type_mouvement, quantite):
+    """Applique un mouvement au stock d'un dépôt et renvoie (avant, apres).
+
+    Doit être appelé dans une transaction. Met à jour la ligne de stock par
+    dépôt puis recalcule le total global de l'article.
+    """
+    sad, _ = StockArticleDepot.objects.select_for_update().get_or_create(
+        article=article, depot=depot, defaults={'quantite': Decimal('0')}
+    )
+    avant = sad.quantite or Decimal('0')
+    if type_mouvement == 'entree':
+        apres = avant + quantite
+    elif type_mouvement == 'sortie':
+        apres = avant - quantite
+    else:  # ajustement : la quantité devient le stock réel du dépôt
+        apres = quantite
+    sad.quantite = apres
+    sad.save(update_fields=['quantite'])
+    article.recalculer_total(sauver=True)
+    return avant, apres
+
+
+def get_depot_defaut(entreprise):
+    """Renvoie le dépôt par défaut de l'entreprise (ou le premier actif)."""
+    return (Depot.objects.filter(entreprise=entreprise, par_defaut=True, actif=True).first()
+            or Depot.objects.filter(entreprise=entreprise, actif=True).first())
 
 
 # ---------------------------------------------------------------------------
@@ -83,18 +114,30 @@ def dashboard(request):
 
     articles_alerte = [a for a in articles if a.en_alerte and not a.en_rupture]
     articles_rupture = [a for a in articles if a.en_rupture]
+    articles_surstock = [a for a in articles if a.en_surstock]
 
     derniers_mouvements = (MouvementStock.objects
                            .filter(entreprise=entreprise)
-                           .select_related('article')[:10])
+                           .select_related('article', 'depot')[:10])
+
+    # Articles dormants : aucun mouvement depuis JOURS_DORMANT jours (et stock > 0).
+    limite_dormant = timezone.now() - timedelta(days=JOURS_DORMANT)
+    articles_dormants = list(
+        articles.filter(quantite_stock__gt=0)
+        .annotate(dernier_mvt=Max('mouvements__date_mouvement'))
+        .filter(Q(dernier_mvt__lt=limite_dormant) | Q(dernier_mvt__isnull=True))[:10]
+    )
 
     stats = {
         'total_articles': articles.count(),
+        'total_depots': Depot.objects.filter(entreprise=entreprise, actif=True).count(),
         'total_categories': CategorieArticle.objects.filter(entreprise=entreprise).count(),
         'total_fournisseurs': Fournisseur.objects.filter(entreprise=entreprise).count(),
         'valeur_totale': valeur_totale,
         'nb_alerte': len(articles_alerte),
         'nb_rupture': len(articles_rupture),
+        'nb_surstock': len(articles_surstock),
+        'nb_dormants': len(articles_dormants),
         'mouvements_jour': MouvementStock.objects.filter(
             entreprise=entreprise, date_mouvement__date=timezone.now().date()
         ).count(),
@@ -105,6 +148,8 @@ def dashboard(request):
         'stats': stats,
         'articles_alerte': articles_alerte[:10],
         'articles_rupture': articles_rupture[:10],
+        'articles_surstock': articles_surstock[:10],
+        'articles_dormants': articles_dormants,
         'derniers_mouvements': derniers_mouvements,
     })
 
@@ -134,6 +179,15 @@ def article_list(request):
         articles = [a for a in articles if a.en_rupture]
     elif etat == 'alerte':
         articles = [a for a in articles if a.en_alerte]
+    elif etat == 'surstock':
+        articles = [a for a in articles if a.en_surstock]
+    elif etat == 'dormant':
+        from django.utils import timezone as _tz
+        limite = _tz.now() - timedelta(days=JOURS_DORMANT)
+        ids = set(Article.objects.filter(entreprise=entreprise, quantite_stock__gt=0)
+                  .annotate(dm=Max('mouvements__date_mouvement'))
+                  .filter(Q(dm__lt=limite) | Q(dm__isnull=True)).values_list('id', flat=True))
+        articles = [a for a in articles if a.pk in ids]
 
     return render(request, 'stock/article_list.html', {
         'articles': articles,
@@ -192,9 +246,10 @@ def article_edit(request, pk):
 def article_detail(request, pk):
     entreprise = request.user.entreprise
     article = get_object_or_404(Article, pk=pk, entreprise=entreprise)
-    mouvements = article.mouvements.select_related('fournisseur')[:50]
+    mouvements = article.mouvements.select_related('fournisseur', 'depot')[:50]
+    stocks_depots = article.stocks_depots.select_related('depot').filter(depot__actif=True)
     return render(request, 'stock/article_detail.html', {
-        'article': article, 'mouvements': mouvements,
+        'article': article, 'mouvements': mouvements, 'stocks_depots': stocks_depots,
     })
 
 
@@ -380,52 +435,198 @@ def mouvement_list(request):
 def mouvement_create(request):
     entreprise = request.user.entreprise
     type_initial = request.GET.get('type', 'entree')
+    if not Depot.objects.filter(entreprise=entreprise, actif=True).exists():
+        messages.warning(request, "Créez d'abord un dépôt avant d'enregistrer des mouvements.")
+        return redirect('stock:depot_create')
+
     if request.method == 'POST':
         form = MouvementStockForm(request.POST, entreprise=entreprise)
         if form.is_valid():
             with transaction.atomic():
                 mouvement = form.save(commit=False)
-                # Verrou sur l'article pour éviter les courses sur la quantité.
                 article = Article.objects.select_for_update().get(
                     pk=mouvement.article_id, entreprise=entreprise
                 )
-                avant = article.quantite_stock or Decimal('0')
+                depot = mouvement.depot
                 quantite = mouvement.quantite
+                stock_depot = article.stock_dans(depot)
 
-                if mouvement.type_mouvement == 'entree':
-                    apres = avant + quantite
-                elif mouvement.type_mouvement == 'sortie':
-                    if quantite > avant:
-                        messages.error(
-                            request,
-                            f"Stock insuffisant : {avant} en stock, sortie de {quantite} demandée."
-                        )
-                        return render(request, 'stock/form.html', {
-                            'form': form, 'titre': 'Nouveau mouvement de stock',
-                            'retour': 'stock:mouvement_list',
-                        })
-                    apres = avant - quantite
-                else:  # ajustement : la quantité saisie devient le stock réel
-                    apres = quantite
+                if mouvement.type_mouvement == 'sortie' and quantite > stock_depot:
+                    messages.error(
+                        request,
+                        f"Stock insuffisant dans {depot.nom} : {stock_depot} disponible(s), "
+                        f"sortie de {quantite} demandée."
+                    )
+                    return render(request, 'stock/form.html', {
+                        'form': form, 'titre': 'Nouveau mouvement de stock',
+                        'retour': 'stock:mouvement_list',
+                    })
 
+                avant, apres = appliquer_mouvement_depot(
+                    article, depot, mouvement.type_mouvement, quantite
+                )
                 mouvement.entreprise = entreprise
                 mouvement.quantite_avant = avant
                 mouvement.quantite_apres = apres
                 mouvement.cree_par = request.user
                 mouvement.save()
 
-                article.quantite_stock = apres
-                article.save(update_fields=['quantite_stock', 'date_modification'])
-
             messages.success(
                 request,
-                f"Mouvement enregistré. Stock de « {article.designation} » : {apres}."
+                f"Mouvement enregistré. Stock de « {article.designation} » dans {depot.nom} : {apres}."
             )
             return redirect('stock:mouvement_list')
     else:
-        form = MouvementStockForm(entreprise=entreprise, initial={'type_mouvement': type_initial})
+        initial = {'type_mouvement': type_initial}
+        defaut = get_depot_defaut(entreprise)
+        if defaut:
+            initial['depot'] = defaut.pk
+        form = MouvementStockForm(entreprise=entreprise, initial=initial)
     return render(request, 'stock/form.html', {
         'form': form, 'titre': 'Nouveau mouvement de stock', 'retour': 'stock:mouvement_list',
+    })
+
+
+# ---------------------------------------------------------------------------
+# Dépôts
+# ---------------------------------------------------------------------------
+@reauth_required
+@login_required
+@stock_required
+def depot_list(request):
+    entreprise = request.user.entreprise
+    valeur_expr = ExpressionWrapper(
+        F('quantite') * F('article__prix_achat'), output_field=DecimalField(max_digits=18, decimal_places=2)
+    )
+    depots = (Depot.objects.filter(entreprise=entreprise)
+              .annotate(nb_articles=Count('stocks_articles', distinct=True),
+                        valeur=Sum(valeur_expr)))
+    return render(request, 'stock/depot_list.html', {'depots': depots, 'types': Depot.TYPES})
+
+
+@reauth_required
+@login_required
+@stock_required
+def depot_create(request):
+    entreprise = request.user.entreprise
+    if request.method == 'POST':
+        form = DepotForm(request.POST)
+        if form.is_valid():
+            depot = form.save(commit=False)
+            depot.entreprise = entreprise
+            # Un seul dépôt par défaut par entreprise.
+            if depot.par_defaut:
+                Depot.objects.filter(entreprise=entreprise, par_defaut=True).update(par_defaut=False)
+            elif not Depot.objects.filter(entreprise=entreprise).exists():
+                depot.par_defaut = True  # le premier dépôt devient celui par défaut
+            depot.save()
+            messages.success(request, f"Dépôt « {depot.nom} » créé.")
+            return redirect('stock:depot_list')
+    else:
+        form = DepotForm()
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': 'Nouveau dépôt', 'retour': 'stock:depot_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def depot_edit(request, pk):
+    entreprise = request.user.entreprise
+    depot = get_object_or_404(Depot, pk=pk, entreprise=entreprise)
+    if request.method == 'POST':
+        form = DepotForm(request.POST, instance=depot)
+        if form.is_valid():
+            d = form.save(commit=False)
+            if d.par_defaut:
+                Depot.objects.filter(entreprise=entreprise, par_defaut=True).exclude(pk=d.pk).update(par_defaut=False)
+            d.save()
+            messages.success(request, "Dépôt mis à jour.")
+            return redirect('stock:depot_list')
+    else:
+        form = DepotForm(instance=depot)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': f'Modifier {depot.nom}', 'retour': 'stock:depot_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def depot_delete(request, pk):
+    depot = get_object_or_404(Depot, pk=pk, entreprise=request.user.entreprise)
+    if request.method == 'POST':
+        if depot.stocks_articles.filter(quantite__gt=0).exists():
+            messages.error(request, "Impossible de supprimer un dépôt contenant du stock. Transférez-le d'abord.")
+            return redirect('stock:depot_list')
+        depot.delete()
+        messages.success(request, "Dépôt supprimé.")
+        return redirect('stock:depot_list')
+    return render(request, 'stock/confirm_delete.html', {
+        'objet': depot.nom, 'retour': 'stock:depot_list',
+    })
+
+
+# ---------------------------------------------------------------------------
+# Transferts entre dépôts
+# ---------------------------------------------------------------------------
+@reauth_required
+@login_required
+@stock_required
+def transfert_list(request):
+    entreprise = request.user.entreprise
+    transferts = (Transfert.objects.filter(entreprise=entreprise)
+                  .select_related('article', 'depot_source', 'depot_destination'))
+    return render(request, 'stock/transfert_list.html', {'transferts': transferts})
+
+
+@reauth_required
+@login_required
+@stock_required
+def transfert_create(request):
+    entreprise = request.user.entreprise
+    if Depot.objects.filter(entreprise=entreprise, actif=True).count() < 2:
+        messages.warning(request, "Il faut au moins deux dépôts actifs pour effectuer un transfert.")
+        return redirect('stock:depot_list')
+
+    if request.method == 'POST':
+        form = TransfertForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            with transaction.atomic():
+                transfert = form.save(commit=False)
+                article = Article.objects.select_for_update().get(pk=transfert.article_id, entreprise=entreprise)
+                transfert.entreprise = entreprise
+                transfert.reference = _generer_reference(Transfert, entreprise, 'TRF')
+                transfert.cree_par = request.user
+                transfert.save()
+
+                ref = transfert.reference
+                motif = transfert.motif or f"Transfert {ref}"
+                # Sortie du dépôt source
+                av_s, ap_s = appliquer_mouvement_depot(article, transfert.depot_source, 'sortie', transfert.quantite)
+                MouvementStock.objects.create(
+                    entreprise=entreprise, article=article, depot=transfert.depot_source,
+                    type_mouvement='transfert', quantite=transfert.quantite,
+                    quantite_avant=av_s, quantite_apres=ap_s, prix_unitaire=article.prix_achat,
+                    motif=f"Transfert vers {transfert.depot_destination.nom}", reference_document=ref,
+                    date_mouvement=transfert.date_transfert, cree_par=request.user,
+                )
+                # Entrée dans le dépôt destination
+                av_d, ap_d = appliquer_mouvement_depot(article, transfert.depot_destination, 'entree', transfert.quantite)
+                MouvementStock.objects.create(
+                    entreprise=entreprise, article=article, depot=transfert.depot_destination,
+                    type_mouvement='transfert', quantite=transfert.quantite,
+                    quantite_avant=av_d, quantite_apres=ap_d, prix_unitaire=article.prix_achat,
+                    motif=f"Transfert depuis {transfert.depot_source.nom}", reference_document=ref,
+                    date_mouvement=transfert.date_transfert, cree_par=request.user,
+                )
+            messages.success(request, f"Transfert {ref} effectué : {transfert.quantite} déplacée(s).")
+            return redirect('stock:transfert_list')
+    else:
+        form = TransfertForm(entreprise=entreprise)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': 'Nouveau transfert entre dépôts', 'retour': 'stock:transfert_list',
     })
 
 
@@ -448,8 +649,12 @@ def inventaire_list(request):
 @stock_required
 def inventaire_create(request):
     entreprise = request.user.entreprise
+    if not Depot.objects.filter(entreprise=entreprise, actif=True).exists():
+        messages.warning(request, "Créez d'abord un dépôt avant de lancer un inventaire.")
+        return redirect('stock:depot_create')
+
     if request.method == 'POST':
-        form = InventaireForm(request.POST)
+        form = InventaireForm(request.POST, entreprise=entreprise)
         if form.is_valid():
             with transaction.atomic():
                 inv = form.save(commit=False)
@@ -457,21 +662,26 @@ def inventaire_create(request):
                 inv.reference = _generer_reference(Inventaire, entreprise, 'INV')
                 inv.cree_par = request.user
                 inv.save()
-                # Pré-remplir avec tous les articles actifs (stock théorique courant).
-                lignes = [
-                    LigneInventaire(
+                # Articles à inventorier (du dépôt choisi), filtrés par catégorie si demandé.
+                articles = Article.objects.filter(entreprise=entreprise, actif=True)
+                categorie = form.cleaned_data.get('categorie')
+                if categorie:
+                    articles = articles.filter(categorie=categorie)
+                # Stock théorique = stock de l'article DANS le dépôt inventorié.
+                lignes = []
+                for a in articles:
+                    theorique = a.stock_dans(inv.depot)
+                    lignes.append(LigneInventaire(
                         inventaire=inv, article=a,
-                        quantite_theorique=a.quantite_stock,
-                        quantite_physique=a.quantite_stock,
+                        quantite_theorique=theorique,
+                        quantite_physique=theorique,
                         ecart=0,
-                    )
-                    for a in Article.objects.filter(entreprise=entreprise, actif=True)
-                ]
+                    ))
                 LigneInventaire.objects.bulk_create(lignes)
-            messages.success(request, f"Inventaire {inv.reference} créé avec {len(lignes)} article(s).")
+            messages.success(request, f"Inventaire {inv.reference} créé ({inv.depot.nom}, {len(lignes)} article(s)).")
             return redirect('stock:inventaire_detail', pk=inv.pk)
     else:
-        form = InventaireForm()
+        form = InventaireForm(entreprise=entreprise)
     return render(request, 'stock/form.html', {
         'form': form, 'titre': 'Nouvel inventaire', 'retour': 'stock:inventaire_list',
     })
@@ -517,26 +727,29 @@ def inventaire_valider(request, pk):
 
     if request.method == 'POST':
         nb_ajustements = 0
+        depot = inv.depot
         with transaction.atomic():
             for ligne in inv.lignes.select_related('article'):
                 if ligne.ecart == 0:
                     continue
                 article = Article.objects.select_for_update().get(pk=ligne.article_id)
-                avant = article.quantite_stock or Decimal('0')
+                # Ajustement du stock DANS le dépôt inventorié vers la quantité comptée.
+                avant, apres = appliquer_mouvement_depot(
+                    article, depot, 'ajustement', ligne.quantite_physique
+                )
                 MouvementStock.objects.create(
                     entreprise=entreprise,
                     article=article,
+                    depot=depot,
                     type_mouvement='ajustement',
                     quantite=ligne.quantite_physique,
                     quantite_avant=avant,
-                    quantite_apres=ligne.quantite_physique,
+                    quantite_apres=apres,
                     prix_unitaire=article.prix_achat,
-                    motif=f"Ajustement inventaire {inv.reference}",
+                    motif=f"Ajustement inventaire {inv.reference} ({depot.nom})",
                     reference_document=inv.reference,
                     cree_par=request.user,
                 )
-                article.quantite_stock = ligne.quantite_physique
-                article.save(update_fields=['quantite_stock', 'date_modification'])
                 nb_ajustements += 1
 
             inv.statut = 'valide'

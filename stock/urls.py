@@ -26,9 +26,19 @@ urlpatterns = [
     path('fournisseurs/<int:pk>/modifier/', views.fournisseur_edit, name='fournisseur_edit'),
     path('fournisseurs/<int:pk>/supprimer/', views.fournisseur_delete, name='fournisseur_delete'),
 
+    # Dépôts
+    path('depots/', views.depot_list, name='depot_list'),
+    path('depots/nouveau/', views.depot_create, name='depot_create'),
+    path('depots/<int:pk>/modifier/', views.depot_edit, name='depot_edit'),
+    path('depots/<int:pk>/supprimer/', views.depot_delete, name='depot_delete'),
+
     # Mouvements de stock
     path('mouvements/', views.mouvement_list, name='mouvement_list'),
     path('mouvements/nouveau/', views.mouvement_create, name='mouvement_create'),
+
+    # Transferts entre dépôts
+    path('transferts/', views.transfert_list, name='transfert_list'),
+    path('transferts/nouveau/', views.transfert_create, name='transfert_create'),
 
     # Inventaires
     path('inventaires/', views.inventaire_list, name='inventaire_list'),
