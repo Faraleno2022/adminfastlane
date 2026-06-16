@@ -23,8 +23,25 @@ urlpatterns = [
     # Fournisseurs
     path('fournisseurs/', views.fournisseur_list, name='fournisseur_list'),
     path('fournisseurs/nouveau/', views.fournisseur_create, name='fournisseur_create'),
+    path('fournisseurs/<int:pk>/', views.fournisseur_detail, name='fournisseur_detail'),
     path('fournisseurs/<int:pk>/modifier/', views.fournisseur_edit, name='fournisseur_edit'),
     path('fournisseurs/<int:pk>/supprimer/', views.fournisseur_delete, name='fournisseur_delete'),
+
+    # Commandes fournisseurs (achats)
+    path('commandes/', views.commande_list, name='commande_list'),
+    path('commandes/nouvelle/', views.commande_create, name='commande_create'),
+    path('commandes/<int:pk>/', views.commande_detail, name='commande_detail'),
+    path('commandes/<int:pk>/modifier/', views.commande_edit, name='commande_edit'),
+    path('commandes/<int:pk>/valider/', views.commande_valider, name='commande_valider'),
+    path('commandes/<int:pk>/annuler/', views.commande_annuler, name='commande_annuler'),
+    path('commandes/<int:pk>/reception/', views.reception_create, name='reception_create'),
+    path('commandes/lignes/<int:pk>/supprimer/', views.ligne_commande_delete, name='ligne_commande_delete'),
+
+    # Factures fournisseurs
+    path('factures-fournisseur/', views.facture_list, name='facture_list'),
+    path('factures-fournisseur/nouvelle/', views.facture_create, name='facture_create'),
+    path('factures-fournisseur/<int:pk>/', views.facture_detail, name='facture_detail'),
+    path('factures-fournisseur/<int:pk>/supprimer/', views.facture_delete, name='facture_delete'),
 
     # Dépôts
     path('depots/', views.depot_list, name='depot_list'),

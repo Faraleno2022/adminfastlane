@@ -3,7 +3,50 @@ from django.contrib import admin
 from .models import (
     CategorieArticle, Fournisseur, Article, MouvementStock,
     Inventaire, LigneInventaire, Depot, StockArticleDepot, Transfert,
+    CommandeFournisseur, LigneCommande, Reception, LigneReception,
+    FactureFournisseur, PaiementFournisseur,
 )
+
+
+class LigneCommandeInline(admin.TabularInline):
+    model = LigneCommande
+    extra = 0
+
+
+@admin.register(CommandeFournisseur)
+class CommandeFournisseurAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'fournisseur', 'statut', 'date_commande', 'depot', 'entreprise')
+    list_filter = ('statut', 'entreprise')
+    search_fields = ('reference', 'fournisseur__nom')
+    date_hierarchy = 'date_commande'
+    inlines = [LigneCommandeInline]
+
+
+class LigneReceptionInline(admin.TabularInline):
+    model = LigneReception
+    extra = 0
+
+
+@admin.register(Reception)
+class ReceptionAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'commande', 'depot', 'date_reception')
+    list_filter = ('entreprise', 'depot')
+    search_fields = ('reference', 'commande__reference')
+    inlines = [LigneReceptionInline]
+
+
+class PaiementFournisseurInline(admin.TabularInline):
+    model = PaiementFournisseur
+    extra = 0
+
+
+@admin.register(FactureFournisseur)
+class FactureFournisseurAdmin(admin.ModelAdmin):
+    list_display = ('numero', 'fournisseur', 'date_facture', 'montant_ht', 'montant_paye', 'statut')
+    list_filter = ('statut', 'entreprise')
+    search_fields = ('numero', 'fournisseur__nom')
+    date_hierarchy = 'date_facture'
+    inlines = [PaiementFournisseurInline]
 
 
 @admin.register(Depot)

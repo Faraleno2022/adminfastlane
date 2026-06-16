@@ -44,6 +44,7 @@ class Fournisseur(models.Model):
     email = models.EmailField(blank=True, verbose_name='Email')
     adresse = models.TextField(blank=True, verbose_name='Adresse')
     nif = models.CharField(max_length=50, blank=True, verbose_name='NIF')
+    delai_livraison_jours = models.PositiveIntegerField(default=0, verbose_name='Délai moyen de livraison (jours)')
     actif = models.BooleanField(default=True)
     observations = models.TextField(blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -338,3 +339,200 @@ class LigneInventaire(models.Model):
     def save(self, *args, **kwargs):
         self.ecart = (self.quantite_physique or 0) - (self.quantite_theorique or 0)
         super().save(*args, **kwargs)
+
+
+# ===========================================================================
+# ACHATS — Commandes fournisseurs, réceptions, factures, paiements
+# ===========================================================================
+class CommandeFournisseur(models.Model):
+    """Demande d'achat / bon de commande fournisseur."""
+    STATUTS = (
+        ('brouillon', "Demande d'achat"),
+        ('validee', 'Bon de commande validé'),
+        ('partiellement_recue', 'Partiellement reçue'),
+        ('recue', 'Réception complète'),
+        ('annulee', 'Annulée'),
+    )
+
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='commandes_fournisseur')
+    reference = models.CharField(max_length=40, verbose_name='Référence')
+    fournisseur = models.ForeignKey(Fournisseur, on_delete=models.PROTECT, related_name='commandes')
+    depot = models.ForeignKey(Depot, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='commandes_recues', verbose_name='Dépôt de réception')
+    date_commande = models.DateField(default=timezone.now, verbose_name='Date')
+    date_livraison_prevue = models.DateField(null=True, blank=True, verbose_name='Livraison prévue le')
+    statut = models.CharField(max_length=22, choices=STATUTS, default='brouillon')
+    notes = models.TextField(blank=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+    cree_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True, related_name='commandes_creees')
+    validee_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True, related_name='commandes_validees')
+    date_validation = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'stock_commande_fournisseur'
+        verbose_name = 'Commande fournisseur'
+        verbose_name_plural = 'Commandes fournisseur'
+        ordering = ['-date_commande', '-id']
+        constraints = [
+            models.UniqueConstraint(fields=['entreprise', 'reference'], name='unique_commande_reference_par_entreprise'),
+        ]
+
+    def __str__(self):
+        return f"{self.reference} - {self.fournisseur.nom}"
+
+    @property
+    def montant_total(self):
+        return sum((l.montant for l in self.lignes.all()), Decimal('0'))
+
+    @property
+    def modifiable(self):
+        return self.statut in ('brouillon', 'validee')
+
+    @property
+    def receptionnable(self):
+        return self.statut in ('validee', 'partiellement_recue')
+
+
+class LigneCommande(models.Model):
+    """Ligne d'une commande fournisseur."""
+    commande = models.ForeignKey(CommandeFournisseur, on_delete=models.CASCADE, related_name='lignes')
+    article = models.ForeignKey(Article, on_delete=models.PROTECT, related_name='lignes_commande')
+    quantite_commandee = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Quantité commandée')
+    quantite_recue = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Quantité reçue')
+    prix_unitaire = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Prix unitaire (GNF)')
+
+    class Meta:
+        db_table = 'stock_ligne_commande'
+        verbose_name = 'Ligne de commande'
+        verbose_name_plural = 'Lignes de commande'
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.article.designation} x {self.quantite_commandee}"
+
+    @property
+    def montant(self):
+        return (self.quantite_commandee or Decimal('0')) * (self.prix_unitaire or Decimal('0'))
+
+    @property
+    def reste_a_recevoir(self):
+        return (self.quantite_commandee or Decimal('0')) - (self.quantite_recue or Decimal('0'))
+
+
+class Reception(models.Model):
+    """Réception (totale ou partielle) d'une commande fournisseur."""
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='receptions_fournisseur')
+    commande = models.ForeignKey(CommandeFournisseur, on_delete=models.CASCADE, related_name='receptions')
+    reference = models.CharField(max_length=40, verbose_name='Référence')
+    depot = models.ForeignKey(Depot, on_delete=models.PROTECT, related_name='receptions', verbose_name='Dépôt')
+    date_reception = models.DateField(default=timezone.now, verbose_name='Date de réception')
+    notes = models.TextField(blank=True)
+    cree_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True, related_name='receptions_creees')
+
+    class Meta:
+        db_table = 'stock_reception'
+        verbose_name = 'Réception'
+        verbose_name_plural = 'Réceptions'
+        ordering = ['-date_reception', '-id']
+
+    def __str__(self):
+        return f"{self.reference} ({self.commande.reference})"
+
+
+class LigneReception(models.Model):
+    """Quantité reçue pour une ligne de commande lors d'une réception."""
+    reception = models.ForeignKey(Reception, on_delete=models.CASCADE, related_name='lignes')
+    ligne_commande = models.ForeignKey(LigneCommande, on_delete=models.CASCADE, related_name='receptions')
+    quantite_recue = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Quantité reçue')
+
+    class Meta:
+        db_table = 'stock_ligne_reception'
+        verbose_name = 'Ligne de réception'
+        verbose_name_plural = 'Lignes de réception'
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.ligne_commande.article.designation} : {self.quantite_recue}"
+
+
+class FactureFournisseur(models.Model):
+    """Facture reçue d'un fournisseur (suivi des dettes)."""
+    STATUTS = (
+        ('impayee', 'Impayée'),
+        ('partielle', 'Partiellement payée'),
+        ('payee', 'Payée'),
+    )
+
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='factures_fournisseur')
+    numero = models.CharField(max_length=60, verbose_name='N° de facture fournisseur')
+    fournisseur = models.ForeignKey(Fournisseur, on_delete=models.PROTECT, related_name='factures')
+    commande = models.ForeignKey(CommandeFournisseur, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='factures', verbose_name='Commande liée')
+    date_facture = models.DateField(default=timezone.now, verbose_name='Date de facture')
+    date_echeance = models.DateField(null=True, blank=True, verbose_name="Date d'échéance")
+    montant_ht = models.DecimalField(max_digits=16, decimal_places=2, default=0, verbose_name='Montant HT (GNF)')
+    taux_tva = models.DecimalField(max_digits=5, decimal_places=2, default=18, verbose_name='Taux TVA (%)')
+    montant_paye = models.DecimalField(max_digits=16, decimal_places=2, default=0, verbose_name='Montant payé (GNF)')
+    statut = models.CharField(max_length=10, choices=STATUTS, default='impayee')
+    notes = models.TextField(blank=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+    cree_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True, related_name='factures_fournisseur_creees')
+
+    class Meta:
+        db_table = 'stock_facture_fournisseur'
+        verbose_name = 'Facture fournisseur'
+        verbose_name_plural = 'Factures fournisseur'
+        ordering = ['-date_facture', '-id']
+
+    def __str__(self):
+        return f"{self.numero} - {self.fournisseur.nom}"
+
+    @property
+    def montant_tva(self):
+        return (self.montant_ht or Decimal('0')) * (self.taux_tva or Decimal('0')) / Decimal('100')
+
+    @property
+    def montant_ttc(self):
+        return (self.montant_ht or Decimal('0')) + self.montant_tva
+
+    @property
+    def montant_du(self):
+        return self.montant_ttc - (self.montant_paye or Decimal('0'))
+
+    def maj_statut(self, sauver=True):
+        du = self.montant_du
+        if (self.montant_paye or 0) <= 0:
+            self.statut = 'impayee'
+        elif du <= 0:
+            self.statut = 'payee'
+        else:
+            self.statut = 'partielle'
+        if sauver:
+            self.save(update_fields=['statut'])
+
+
+class PaiementFournisseur(models.Model):
+    """Paiement d'une facture fournisseur."""
+    MODES = (
+        ('especes', 'Espèces'),
+        ('virement', 'Virement'),
+        ('cheque', 'Chèque'),
+        ('mobile_money', 'Mobile Money'),
+        ('autre', 'Autre'),
+    )
+
+    facture = models.ForeignKey(FactureFournisseur, on_delete=models.CASCADE, related_name='paiements')
+    montant = models.DecimalField(max_digits=16, decimal_places=2, verbose_name='Montant (GNF)')
+    date_paiement = models.DateField(default=timezone.now, verbose_name='Date du paiement')
+    mode = models.CharField(max_length=15, choices=MODES, default='especes', verbose_name='Mode de paiement')
+    reference = models.CharField(max_length=80, blank=True, verbose_name='Référence')
+    cree_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True, related_name='paiements_fournisseur_crees')
+
+    class Meta:
+        db_table = 'stock_paiement_fournisseur'
+        verbose_name = 'Paiement fournisseur'
+        verbose_name_plural = 'Paiements fournisseur'
+        ordering = ['-date_paiement', '-id']
+
+    def __str__(self):
+        return f"{self.montant} ({self.get_mode_display()})"

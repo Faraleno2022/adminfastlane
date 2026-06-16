@@ -1,0 +1,135 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}Commande {{ commande.reference }}{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-cart-plus me-2"></i>{{ commande.reference }}</h4>
+        <small>{{ commande.fournisseur.nom }} · {{ commande.date_commande|date:"d/m/Y" }}</small>
+    </div>
+    <div>
+        {% if commande.statut == 'brouillon' %}
+        <a href="{% url 'stock:commande_valider' commande.pk %}" class="btn btn-light btn-sm"><i class="bi bi-check2-circle me-1"></i>Valider le bon</a>
+        <a href="{% url 'stock:commande_edit' commande.pk %}" class="btn btn-outline-light btn-sm"><i class="bi bi-pencil me-1"></i>Modifier</a>
+        {% endif %}
+        {% if commande.receptionnable %}
+        <a href="{% url 'stock:reception_create' commande.pk %}" class="btn btn-light btn-sm"><i class="bi bi-box-arrow-in-down me-1"></i>Réceptionner</a>
+        {% endif %}
+        <a href="{% url 'stock:facture_create' %}?commande={{ commande.pk }}" class="btn btn-outline-light btn-sm"><i class="bi bi-receipt me-1"></i>Facture</a>
+        <a href="{% url 'stock:commande_list' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left"></i></a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                <span><i class="bi bi-list-ul me-1"></i>Articles commandés</span>
+                <span>
+                    {% if commande.statut == 'brouillon' %}<span class="badge bg-secondary">{{ commande.get_statut_display }}</span>
+                    {% elif commande.statut == 'validee' %}<span class="badge bg-primary">{{ commande.get_statut_display }}</span>
+                    {% elif commande.statut == 'partiellement_recue' %}<span class="badge bg-warning text-dark">{{ commande.get_statut_display }}</span>
+                    {% elif commande.statut == 'recue' %}<span class="badge bg-success">{{ commande.get_statut_display }}</span>
+                    {% else %}<span class="badge bg-dark">{{ commande.get_statut_display }}</span>{% endif %}
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-stock-light">
+                        <tr><th>Article</th><th class="text-end">Commandé</th><th class="text-end">Reçu</th><th class="text-end">P.U.</th><th class="text-end">Montant</th>{% if commande.modifiable %}<th></th>{% endif %}</tr>
+                    </thead>
+                    <tbody>
+                        {% for l in lignes %}
+                        <tr>
+                            <td>{{ l.article.designation }}<br><small class="text-muted">{{ l.article.reference }}</small></td>
+                            <td class="text-end">{{ l.quantite_commandee|floatformat:0 }}</td>
+                            <td class="text-end">{% if l.quantite_recue >= l.quantite_commandee %}<span class="text-success">{{ l.quantite_recue|floatformat:0 }}</span>{% else %}{{ l.quantite_recue|floatformat:0 }}{% endif %}</td>
+                            <td class="text-end">{{ l.prix_unitaire|floatformat:0|intcomma }}</td>
+                            <td class="text-end">{{ l.montant|floatformat:0|intcomma }}</td>
+                            {% if commande.modifiable %}
+                            <td class="text-end"><a href="{% url 'stock:ligne_commande_delete' l.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a></td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted py-3">Aucun article. Ajoutez-en ci-dessous.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold"><td colspan="4" class="text-end">Total</td><td class="text-end">{{ commande.montant_total|floatformat:0|intcomma }} GNF</td>{% if commande.modifiable %}<td></td>{% endif %}</tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        {% if commande.modifiable %}
+        <div class="card mt-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-plus-circle me-1"></i>Ajouter un article</div>
+            <div class="card-body">
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <div class="col-md-5">
+                        <label class="form-label small">Article</label>{{ form.article }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Quantité</label>{{ form.quantite_commandee }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Prix unitaire</label>{{ form.prix_unitaire }}
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-success w-100"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                    {% if form.errors %}<div class="col-12"><small class="text-danger">{{ form.errors }}</small></div>{% endif %}
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-info-circle me-1"></i>Informations</div>
+            <div class="card-body">
+                <p class="mb-1"><strong>Fournisseur :</strong> <a href="{% url 'stock:fournisseur_detail' commande.fournisseur.pk %}">{{ commande.fournisseur.nom }}</a></p>
+                <p class="mb-1"><strong>Dépôt de réception :</strong> {{ commande.depot.nom|default:"Non précisé" }}</p>
+                <p class="mb-1"><strong>Livraison prévue :</strong> {{ commande.date_livraison_prevue|date:"d/m/Y"|default:"-" }}</p>
+                {% if commande.validee_par %}<p class="mb-1"><strong>Validée par :</strong> {{ commande.validee_par.get_full_name|default:commande.validee_par.username }}</p>{% endif %}
+                {% if commande.notes %}<hr><small class="text-muted">{{ commande.notes }}</small>{% endif %}
+                {% if commande.statut != 'recue' and commande.statut != 'annulee' %}
+                <hr><a href="{% url 'stock:commande_annuler' commande.pk %}" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-x-circle me-1"></i>Annuler la commande</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-box-arrow-in-down me-1"></i>Réceptions</div>
+            <ul class="list-group list-group-flush">
+                {% for r in receptions %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>{{ r.reference }}<br><small class="text-muted">{{ r.depot.nom }} · {{ r.date_reception|date:"d/m/Y" }}</small></span>
+                    <span class="badge bg-success align-self-center">{{ r.lignes.count }} ligne(s)</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted text-center">Aucune réception.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-receipt me-1"></i>Factures</div>
+            <ul class="list-group list-group-flush">
+                {% for f in factures %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <a href="{% url 'stock:facture_detail' f.pk %}">{{ f.numero }}</a>
+                    <span class="badge {% if f.statut == 'payee' %}bg-success{% elif f.statut == 'partielle' %}bg-warning text-dark{% else %}bg-danger{% endif %} align-self-center">{{ f.get_statut_display }}</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted text-center">Aucune facture.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

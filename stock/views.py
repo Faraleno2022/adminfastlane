@@ -19,10 +19,14 @@ from core.decorators import reauth_required
 from .models import (
     CategorieArticle, Fournisseur, Article, MouvementStock,
     Inventaire, LigneInventaire, Depot, StockArticleDepot, Transfert,
+    CommandeFournisseur, LigneCommande, Reception, LigneReception,
+    FactureFournisseur, PaiementFournisseur,
 )
 from .forms import (
     CategorieArticleForm, FournisseurForm, ArticleForm,
     MouvementStockForm, InventaireForm, DepotForm, TransfertForm,
+    CommandeFournisseurForm, LigneCommandeForm, ReceptionForm,
+    FactureFournisseurForm, PaiementFournisseurForm,
 )
 
 # Nombre de jours sans mouvement au-delà duquel un article est « dormant ».
@@ -816,4 +820,355 @@ def rapports(request):
         'articles_alerte': articles_alerte,
         'valeur_totale': valeur_totale,
         'nb_articles': articles.count(),
+    })
+
+
+# ===========================================================================
+# ACHATS — Commandes fournisseurs
+# ===========================================================================
+@reauth_required
+@login_required
+@stock_required
+def commande_list(request):
+    entreprise = request.user.entreprise
+    commandes = (CommandeFournisseur.objects.filter(entreprise=entreprise)
+                 .select_related('fournisseur', 'depot').prefetch_related('lignes'))
+    statut = request.GET.get('statut', '')
+    if statut:
+        commandes = commandes.filter(statut=statut)
+    return render(request, 'stock/commande_list.html', {
+        'commandes': commandes, 'statuts': CommandeFournisseur.STATUTS, 'statut_filter': statut,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def commande_create(request):
+    entreprise = request.user.entreprise
+    if not Fournisseur.objects.filter(entreprise=entreprise, actif=True).exists():
+        messages.warning(request, "Créez d'abord un fournisseur.")
+        return redirect('stock:fournisseur_create')
+    if request.method == 'POST':
+        form = CommandeFournisseurForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            commande = form.save(commit=False)
+            commande.entreprise = entreprise
+            commande.reference = _generer_reference(CommandeFournisseur, entreprise, 'BC')
+            commande.cree_par = request.user
+            commande.save()
+            messages.success(request, f"Commande {commande.reference} créée. Ajoutez les articles.")
+            return redirect('stock:commande_detail', pk=commande.pk)
+    else:
+        form = CommandeFournisseurForm(entreprise=entreprise)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': "Nouvelle demande d'achat", 'retour': 'stock:commande_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def commande_detail(request, pk):
+    entreprise = request.user.entreprise
+    commande = get_object_or_404(CommandeFournisseur, pk=pk, entreprise=entreprise)
+    lignes = commande.lignes.select_related('article')
+
+    if request.method == 'POST':
+        if not commande.modifiable:
+            messages.error(request, "Cette commande ne peut plus être modifiée.")
+            return redirect('stock:commande_detail', pk=pk)
+        form = LigneCommandeForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            ligne = form.save(commit=False)
+            ligne.commande = commande
+            ligne.save()
+            messages.success(request, "Article ajouté à la commande.")
+            return redirect('stock:commande_detail', pk=pk)
+    else:
+        form = LigneCommandeForm(entreprise=entreprise)
+
+    return render(request, 'stock/commande_detail.html', {
+        'commande': commande, 'lignes': lignes, 'form': form,
+        'receptions': commande.receptions.select_related('depot').prefetch_related('lignes'),
+        'factures': commande.factures.all(),
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def commande_edit(request, pk):
+    entreprise = request.user.entreprise
+    commande = get_object_or_404(CommandeFournisseur, pk=pk, entreprise=entreprise)
+    if not commande.modifiable:
+        messages.error(request, "Cette commande ne peut plus être modifiée.")
+        return redirect('stock:commande_detail', pk=pk)
+    if request.method == 'POST':
+        form = CommandeFournisseurForm(request.POST, instance=commande, entreprise=entreprise)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Commande mise à jour.")
+            return redirect('stock:commande_detail', pk=pk)
+    else:
+        form = CommandeFournisseurForm(instance=commande, entreprise=entreprise)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': f'Modifier {commande.reference}', 'retour': 'stock:commande_detail',
+        'retour_pk': commande.pk,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def ligne_commande_delete(request, pk):
+    ligne = get_object_or_404(LigneCommande, pk=pk, commande__entreprise=request.user.entreprise)
+    commande_pk = ligne.commande_id
+    if ligne.commande.modifiable:
+        ligne.delete()
+        messages.success(request, "Ligne supprimée.")
+    else:
+        messages.error(request, "Commande non modifiable.")
+    return redirect('stock:commande_detail', pk=commande_pk)
+
+
+@reauth_required
+@login_required
+@stock_required
+def commande_valider(request, pk):
+    commande = get_object_or_404(CommandeFournisseur, pk=pk, entreprise=request.user.entreprise)
+    if commande.statut != 'brouillon':
+        messages.warning(request, "Cette commande est déjà validée.")
+        return redirect('stock:commande_detail', pk=pk)
+    if not commande.lignes.exists():
+        messages.error(request, "Ajoutez au moins un article avant de valider.")
+        return redirect('stock:commande_detail', pk=pk)
+    commande.statut = 'validee'
+    commande.validee_par = request.user
+    commande.date_validation = timezone.now()
+    commande.save(update_fields=['statut', 'validee_par', 'date_validation'])
+    messages.success(request, f"Bon de commande {commande.reference} validé.")
+    return redirect('stock:commande_detail', pk=pk)
+
+
+@reauth_required
+@login_required
+@stock_required
+def commande_annuler(request, pk):
+    commande = get_object_or_404(CommandeFournisseur, pk=pk, entreprise=request.user.entreprise)
+    if request.method == 'POST':
+        if commande.statut in ('recue',):
+            messages.error(request, "Impossible d'annuler une commande déjà reçue.")
+        else:
+            commande.statut = 'annulee'
+            commande.save(update_fields=['statut'])
+            messages.success(request, "Commande annulée.")
+        return redirect('stock:commande_detail', pk=pk)
+    return render(request, 'stock/confirm_action.html', {
+        'titre': 'Annuler la commande',
+        'message': f"Annuler la commande {commande.reference} ?",
+        'bouton': 'Annuler la commande', 'retour': 'stock:commande_detail', 'retour_pk': commande.pk,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def reception_create(request, pk):
+    """Réception (partielle ou totale) d'une commande : alimente le stock."""
+    entreprise = request.user.entreprise
+    commande = get_object_or_404(CommandeFournisseur, pk=pk, entreprise=entreprise)
+    if not commande.receptionnable:
+        messages.error(request, "Cette commande n'est pas en attente de réception.")
+        return redirect('stock:commande_detail', pk=pk)
+    lignes = commande.lignes.select_related('article')
+
+    if request.method == 'POST':
+        form = ReceptionForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            with transaction.atomic():
+                reception = form.save(commit=False)
+                reception.entreprise = entreprise
+                reception.commande = commande
+                reception.reference = _generer_reference(Reception, entreprise, 'REC')
+                reception.cree_par = request.user
+                reception.save()
+                depot = reception.depot
+                nb_lignes = 0
+                for ligne in lignes:
+                    champ = f'recu_{ligne.pk}'
+                    valeur = request.POST.get(champ, '').strip().replace(',', '.')
+                    if not valeur:
+                        continue
+                    try:
+                        qte = Decimal(valeur)
+                    except (ValueError, ArithmeticError):
+                        continue
+                    if qte <= 0:
+                        continue
+                    qte = min(qte, ligne.reste_a_recevoir)  # ne pas dépasser le reste
+                    if qte <= 0:
+                        continue
+                    article = Article.objects.select_for_update().get(pk=ligne.article_id)
+                    avant, apres = appliquer_mouvement_depot(article, depot, 'entree', qte)
+                    MouvementStock.objects.create(
+                        entreprise=entreprise, article=article, depot=depot,
+                        type_mouvement='entree', quantite=qte, quantite_avant=avant, quantite_apres=apres,
+                        prix_unitaire=ligne.prix_unitaire, motif=f"Réception {reception.reference}",
+                        reference_document=commande.reference, fournisseur=commande.fournisseur,
+                        date_mouvement=timezone.now(), cree_par=request.user,
+                    )
+                    LigneReception.objects.create(reception=reception, ligne_commande=ligne, quantite_recue=qte)
+                    ligne.quantite_recue = (ligne.quantite_recue or Decimal('0')) + qte
+                    ligne.save(update_fields=['quantite_recue'])
+                    nb_lignes += 1
+
+                if nb_lignes == 0:
+                    transaction.set_rollback(True)
+                    messages.error(request, "Aucune quantité saisie.")
+                    return redirect('stock:reception_create', pk=pk)
+
+                # Mise à jour du statut de la commande
+                if all(l.reste_a_recevoir <= 0 for l in commande.lignes.all()):
+                    commande.statut = 'recue'
+                else:
+                    commande.statut = 'partiellement_recue'
+                commande.save(update_fields=['statut'])
+
+            messages.success(request, f"Réception {reception.reference} enregistrée dans {depot.nom}.")
+            return redirect('stock:commande_detail', pk=pk)
+    else:
+        initial = {}
+        if commande.depot_id:
+            initial['depot'] = commande.depot_id
+        form = ReceptionForm(entreprise=entreprise, initial=initial)
+
+    return render(request, 'stock/reception_form.html', {
+        'commande': commande, 'lignes': lignes, 'form': form,
+    })
+
+
+# ===========================================================================
+# ACHATS — Factures fournisseurs & paiements
+# ===========================================================================
+@reauth_required
+@login_required
+@stock_required
+def facture_list(request):
+    entreprise = request.user.entreprise
+    factures = FactureFournisseur.objects.filter(entreprise=entreprise).select_related('fournisseur')
+    statut = request.GET.get('statut', '')
+    if statut:
+        factures = factures.filter(statut=statut)
+    factures = list(factures)
+    total_du = sum((f.montant_du for f in factures), Decimal('0'))
+    return render(request, 'stock/facture_list.html', {
+        'factures': factures, 'statuts': FactureFournisseur.STATUTS,
+        'statut_filter': statut, 'total_du': total_du,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def facture_create(request):
+    entreprise = request.user.entreprise
+    commande_id = request.GET.get('commande')
+    if request.method == 'POST':
+        form = FactureFournisseurForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            facture = form.save(commit=False)
+            facture.entreprise = entreprise
+            facture.cree_par = request.user
+            facture.maj_statut(sauver=False)
+            facture.save()
+            messages.success(request, f"Facture {facture.numero} enregistrée.")
+            return redirect('stock:facture_detail', pk=facture.pk)
+    else:
+        initial = {}
+        if commande_id:
+            commande = CommandeFournisseur.objects.filter(pk=commande_id, entreprise=entreprise).first()
+            if commande:
+                initial = {
+                    'fournisseur': commande.fournisseur_id, 'commande': commande.pk,
+                    'montant_ht': commande.montant_total,
+                }
+        form = FactureFournisseurForm(entreprise=entreprise, initial=initial)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': 'Nouvelle facture fournisseur', 'retour': 'stock:facture_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def facture_detail(request, pk):
+    entreprise = request.user.entreprise
+    facture = get_object_or_404(FactureFournisseur, pk=pk, entreprise=entreprise)
+    if request.method == 'POST':
+        form = PaiementFournisseurForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                paiement = form.save(commit=False)
+                if paiement.montant > facture.montant_du:
+                    messages.error(request, f"Le paiement dépasse le montant dû ({facture.montant_du}).")
+                    return redirect('stock:facture_detail', pk=pk)
+                paiement.facture = facture
+                paiement.cree_par = request.user
+                paiement.save()
+                facture.montant_paye = (facture.montant_paye or Decimal('0')) + paiement.montant
+                facture.maj_statut(sauver=False)
+                facture.save(update_fields=['montant_paye', 'statut'])
+            messages.success(request, "Paiement enregistré.")
+            return redirect('stock:facture_detail', pk=pk)
+    else:
+        form = PaiementFournisseurForm(initial={'montant': facture.montant_du})
+    return render(request, 'stock/facture_detail.html', {
+        'facture': facture, 'paiements': facture.paiements.all(), 'form': form,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def facture_delete(request, pk):
+    facture = get_object_or_404(FactureFournisseur, pk=pk, entreprise=request.user.entreprise)
+    if request.method == 'POST':
+        facture.delete()
+        messages.success(request, "Facture supprimée.")
+        return redirect('stock:facture_list')
+    return render(request, 'stock/confirm_delete.html', {
+        'objet': f"facture {facture.numero}", 'retour': 'stock:facture_list',
+    })
+
+
+# ===========================================================================
+# Fiche fournisseur enrichie
+# ===========================================================================
+@reauth_required
+@login_required
+@stock_required
+def fournisseur_detail(request, pk):
+    entreprise = request.user.entreprise
+    fournisseur = get_object_or_404(Fournisseur, pk=pk, entreprise=entreprise)
+
+    articles = Article.objects.filter(entreprise=entreprise, fournisseur=fournisseur)
+    commandes = fournisseur.commandes.prefetch_related('lignes').order_by('-date_commande')
+    factures = list(fournisseur.factures.all())
+
+    dette = sum((f.montant_du for f in factures), Decimal('0'))
+    total_achats = sum((c.montant_total for c in commandes if c.statut != 'annulee'), Decimal('0'))
+
+    # Performance : délai réel moyen (1ère réception - date commande) sur commandes reçues.
+    delais = []
+    for c in commandes:
+        premiere = c.receptions.order_by('date_reception').first()
+        if premiere:
+            delais.append((premiere.date_reception - c.date_commande).days)
+    delai_reel_moyen = round(sum(delais) / len(delais), 1) if delais else None
+
+    return render(request, 'stock/fournisseur_detail.html', {
+        'fournisseur': fournisseur, 'articles': articles, 'commandes': commandes[:20],
+        'factures': factures[:20], 'dette': dette, 'total_achats': total_achats,
+        'delai_reel_moyen': delai_reel_moyen, 'nb_commandes': commandes.count(),
     })

@@ -30,7 +30,7 @@
             <tbody>
                 {% for f in fournisseurs %}
                 <tr>
-                    <td><strong>{{ f.nom }}</strong></td>
+                    <td><strong><a href="{% url 'stock:fournisseur_detail' f.pk %}">{{ f.nom }}</a></strong></td>
                     <td>{{ f.contact|default:"-" }}</td>
                     <td>{{ f.telephone|default:"-" }}</td>
                     <td>{{ f.email|default:"-" }}</td>

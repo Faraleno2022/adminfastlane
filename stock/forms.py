@@ -6,7 +6,8 @@ from django import forms
 
 from .models import (
     CategorieArticle, Fournisseur, Article, MouvementStock, Inventaire,
-    Depot, Transfert,
+    Depot, Transfert, CommandeFournisseur, LigneCommande, Reception,
+    FactureFournisseur, PaiementFournisseur,
 )
 
 
@@ -39,7 +40,8 @@ class CategorieArticleForm(BootstrapModelForm):
 class FournisseurForm(BootstrapModelForm):
     class Meta:
         model = Fournisseur
-        fields = ['nom', 'contact', 'telephone', 'email', 'adresse', 'nif', 'actif', 'observations']
+        fields = ['nom', 'contact', 'telephone', 'email', 'adresse', 'nif',
+                  'delai_livraison_jours', 'actif', 'observations']
         widgets = {
             'adresse': forms.Textarea(attrs={'rows': 2}),
             'observations': forms.Textarea(attrs={'rows': 2}),
@@ -172,3 +174,92 @@ class InventaireForm(BootstrapModelForm):
             self.fields['categorie'].queryset = CategorieArticle.objects.filter(entreprise=entreprise, actif=True)
         self.fields['depot'].required = True
         self.fields['depot'].label = 'Dépôt à inventorier'
+
+
+# ---------------------------------------------------------------------------
+# Achats
+# ---------------------------------------------------------------------------
+class CommandeFournisseurForm(BootstrapModelForm):
+    class Meta:
+        model = CommandeFournisseur
+        fields = ['fournisseur', 'depot', 'date_commande', 'date_livraison_prevue', 'notes']
+        widgets = {
+            'date_commande': forms.DateInput(attrs={'type': 'date'}),
+            'date_livraison_prevue': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['fournisseur'].queryset = Fournisseur.objects.filter(entreprise=entreprise, actif=True)
+            self.fields['depot'].queryset = Depot.objects.filter(entreprise=entreprise, actif=True)
+        self.fields['depot'].required = False
+        self.fields['depot'].help_text = "Dépôt où les marchandises seront reçues."
+
+
+class LigneCommandeForm(BootstrapModelForm):
+    class Meta:
+        model = LigneCommande
+        fields = ['article', 'quantite_commandee', 'prix_unitaire']
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['article'].queryset = Article.objects.filter(entreprise=entreprise, actif=True)
+
+    def clean_quantite_commandee(self):
+        q = self.cleaned_data['quantite_commandee']
+        if q is None or q <= 0:
+            raise forms.ValidationError("La quantité doit être supérieure à zéro.")
+        return q
+
+
+class ReceptionForm(BootstrapModelForm):
+    class Meta:
+        model = Reception
+        fields = ['depot', 'date_reception', 'notes']
+        widgets = {
+            'date_reception': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['depot'].queryset = Depot.objects.filter(entreprise=entreprise, actif=True)
+        self.fields['depot'].required = True
+
+
+class FactureFournisseurForm(BootstrapModelForm):
+    class Meta:
+        model = FactureFournisseur
+        fields = ['numero', 'fournisseur', 'commande', 'date_facture', 'date_echeance',
+                  'montant_ht', 'taux_tva', 'notes']
+        widgets = {
+            'date_facture': forms.DateInput(attrs={'type': 'date'}),
+            'date_echeance': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['fournisseur'].queryset = Fournisseur.objects.filter(entreprise=entreprise, actif=True)
+            self.fields['commande'].queryset = CommandeFournisseur.objects.filter(entreprise=entreprise)
+        self.fields['commande'].required = False
+
+
+class PaiementFournisseurForm(BootstrapModelForm):
+    class Meta:
+        model = PaiementFournisseur
+        fields = ['montant', 'date_paiement', 'mode', 'reference']
+        widgets = {
+            'date_paiement': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def clean_montant(self):
+        m = self.cleaned_data['montant']
+        if m is None or m <= 0:
+            raise forms.ValidationError("Le montant doit être supérieur à zéro.")
+        return m
