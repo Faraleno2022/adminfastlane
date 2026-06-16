@@ -75,6 +75,11 @@ class Entreprise(models.Model):
         """Le module Secrétariat est inclus dans tous les types de compte."""
         return True
 
+    @property
+    def has_stock(self):
+        """Le module Gestion du Stock est inclus dans tous les types de compte."""
+        return True
+
     def has_module(self, module_name):
         """Vérifie si l'entreprise a accès à un module donné"""
         module_map = {

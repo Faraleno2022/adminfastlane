@@ -1,0 +1,94 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}Rapports de stock{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header">
+    <h4 class="mb-0"><i class="bi bi-graph-up me-2"></i>Rapports de stock</h4>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="stat-card-stock text-center">
+            <h3 class="mb-0">{{ nb_articles }}</h3><small class="text-muted">Articles actifs</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card-stock text-center">
+            <h3 class="mb-0">{{ valeur_totale|floatformat:0|intcomma }}</h3><small class="text-muted">Valeur totale du stock (GNF)</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card-stock text-center">
+            <h3 class="mb-0 text-warning">{{ articles_alerte|length }}</h3><small class="text-muted">Articles à réapprovisionner</small>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-pie-chart me-1"></i>Valeur du stock par catégorie</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-stock-light"><tr><th>Catégorie</th><th class="text-center">Articles</th><th class="text-end">Valeur (GNF)</th></tr></thead>
+                    <tbody>
+                        {% for row in valeur_par_categorie %}
+                        <tr>
+                            <td>{{ row.categorie__nom|default:"(Sans catégorie)" }}</td>
+                            <td class="text-center">{{ row.nb }}</td>
+                            <td class="text-end">{{ row.valeur|floatformat:0|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Aucune donnée.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-arrow-left-right me-1"></i>Mouvements par type</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-stock-light"><tr><th>Type</th><th class="text-end">Nombre</th></tr></thead>
+                    <tbody>
+                        {% for row in mouvements_par_type %}
+                        <tr><td>{{ row.type_mouvement|capfirst }}</td><td class="text-end">{{ row.n }}</td></tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center text-muted py-3">Aucun mouvement.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-exclamation-triangle text-warning me-1"></i>Articles à réapprovisionner</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-stock-light"><tr><th>Référence</th><th>Article</th><th>Catégorie</th><th class="text-end">Stock</th><th class="text-end">Seuil</th></tr></thead>
+                    <tbody>
+                        {% for a in articles_alerte %}
+                        <tr>
+                            <td>{{ a.reference }}</td>
+                            <td><a href="{% url 'stock:article_detail' a.pk %}">{{ a.designation }}</a></td>
+                            <td>{{ a.categorie.nom|default:"-" }}</td>
+                            <td class="text-end"><span class="badge {% if a.en_rupture %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ a.quantite_stock|floatformat:0 }}</span></td>
+                            <td class="text-end">{{ a.seuil_alerte|floatformat:0 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">Aucun article sous le seuil d'alerte.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}Articles{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-box-seam me-2"></i>Articles</h4>
+    <a href="{% url 'stock:article_create' %}" class="btn btn-light btn-sm"><i class="bi bi-plus-circle me-1"></i>Nouvel article</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Catégorie</label>
+                <select name="categorie" class="form-select">
+                    <option value="">Toutes</option>
+                    {% for c in categories %}<option value="{{ c.pk }}" {% if categorie_filter == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.nom }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">État du stock</label>
+                <select name="etat" class="form-select">
+                    <option value="">Tous</option>
+                    <option value="alerte" {% if etat_filter == 'alerte' %}selected{% endif %}>En alerte</option>
+                    <option value="rupture" {% if etat_filter == 'rupture' %}selected{% endif %}>En rupture</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">Recherche</label>
+                <input type="text" name="q" value="{{ recherche }}" class="form-control" placeholder="Désignation, référence, emplacement...">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-success w-100"><i class="bi bi-search"></i> Filtrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr>
+                    <th>Référence</th><th>Désignation</th><th>Catégorie</th><th>Unité</th>
+                    <th class="text-end">Stock</th><th class="text-end">Prix achat</th>
+                    <th class="text-end">Valeur</th><th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in articles %}
+                <tr>
+                    <td><strong>{{ a.reference }}</strong></td>
+                    <td>
+                        <a href="{% url 'stock:article_detail' a.pk %}">{{ a.designation }}</a>
+                        {% if not a.actif %}<span class="badge bg-secondary">Inactif</span>{% endif %}
+                    </td>
+                    <td>{{ a.categorie.nom|default:"-" }}</td>
+                    <td>{{ a.get_unite_display }}</td>
+                    <td class="text-end">
+                        {% if a.en_rupture %}<span class="badge bg-danger">{{ a.quantite_stock|floatformat:0 }}</span>
+                        {% elif a.en_alerte %}<span class="badge bg-warning text-dark">{{ a.quantite_stock|floatformat:0 }}</span>
+                        {% else %}{{ a.quantite_stock|floatformat:0 }}{% endif %}
+                    </td>
+                    <td class="text-end">{{ a.prix_achat|floatformat:0|intcomma }}</td>
+                    <td class="text-end">{{ a.valeur_stock|floatformat:0|intcomma }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'stock:mouvement_create' %}?type=entree" class="btn btn-sm btn-outline-success" title="Mouvement"><i class="bi bi-arrow-left-right"></i></a>
+                        <a href="{% url 'stock:article_edit' a.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                        <a href="{% url 'stock:article_delete' a.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">Aucun article. Commencez par en créer un.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

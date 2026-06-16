@@ -1,0 +1,162 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}Stock - Tableau de bord{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-1"><i class="bi bi-boxes me-2"></i>Gestion du Stock</h4>
+        <small>{{ request.user.entreprise.nom_entreprise }}</small>
+    </div>
+    <div class="text-end">
+        <a href="{% url 'stock:mouvement_create' %}?type=entree" class="btn btn-light btn-sm"><i class="bi bi-box-arrow-in-down me-1"></i>Entrée</a>
+        <a href="{% url 'stock:mouvement_create' %}?type=sortie" class="btn btn-light btn-sm"><i class="bi bi-box-arrow-up me-1"></i>Sortie</a>
+    </div>
+</div>
+
+<!-- Statistiques rapides -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.total_articles }}</h3><small class="text-muted">Articles actifs</small></div>
+                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-box-seam"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.valeur_totale|floatformat:0|intcomma }}</h3><small class="text-muted">Valeur stock (GNF)</small></div>
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-cash-stack"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.nb_alerte }}</h3><small class="text-muted">En alerte stock</small></div>
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-exclamation-triangle"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.nb_rupture }}</h3><small class="text-muted">En rupture</small></div>
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-x-octagon"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.total_categories }}</h3><small class="text-muted">Catégories</small></div>
+                <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-tags"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.total_fournisseurs }}</h3><small class="text-muted">Fournisseurs</small></div>
+                <div class="stat-icon bg-secondary bg-opacity-10 text-secondary"><i class="bi bi-truck"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.mouvements_jour }}</h3><small class="text-muted">Mouvements du jour</small></div>
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-arrow-left-right"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.inventaires_en_cours }}</h3><small class="text-muted">Inventaires en cours</small></div>
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-clipboard-check"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Articles en rupture -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-x-octagon text-danger me-1"></i> Ruptures de stock</div>
+            <div class="card-body p-0">
+                {% if articles_rupture %}
+                <table class="table table-hover mb-0">
+                    <tbody>
+                        {% for a in articles_rupture %}
+                        <tr>
+                            <td><a href="{% url 'stock:article_detail' a.pk %}">{{ a.designation }}</a><br><small class="text-muted">{{ a.reference }}</small></td>
+                            <td class="text-end"><span class="badge bg-danger">{{ a.quantite_stock|floatformat:0 }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-4 mb-0">Aucune rupture.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Articles en alerte -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-exclamation-triangle text-warning me-1"></i> Alertes stock bas</div>
+            <div class="card-body p-0">
+                {% if articles_alerte %}
+                <table class="table table-hover mb-0">
+                    <tbody>
+                        {% for a in articles_alerte %}
+                        <tr>
+                            <td><a href="{% url 'stock:article_detail' a.pk %}">{{ a.designation }}</a><br><small class="text-muted">Seuil : {{ a.seuil_alerte|floatformat:0 }}</small></td>
+                            <td class="text-end"><span class="badge bg-warning text-dark">{{ a.quantite_stock|floatformat:0 }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-4 mb-0">Aucune alerte.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Derniers mouvements -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-arrow-left-right text-primary me-1"></i> Derniers mouvements</div>
+            <div class="card-body p-0">
+                {% if derniers_mouvements %}
+                <table class="table table-hover mb-0">
+                    <tbody>
+                        {% for m in derniers_mouvements %}
+                        <tr>
+                            <td>
+                                {% if m.type_mouvement == 'entree' %}<i class="bi bi-box-arrow-in-down text-success"></i>
+                                {% elif m.type_mouvement == 'sortie' %}<i class="bi bi-box-arrow-up text-danger"></i>
+                                {% else %}<i class="bi bi-sliders text-info"></i>{% endif %}
+                                {{ m.article.designation|truncatechars:24 }}<br>
+                                <small class="text-muted">{{ m.date_mouvement|date:"d/m H:i" }}</small>
+                            </td>
+                            <td class="text-end">{{ m.quantite|floatformat:0 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-4 mb-0">Aucun mouvement.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

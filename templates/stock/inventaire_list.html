@@ -1,0 +1,41 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Inventaires{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Inventaires</h4>
+    <a href="{% url 'stock:inventaire_create' %}" class="btn btn-light btn-sm"><i class="bi bi-plus-circle me-1"></i>Nouvel inventaire</a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>Référence</th><th>Date</th><th class="text-center">Articles</th><th class="text-center">Écarts</th><th class="text-center">Statut</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for inv in inventaires %}
+                <tr>
+                    <td><strong>{{ inv.reference }}</strong></td>
+                    <td>{{ inv.date_inventaire|date:"d/m/Y" }}</td>
+                    <td class="text-center">{{ inv.lignes.count }}</td>
+                    <td class="text-center">{% if inv.nb_ecarts %}<span class="badge bg-warning text-dark">{{ inv.nb_ecarts }}</span>{% else %}<span class="badge bg-success">0</span>{% endif %}</td>
+                    <td class="text-center">
+                        {% if inv.statut == 'valide' %}<span class="badge bg-success">Validé</span>
+                        {% elif inv.statut == 'annule' %}<span class="badge bg-secondary">Annulé</span>
+                        {% else %}<span class="badge bg-warning text-dark">En cours</span>{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'stock:inventaire_detail' inv.pk %}" class="btn btn-sm btn-outline-success"><i class="bi bi-eye"></i></a>
+                        <a href="{% url 'stock:inventaire_delete' inv.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Aucun inventaire.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

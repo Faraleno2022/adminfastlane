@@ -1,0 +1,86 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}{{ article.designation }}{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-box-seam me-2"></i>{{ article.designation }}</h4>
+    <div>
+        <a href="{% url 'stock:article_edit' article.pk %}" class="btn btn-light btn-sm"><i class="bi bi-pencil me-1"></i>Modifier</a>
+        <a href="{% url 'stock:article_list' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left me-1"></i>Retour</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card h-100"><div class="card-body">
+            <h6 class="text-muted">Fiche article</h6>
+            <table class="table table-sm mb-0">
+                <tr><th>Référence</th><td>{{ article.reference }}</td></tr>
+                <tr><th>Catégorie</th><td>{{ article.categorie.nom|default:"-" }}</td></tr>
+                <tr><th>Fournisseur</th><td>{{ article.fournisseur.nom|default:"-" }}</td></tr>
+                <tr><th>Unité</th><td>{{ article.get_unite_display }}</td></tr>
+                <tr><th>Emplacement</th><td>{{ article.emplacement|default:"-" }}</td></tr>
+                <tr><th>Prix d'achat</th><td>{{ article.prix_achat|floatformat:0|intcomma }} GNF</td></tr>
+                <tr><th>Prix de vente</th><td>{{ article.prix_vente|floatformat:0|intcomma }} GNF</td></tr>
+            </table>
+        </div></div>
+    </div>
+    <div class="col-md-8">
+        <div class="row g-3">
+            <div class="col-6">
+                <div class="stat-card-stock text-center">
+                    <h2 class="mb-0 {% if article.en_rupture %}text-danger{% elif article.en_alerte %}text-warning{% else %}text-success{% endif %}">{{ article.quantite_stock|floatformat:0 }}</h2>
+                    <small class="text-muted">Quantité en stock ({{ article.get_unite_display }})</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="stat-card-stock text-center">
+                    <h2 class="mb-0">{{ article.valeur_stock|floatformat:0|intcomma }}</h2>
+                    <small class="text-muted">Valeur du stock (GNF)</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="stat-card-stock text-center">
+                    <h2 class="mb-0">{{ article.seuil_alerte|floatformat:0 }}</h2>
+                    <small class="text-muted">Seuil d'alerte</small>
+                </div>
+            </div>
+            <div class="col-6 d-flex align-items-center justify-content-center">
+                <a href="{% url 'stock:mouvement_create' %}?type=entree" class="btn btn-success me-2"><i class="bi bi-box-arrow-in-down"></i> Entrée</a>
+                <a href="{% url 'stock:mouvement_create' %}?type=sortie" class="btn btn-outline-danger"><i class="bi bi-box-arrow-up"></i> Sortie</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-bold"><i class="bi bi-clock-history me-1"></i>Historique des mouvements</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>Date</th><th>Type</th><th class="text-end">Quantité</th><th class="text-end">Avant</th><th class="text-end">Après</th><th>Motif</th></tr>
+            </thead>
+            <tbody>
+                {% for m in mouvements %}
+                <tr>
+                    <td>{{ m.date_mouvement|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        {% if m.type_mouvement == 'entree' %}<span class="badge bg-success">Entrée</span>
+                        {% elif m.type_mouvement == 'sortie' %}<span class="badge bg-danger">Sortie</span>
+                        {% else %}<span class="badge bg-info">Ajustement</span>{% endif %}
+                    </td>
+                    <td class="text-end">{{ m.quantite|floatformat:0 }}</td>
+                    <td class="text-end text-muted">{{ m.quantite_avant|floatformat:0 }}</td>
+                    <td class="text-end"><strong>{{ m.quantite_apres|floatformat:0 }}</strong></td>
+                    <td>{{ m.motif|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Aucun mouvement enregistré.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

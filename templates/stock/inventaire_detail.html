@@ -1,0 +1,72 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Inventaire {{ inventaire.reference }}{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Inventaire {{ inventaire.reference }}</h4>
+        <small>{{ inventaire.date_inventaire|date:"d/m/Y" }} —
+            {% if inventaire.statut == 'valide' %}Validé{% elif inventaire.statut == 'annule' %}Annulé{% else %}En cours{% endif %}
+        </small>
+    </div>
+    <div>
+        {% if inventaire.statut == 'en_cours' %}
+        <a href="{% url 'stock:inventaire_valider' inventaire.pk %}" class="btn btn-light btn-sm"><i class="bi bi-check2-circle me-1"></i>Valider</a>
+        {% endif %}
+        <a href="{% url 'stock:inventaire_list' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left me-1"></i>Retour</a>
+    </div>
+</div>
+
+{% if inventaire.commentaire %}
+<div class="alert alert-light border"><i class="bi bi-chat-left-text me-1"></i>{{ inventaire.commentaire }}</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-stock-light">
+                    <tr>
+                        <th>Référence</th><th>Article</th>
+                        <th class="text-end">Stock théorique</th>
+                        <th class="text-end" style="width:160px;">Stock physique</th>
+                        <th class="text-end">Écart</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ligne in lignes %}
+                    <tr>
+                        <td>{{ ligne.article.reference }}</td>
+                        <td>{{ ligne.article.designation }}</td>
+                        <td class="text-end text-muted">{{ ligne.quantite_theorique|floatformat:0 }}</td>
+                        <td class="text-end">
+                            {% if inventaire.statut == 'en_cours' %}
+                            <input type="number" step="any" name="qte_{{ ligne.pk }}" value="{{ ligne.quantite_physique|floatformat:'-2' }}" class="form-control form-control-sm text-end">
+                            {% else %}
+                            {{ ligne.quantite_physique|floatformat:0 }}
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if ligne.ecart > 0 %}<span class="badge bg-success">+{{ ligne.ecart|floatformat:0 }}</span>
+                            {% elif ligne.ecart < 0 %}<span class="badge bg-danger">{{ ligne.ecart|floatformat:0 }}</span>
+                            {% else %}<span class="text-muted">0</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Aucun article dans cet inventaire.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if inventaire.statut == 'en_cours' %}
+    <div class="mt-3 d-flex gap-2">
+        <button type="submit" class="btn btn-success"><i class="bi bi-save me-1"></i>Enregistrer le comptage</button>
+        <a href="{% url 'stock:inventaire_valider' inventaire.pk %}" class="btn btn-outline-success"><i class="bi bi-check2-circle me-1"></i>Valider et ajuster le stock</a>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}
