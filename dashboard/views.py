@@ -259,7 +259,11 @@ def index(request):
     # Rediriger les comptes Secrétariat seul vers le module secrétariat
     if entreprise and entreprise.type_module == 'secretariat':
         return redirect('secretariat:dashboard')
-    
+
+    # Rediriger les comptes Gestion de Stock seul vers le module stock
+    if entreprise and entreprise.type_module == 'stock':
+        return redirect('stock:dashboard')
+
     entreprise_id = request.user.entreprise_id
 
     # Filtre periode (mois/annee). Par defaut, aucun filtre: toutes les periodes.

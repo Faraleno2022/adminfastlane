@@ -276,6 +276,8 @@ def register_entreprise(request):
                 # Rediriger selon le type de module choisi
                 if entreprise.type_module == 'secretariat':
                     return redirect('secretariat:dashboard')
+                elif entreprise.type_module == 'stock':
+                    return redirect('stock:dashboard')
                 else:
                     return redirect('dashboard:index')
         else:

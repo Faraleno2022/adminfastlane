@@ -10,6 +10,7 @@ class Entreprise(models.Model):
         ('rh', 'Ressources Humaines'),
         ('compta', 'Comptabilité'),
         ('secretariat', 'Secrétariat'),
+        ('stock', 'Gestion de Stock'),
         ('both', 'RH + Comptabilité'),
         ('all', 'RH + Comptabilité + Secrétariat'),
     ]
