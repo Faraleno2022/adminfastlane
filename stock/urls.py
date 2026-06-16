@@ -43,6 +43,26 @@ urlpatterns = [
     path('factures-fournisseur/<int:pk>/', views.facture_detail, name='facture_detail'),
     path('factures-fournisseur/<int:pk>/supprimer/', views.facture_delete, name='facture_delete'),
 
+    # Clients
+    path('clients/', views.client_list, name='client_list'),
+    path('clients/nouveau/', views.client_create, name='client_create'),
+    path('clients/<int:pk>/', views.client_detail, name='client_detail'),
+    path('clients/<int:pk>/modifier/', views.client_edit, name='client_edit'),
+    path('clients/<int:pk>/supprimer/', views.client_delete, name='client_delete'),
+    path('clients/prix-special/<int:pk>/supprimer/', views.prix_special_delete, name='prix_special_delete'),
+
+    # Ventes (devis / proforma / factures)
+    path('ventes/', views.vente_list, name='vente_list'),
+    path('ventes/nouveau/', views.vente_create, name='vente_create'),
+    path('ventes/<int:pk>/', views.vente_detail, name='vente_detail'),
+    path('ventes/<int:pk>/modifier/', views.vente_edit, name='vente_edit'),
+    path('ventes/<int:pk>/statut/<str:action>/', views.vente_statut, name='vente_statut'),
+    path('ventes/<int:pk>/convertir/', views.vente_convertir, name='vente_convertir'),
+    path('ventes/<int:pk>/annuler/', views.vente_annuler, name='vente_annuler'),
+    path('ventes/<int:pk>/paiement/', views.vente_paiement, name='vente_paiement'),
+    path('ventes/<int:pk>/livraison/', views.livraison_create, name='livraison_create'),
+    path('ventes/lignes/<int:pk>/supprimer/', views.ligne_vente_delete, name='ligne_vente_delete'),
+
     # Dépôts
     path('depots/', views.depot_list, name='depot_list'),
     path('depots/nouveau/', views.depot_create, name='depot_create'),

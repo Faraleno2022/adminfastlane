@@ -8,6 +8,8 @@ from .models import (
     CategorieArticle, Fournisseur, Article, MouvementStock, Inventaire,
     Depot, Transfert, CommandeFournisseur, LigneCommande, Reception,
     FactureFournisseur, PaiementFournisseur,
+    Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
+    PaiementClient,
 )
 
 
@@ -263,3 +265,100 @@ class PaiementFournisseurForm(BootstrapModelForm):
         if m is None or m <= 0:
             raise forms.ValidationError("Le montant doit être supérieur à zéro.")
         return m
+
+
+# ---------------------------------------------------------------------------
+# Ventes
+# ---------------------------------------------------------------------------
+class ClientForm(BootstrapModelForm):
+    class Meta:
+        model = Client
+        fields = ['nom', 'type_client', 'contact', 'telephone', 'email', 'adresse',
+                  'nif', 'remise_defaut', 'actif', 'observations']
+        widgets = {
+            'adresse': forms.Textarea(attrs={'rows': 2}),
+            'observations': forms.Textarea(attrs={'rows': 2}),
+        }
+
+
+class DocumentVenteForm(BootstrapModelForm):
+    class Meta:
+        model = DocumentVente
+        fields = ['type_document', 'client', 'depot', 'date_document', 'date_echeance',
+                  'remise_globale_pct', 'taux_tva', 'notes']
+        widgets = {
+            'date_document': forms.DateInput(attrs={'type': 'date'}),
+            'date_echeance': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['client'].queryset = Client.objects.filter(entreprise=entreprise, actif=True)
+            self.fields['depot'].queryset = Depot.objects.filter(entreprise=entreprise, actif=True)
+        self.fields['depot'].required = False
+        self.fields['depot'].help_text = "Dépôt depuis lequel la marchandise sera livrée."
+
+
+class LigneVenteForm(BootstrapModelForm):
+    class Meta:
+        model = LigneVente
+        fields = ['article', 'quantite', 'prix_unitaire', 'remise_pct']
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['article'].queryset = Article.objects.filter(entreprise=entreprise, actif=True)
+        # Prix et remise sont remplis automatiquement si laissés vides.
+        self.fields['prix_unitaire'].required = False
+        self.fields['remise_pct'].required = False
+        self.fields['prix_unitaire'].help_text = "Vide = prix spécial client ou prix de vente."
+
+    def clean_quantite(self):
+        q = self.cleaned_data['quantite']
+        if q is None or q <= 0:
+            raise forms.ValidationError("La quantité doit être supérieure à zéro.")
+        return q
+
+
+class BonLivraisonForm(BootstrapModelForm):
+    class Meta:
+        model = BonLivraison
+        fields = ['depot', 'date_livraison', 'adresse_livraison', 'notes']
+        widgets = {
+            'date_livraison': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['depot'].queryset = Depot.objects.filter(entreprise=entreprise, actif=True)
+        self.fields['depot'].required = True
+
+
+class PaiementClientForm(BootstrapModelForm):
+    class Meta:
+        model = PaiementClient
+        fields = ['montant', 'date_paiement', 'mode', 'reference']
+        widgets = {
+            'date_paiement': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def clean_montant(self):
+        m = self.cleaned_data['montant']
+        if m is None or m <= 0:
+            raise forms.ValidationError("Le montant doit être supérieur à zéro.")
+        return m
+
+
+class PrixSpecialClientForm(BootstrapModelForm):
+    class Meta:
+        model = PrixSpecialClient
+        fields = ['article', 'prix']
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['article'].queryset = Article.objects.filter(entreprise=entreprise, actif=True)

@@ -1,0 +1,87 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}{{ client.nom }}{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-person-circle me-2"></i>{{ client.nom }}</h4>
+    <div>
+        <a href="{% url 'stock:vente_create' %}?type=devis" class="btn btn-light btn-sm"><i class="bi bi-file-earmark-plus me-1"></i>Nouveau devis</a>
+        <a href="{% url 'stock:client_edit' client.pk %}" class="btn btn-outline-light btn-sm"><i class="bi bi-pencil"></i></a>
+        <a href="{% url 'stock:client_list' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left"></i></a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4 col-6"><div class="stat-card-stock text-center"><h3 class="mb-0">{{ documents|length }}</h3><small class="text-muted">Documents</small></div></div>
+    <div class="col-md-4 col-6"><div class="stat-card-stock text-center"><h3 class="mb-0">{{ total_vendu|floatformat:0|intcomma }}</h3><small class="text-muted">Total facturé (GNF)</small></div></div>
+    <div class="col-md-4 col-6"><div class="stat-card-stock text-center"><h3 class="mb-0 {% if creance > 0 %}text-danger{% endif %}">{{ creance|floatformat:0|intcomma }}</h3><small class="text-muted">Créance / solde dû (GNF)</small></div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-card-text me-1"></i>Coordonnées</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th>Type</th><td>{{ client.get_type_client_display }}</td></tr>
+                    <tr><th>Contact</th><td>{{ client.contact|default:"-" }}</td></tr>
+                    <tr><th>Téléphone</th><td>{{ client.telephone|default:"-" }}</td></tr>
+                    <tr><th>Email</th><td>{{ client.email|default:"-" }}</td></tr>
+                    <tr><th>Adresse</th><td>{{ client.adresse|default:"-" }}</td></tr>
+                    <tr><th>NIF</th><td>{{ client.nif|default:"-" }}</td></tr>
+                    <tr><th>Remise habituelle</th><td>{{ client.remise_defaut|floatformat:0 }} %</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-tag me-1"></i>Prix spéciaux</div>
+            <ul class="list-group list-group-flush">
+                {% for ps in prix_speciaux %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{ ps.article.designation }}<br><small class="text-muted">{{ ps.prix|floatformat:0|intcomma }} GNF</small></span>
+                    <a href="{% url 'stock:prix_special_delete' ps.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted text-center">Aucun prix spécial.</li>
+                {% endfor %}
+            </ul>
+            <div class="card-body">
+                <form method="post" class="row g-2">
+                    {% csrf_token %}
+                    <div class="col-7">{{ form.article }}</div>
+                    <div class="col-3">{{ form.prix }}</div>
+                    <div class="col-2"><button type="submit" class="btn btn-success w-100"><i class="bi bi-plus-lg"></i></button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-cart-check me-1"></i>Documents de vente</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-stock-light"><tr><th>Référence</th><th>Type</th><th>Date</th><th class="text-end">TTC</th><th class="text-end">Dû</th><th class="text-center">Statut</th></tr></thead>
+                    <tbody>
+                        {% for d in documents %}
+                        <tr>
+                            <td><a href="{% url 'stock:vente_detail' d.pk %}">{{ d.reference }}</a></td>
+                            <td>{{ d.get_type_document_display }}</td>
+                            <td>{{ d.date_document|date:"d/m/Y" }}</td>
+                            <td class="text-end">{{ d.montant_ttc|floatformat:0|intcomma }}</td>
+                            <td class="text-end {% if d.est_facture and d.montant_du > 0 %}text-danger{% endif %}">{% if d.est_facture %}{{ d.montant_du|floatformat:0|intcomma }}{% else %}-{% endif %}</td>
+                            <td class="text-center"><span class="badge bg-secondary">{{ d.get_statut_display }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted py-3">Aucun document.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

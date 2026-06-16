@@ -1,0 +1,67 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}Ventes{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-cart-check me-2"></i>Devis &amp; Factures</h4>
+    <div>
+        <a href="{% url 'stock:vente_create' %}?type=devis" class="btn btn-light btn-sm"><i class="bi bi-file-earmark-text me-1"></i>Devis</a>
+        <a href="{% url 'stock:vente_create' %}?type=facture" class="btn btn-light btn-sm"><i class="bi bi-receipt me-1"></i>Facture</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">Type</label>
+                <select name="type" class="form-select" onchange="this.form.submit()">
+                    <option value="">Tous</option>
+                    {% for val, lbl in types %}<option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">Statut</label>
+                <select name="statut" class="form-select" onchange="this.form.submit()">
+                    <option value="">Tous</option>
+                    {% for val, lbl in statuts %}<option value="{{ val }}" {% if statut_filter == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>Référence</th><th>Type</th><th>Client</th><th>Date</th><th class="text-end">TTC</th><th class="text-end">Dû</th><th class="text-center">Statut</th><th class="text-end"></th></tr>
+            </thead>
+            <tbody>
+                {% for d in documents %}
+                <tr>
+                    <td><strong>{{ d.reference }}</strong></td>
+                    <td>{{ d.get_type_document_display }}</td>
+                    <td>{{ d.client.nom }}</td>
+                    <td>{{ d.date_document|date:"d/m/Y" }}</td>
+                    <td class="text-end">{{ d.montant_ttc|floatformat:0|intcomma }}</td>
+                    <td class="text-end {% if d.est_facture and d.montant_du > 0 %}text-danger{% endif %}">{% if d.est_facture %}{{ d.montant_du|floatformat:0|intcomma }}{% else %}-{% endif %}</td>
+                    <td class="text-center">
+                        {% if d.statut == 'payee' %}<span class="badge bg-success">{{ d.get_statut_display }}</span>
+                        {% elif d.statut == 'partielle' %}<span class="badge bg-warning text-dark">{{ d.get_statut_display }}</span>
+                        {% elif d.statut == 'annulee' or d.statut == 'refuse' %}<span class="badge bg-danger">{{ d.get_statut_display }}</span>
+                        {% elif d.statut == 'emise' or d.statut == 'accepte' or d.statut == 'converti' %}<span class="badge bg-primary">{{ d.get_statut_display }}</span>
+                        {% else %}<span class="badge bg-secondary">{{ d.get_statut_display }}</span>{% endif %}
+                    </td>
+                    <td class="text-end"><a href="{% url 'stock:vente_detail' d.pk %}" class="btn btn-sm btn-outline-success"><i class="bi bi-eye"></i></a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">Aucun document de vente.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -536,3 +536,239 @@ class PaiementFournisseur(models.Model):
 
     def __str__(self):
         return f"{self.montant} ({self.get_mode_display()})"
+
+
+# ===========================================================================
+# VENTES — Clients, devis/factures, bons de livraison, paiements
+# ===========================================================================
+class Client(models.Model):
+    """Client de l'entreprise."""
+    TYPES = (
+        ('particulier', 'Particulier'),
+        ('entreprise', 'Entreprise'),
+    )
+
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='clients')
+    nom = models.CharField(max_length=200, verbose_name='Nom / Raison sociale')
+    type_client = models.CharField(max_length=12, choices=TYPES, default='particulier', verbose_name='Type')
+    contact = models.CharField(max_length=200, blank=True, verbose_name='Personne de contact')
+    telephone = models.CharField(max_length=30, blank=True, verbose_name='Téléphone')
+    email = models.EmailField(blank=True, verbose_name='Email')
+    adresse = models.TextField(blank=True, verbose_name='Adresse')
+    nif = models.CharField(max_length=50, blank=True, verbose_name='NIF')
+    remise_defaut = models.DecimalField(max_digits=5, decimal_places=2, default=0,
+                                        verbose_name='Remise habituelle (%)')
+    actif = models.BooleanField(default=True)
+    observations = models.TextField(blank=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'stock_client'
+        verbose_name = 'Client'
+        verbose_name_plural = 'Clients'
+        ordering = ['nom']
+
+    def __str__(self):
+        return self.nom
+
+
+class PrixSpecialClient(models.Model):
+    """Prix spécial négocié pour un client sur un article donné."""
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='prix_speciaux')
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='prix_speciaux')
+    prix = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Prix spécial (GNF)')
+
+    class Meta:
+        db_table = 'stock_prix_special_client'
+        verbose_name = 'Prix spécial client'
+        verbose_name_plural = 'Prix spéciaux client'
+        ordering = ['article__designation']
+        constraints = [
+            models.UniqueConstraint(fields=['client', 'article'], name='unique_prix_special_client_article'),
+        ]
+
+    def __str__(self):
+        return f"{self.client.nom} - {self.article.designation} : {self.prix}"
+
+
+class DocumentVente(models.Model):
+    """Document de vente : devis, facture proforma ou facture."""
+    TYPES = (
+        ('devis', 'Devis'),
+        ('proforma', 'Facture proforma'),
+        ('facture', 'Facture'),
+    )
+    STATUTS = (
+        ('brouillon', 'Brouillon'),
+        ('envoye', 'Envoyé'),
+        ('accepte', 'Accepté'),
+        ('refuse', 'Refusé'),
+        ('converti', 'Converti en facture'),
+        ('emise', 'Émise'),
+        ('partielle', 'Partiellement payée'),
+        ('payee', 'Payée'),
+        ('annulee', 'Annulée'),
+    )
+
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='documents_vente')
+    type_document = models.CharField(max_length=10, choices=TYPES, default='devis', verbose_name='Type')
+    reference = models.CharField(max_length=40, verbose_name='Référence')
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name='documents')
+    depot = models.ForeignKey(Depot, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='documents_vente', verbose_name='Dépôt de livraison')
+    date_document = models.DateField(default=timezone.now, verbose_name='Date')
+    date_echeance = models.DateField(null=True, blank=True, verbose_name="Validité / Échéance")
+    remise_globale_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='Remise globale (%)')
+    taux_tva = models.DecimalField(max_digits=5, decimal_places=2, default=18, verbose_name='Taux TVA (%)')
+    statut = models.CharField(max_length=10, choices=STATUTS, default='brouillon')
+    montant_paye = models.DecimalField(max_digits=16, decimal_places=2, default=0, verbose_name='Montant encaissé (GNF)')
+    notes = models.TextField(blank=True)
+    converti_depuis = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True,
+                                        related_name='conversions', verbose_name='Converti depuis')
+    date_creation = models.DateTimeField(auto_now_add=True)
+    cree_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents_vente_crees')
+
+    class Meta:
+        db_table = 'stock_document_vente'
+        verbose_name = 'Document de vente'
+        verbose_name_plural = 'Documents de vente'
+        ordering = ['-date_document', '-id']
+        constraints = [
+            models.UniqueConstraint(fields=['entreprise', 'reference'], name='unique_vente_reference_par_entreprise'),
+        ]
+
+    def __str__(self):
+        return f"{self.reference} - {self.client.nom}"
+
+    @property
+    def total_ht(self):
+        brut = sum((l.montant for l in self.lignes.all()), Decimal('0'))
+        return brut * (Decimal('1') - (self.remise_globale_pct or Decimal('0')) / Decimal('100'))
+
+    @property
+    def montant_tva(self):
+        return self.total_ht * (self.taux_tva or Decimal('0')) / Decimal('100')
+
+    @property
+    def montant_ttc(self):
+        return self.total_ht + self.montant_tva
+
+    @property
+    def montant_du(self):
+        return self.montant_ttc - (self.montant_paye or Decimal('0'))
+
+    @property
+    def est_facture(self):
+        return self.type_document == 'facture'
+
+    @property
+    def modifiable(self):
+        if self.est_facture:
+            return (self.montant_paye or 0) <= 0 and not self.livraisons.exists() and self.statut != 'annulee'
+        return self.statut in ('brouillon', 'envoye')
+
+    def maj_statut_paiement(self, sauver=True):
+        """Met à jour le statut d'une facture selon les encaissements."""
+        if not self.est_facture:
+            return
+        du = self.montant_du
+        if (self.montant_paye or 0) <= 0:
+            self.statut = 'emise'
+        elif du <= 0:
+            self.statut = 'payee'
+        else:
+            self.statut = 'partielle'
+        if sauver:
+            self.save(update_fields=['statut'])
+
+
+class LigneVente(models.Model):
+    """Ligne d'un document de vente."""
+    document = models.ForeignKey(DocumentVente, on_delete=models.CASCADE, related_name='lignes')
+    article = models.ForeignKey(Article, on_delete=models.PROTECT, related_name='lignes_vente')
+    quantite = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Quantité')
+    prix_unitaire = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Prix unitaire (GNF)')
+    remise_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='Remise (%)')
+    quantite_livree = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Quantité livrée')
+
+    class Meta:
+        db_table = 'stock_ligne_vente'
+        verbose_name = 'Ligne de vente'
+        verbose_name_plural = 'Lignes de vente'
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.article.designation} x {self.quantite}"
+
+    @property
+    def montant(self):
+        return (self.quantite or Decimal('0')) * (self.prix_unitaire or Decimal('0')) \
+            * (Decimal('1') - (self.remise_pct or Decimal('0')) / Decimal('100'))
+
+    @property
+    def reste_a_livrer(self):
+        return (self.quantite or Decimal('0')) - (self.quantite_livree or Decimal('0'))
+
+
+class BonLivraison(models.Model):
+    """Bon de livraison : sortie de stock vers le client."""
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='bons_livraison')
+    document = models.ForeignKey(DocumentVente, on_delete=models.CASCADE, related_name='livraisons')
+    reference = models.CharField(max_length=40, verbose_name='Référence')
+    depot = models.ForeignKey(Depot, on_delete=models.PROTECT, related_name='livraisons', verbose_name='Dépôt')
+    date_livraison = models.DateField(default=timezone.now, verbose_name='Date de livraison')
+    adresse_livraison = models.CharField(max_length=255, blank=True, verbose_name='Adresse de livraison')
+    notes = models.TextField(blank=True)
+    cree_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True, related_name='livraisons_creees')
+
+    class Meta:
+        db_table = 'stock_bon_livraison'
+        verbose_name = 'Bon de livraison'
+        verbose_name_plural = 'Bons de livraison'
+        ordering = ['-date_livraison', '-id']
+
+    def __str__(self):
+        return f"{self.reference} ({self.document.reference})"
+
+
+class LigneLivraison(models.Model):
+    """Quantité livrée pour une ligne de vente."""
+    livraison = models.ForeignKey(BonLivraison, on_delete=models.CASCADE, related_name='lignes')
+    ligne_vente = models.ForeignKey(LigneVente, on_delete=models.CASCADE, related_name='livraisons')
+    quantite = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Quantité livrée')
+
+    class Meta:
+        db_table = 'stock_ligne_livraison'
+        verbose_name = 'Ligne de livraison'
+        verbose_name_plural = 'Lignes de livraison'
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.ligne_vente.article.designation} : {self.quantite}"
+
+
+class PaiementClient(models.Model):
+    """Encaissement (reçu) sur une facture client."""
+    MODES = (
+        ('especes', 'Espèces'),
+        ('virement', 'Virement'),
+        ('cheque', 'Chèque'),
+        ('mobile_money', 'Mobile Money'),
+        ('autre', 'Autre'),
+    )
+
+    document = models.ForeignKey(DocumentVente, on_delete=models.CASCADE, related_name='paiements')
+    montant = models.DecimalField(max_digits=16, decimal_places=2, verbose_name='Montant (GNF)')
+    date_paiement = models.DateField(default=timezone.now, verbose_name='Date du paiement')
+    mode = models.CharField(max_length=15, choices=MODES, default='especes', verbose_name='Mode de paiement')
+    reference = models.CharField(max_length=80, blank=True, verbose_name='Référence du reçu')
+    cree_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True, related_name='paiements_client_crees')
+
+    class Meta:
+        db_table = 'stock_paiement_client'
+        verbose_name = 'Paiement client'
+        verbose_name_plural = 'Paiements client'
+        ordering = ['-date_paiement', '-id']
+
+    def __str__(self):
+        return f"{self.montant} ({self.get_mode_display()})"

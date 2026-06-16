@@ -21,12 +21,16 @@ from .models import (
     Inventaire, LigneInventaire, Depot, StockArticleDepot, Transfert,
     CommandeFournisseur, LigneCommande, Reception, LigneReception,
     FactureFournisseur, PaiementFournisseur,
+    Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
+    LigneLivraison, PaiementClient,
 )
 from .forms import (
     CategorieArticleForm, FournisseurForm, ArticleForm,
     MouvementStockForm, InventaireForm, DepotForm, TransfertForm,
     CommandeFournisseurForm, LigneCommandeForm, ReceptionForm,
     FactureFournisseurForm, PaiementFournisseurForm,
+    ClientForm, DocumentVenteForm, LigneVenteForm, BonLivraisonForm,
+    PaiementClientForm, PrixSpecialClientForm,
 )
 
 # Nombre de jours sans mouvement au-delà duquel un article est « dormant ».
@@ -1171,4 +1175,422 @@ def fournisseur_detail(request, pk):
         'fournisseur': fournisseur, 'articles': articles, 'commandes': commandes[:20],
         'factures': factures[:20], 'dette': dette, 'total_achats': total_achats,
         'delai_reel_moyen': delai_reel_moyen, 'nb_commandes': commandes.count(),
+    })
+
+
+# ===========================================================================
+# VENTES — Clients
+# ===========================================================================
+@reauth_required
+@login_required
+@stock_required
+def client_list(request):
+    entreprise = request.user.entreprise
+    clients = Client.objects.filter(entreprise=entreprise)
+    recherche = request.GET.get('q', '')
+    if recherche:
+        clients = clients.filter(
+            Q(nom__icontains=recherche) | Q(contact__icontains=recherche) |
+            Q(email__icontains=recherche) | Q(telephone__icontains=recherche)
+        )
+    return render(request, 'stock/client_list.html', {'clients': clients, 'recherche': recherche})
+
+
+@reauth_required
+@login_required
+@stock_required
+def client_create(request):
+    entreprise = request.user.entreprise
+    if request.method == 'POST':
+        form = ClientForm(request.POST)
+        if form.is_valid():
+            c = form.save(commit=False)
+            c.entreprise = entreprise
+            c.save()
+            messages.success(request, "Client ajouté.")
+            return redirect('stock:client_list')
+    else:
+        form = ClientForm()
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': 'Nouveau client', 'retour': 'stock:client_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def client_edit(request, pk):
+    c = get_object_or_404(Client, pk=pk, entreprise=request.user.entreprise)
+    if request.method == 'POST':
+        form = ClientForm(request.POST, instance=c)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Client mis à jour.")
+            return redirect('stock:client_detail', pk=c.pk)
+    else:
+        form = ClientForm(instance=c)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': 'Modifier le client', 'retour': 'stock:client_detail', 'retour_pk': c.pk,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def client_delete(request, pk):
+    c = get_object_or_404(Client, pk=pk, entreprise=request.user.entreprise)
+    if request.method == 'POST':
+        c.delete()
+        messages.success(request, "Client supprimé.")
+        return redirect('stock:client_list')
+    return render(request, 'stock/confirm_delete.html', {
+        'objet': c.nom, 'retour': 'stock:client_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def client_detail(request, pk):
+    entreprise = request.user.entreprise
+    client = get_object_or_404(Client, pk=pk, entreprise=entreprise)
+
+    if request.method == 'POST':
+        form = PrixSpecialClientForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            ps = form.save(commit=False)
+            ps.client = client
+            ps.save()
+            messages.success(request, "Prix spécial enregistré.")
+            return redirect('stock:client_detail', pk=client.pk)
+    else:
+        form = PrixSpecialClientForm(entreprise=entreprise)
+
+    documents = client.documents.order_by('-date_document')
+    factures = [d for d in documents if d.type_document == 'facture']
+    creance = sum((f.montant_du for f in factures if f.statut != 'annulee'), Decimal('0'))
+    total_vendu = sum((f.montant_ttc for f in factures if f.statut != 'annulee'), Decimal('0'))
+
+    return render(request, 'stock/client_detail.html', {
+        'client': client, 'documents': documents[:20], 'factures': factures[:20],
+        'creance': creance, 'total_vendu': total_vendu,
+        'prix_speciaux': client.prix_speciaux.select_related('article'),
+        'form': form,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def prix_special_delete(request, pk):
+    ps = get_object_or_404(PrixSpecialClient, pk=pk, client__entreprise=request.user.entreprise)
+    client_pk = ps.client_id
+    ps.delete()
+    messages.success(request, "Prix spécial supprimé.")
+    return redirect('stock:client_detail', pk=client_pk)
+
+
+# ===========================================================================
+# VENTES — Devis / Proforma / Factures
+# ===========================================================================
+_PREFIXES_VENTE = {'devis': 'DEV', 'proforma': 'PRO', 'facture': 'FACT'}
+
+
+@reauth_required
+@login_required
+@stock_required
+def vente_list(request):
+    entreprise = request.user.entreprise
+    documents = (DocumentVente.objects.filter(entreprise=entreprise)
+                 .select_related('client').prefetch_related('lignes'))
+    type_filter = request.GET.get('type', '')
+    statut = request.GET.get('statut', '')
+    if type_filter:
+        documents = documents.filter(type_document=type_filter)
+    if statut:
+        documents = documents.filter(statut=statut)
+    return render(request, 'stock/vente_list.html', {
+        'documents': documents, 'types': DocumentVente.TYPES, 'statuts': DocumentVente.STATUTS,
+        'type_filter': type_filter, 'statut_filter': statut,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def vente_create(request):
+    entreprise = request.user.entreprise
+    if not Client.objects.filter(entreprise=entreprise, actif=True).exists():
+        messages.warning(request, "Créez d'abord un client.")
+        return redirect('stock:client_create')
+    type_initial = request.GET.get('type', 'devis')
+    if request.method == 'POST':
+        form = DocumentVenteForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            doc = form.save(commit=False)
+            doc.entreprise = entreprise
+            doc.reference = _generer_reference(DocumentVente, entreprise,
+                                               _PREFIXES_VENTE.get(doc.type_document, 'DOC'))
+            doc.cree_par = request.user
+            if doc.est_facture:
+                doc.statut = 'emise'
+            doc.save()
+            messages.success(request, f"{doc.get_type_document_display()} {doc.reference} créé. Ajoutez les articles.")
+            return redirect('stock:vente_detail', pk=doc.pk)
+    else:
+        form = DocumentVenteForm(entreprise=entreprise, initial={'type_document': type_initial})
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': 'Nouveau document de vente', 'retour': 'stock:vente_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def vente_detail(request, pk):
+    entreprise = request.user.entreprise
+    doc = get_object_or_404(DocumentVente, pk=pk, entreprise=entreprise)
+    lignes = doc.lignes.select_related('article')
+
+    if request.method == 'POST':
+        if not doc.modifiable:
+            messages.error(request, "Ce document ne peut plus être modifié.")
+            return redirect('stock:vente_detail', pk=pk)
+        form = LigneVenteForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            ligne = form.save(commit=False)
+            ligne.document = doc
+            # Prix : prix spécial client, sinon prix de vente de l'article.
+            if not ligne.prix_unitaire:
+                sp = PrixSpecialClient.objects.filter(client=doc.client, article=ligne.article).first()
+                ligne.prix_unitaire = sp.prix if sp else (ligne.article.prix_vente or Decimal('0'))
+            # Remise : celle saisie, sinon remise habituelle du client.
+            if form.cleaned_data.get('remise_pct') in (None, ''):
+                ligne.remise_pct = doc.client.remise_defaut or Decimal('0')
+            ligne.save()
+            messages.success(request, "Article ajouté.")
+            return redirect('stock:vente_detail', pk=pk)
+    else:
+        form = LigneVenteForm(entreprise=entreprise)
+
+    paiement_form = PaiementClientForm(initial={'montant': doc.montant_du}) if doc.est_facture else None
+    return render(request, 'stock/vente_detail.html', {
+        'doc': doc, 'lignes': lignes, 'form': form, 'paiement_form': paiement_form,
+        'livraisons': doc.livraisons.select_related('depot'),
+        'paiements': doc.paiements.all() if doc.est_facture else [],
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def vente_edit(request, pk):
+    entreprise = request.user.entreprise
+    doc = get_object_or_404(DocumentVente, pk=pk, entreprise=entreprise)
+    if not doc.modifiable:
+        messages.error(request, "Ce document ne peut plus être modifié.")
+        return redirect('stock:vente_detail', pk=pk)
+    if request.method == 'POST':
+        form = DocumentVenteForm(request.POST, instance=doc, entreprise=entreprise)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Document mis à jour.")
+            return redirect('stock:vente_detail', pk=pk)
+    else:
+        form = DocumentVenteForm(instance=doc, entreprise=entreprise)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': f'Modifier {doc.reference}', 'retour': 'stock:vente_detail', 'retour_pk': doc.pk,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def ligne_vente_delete(request, pk):
+    ligne = get_object_or_404(LigneVente, pk=pk, document__entreprise=request.user.entreprise)
+    doc_pk = ligne.document_id
+    if ligne.document.modifiable:
+        ligne.delete()
+        messages.success(request, "Ligne supprimée.")
+    else:
+        messages.error(request, "Document non modifiable.")
+    return redirect('stock:vente_detail', pk=doc_pk)
+
+
+@reauth_required
+@login_required
+@stock_required
+def vente_statut(request, pk, action):
+    """Transitions de statut pour devis/proforma : envoyer, accepter, refuser."""
+    doc = get_object_or_404(DocumentVente, pk=pk, entreprise=request.user.entreprise)
+    transitions = {
+        'envoyer': ('envoye', "Document marqué comme envoyé."),
+        'accepter': ('accepte', "Devis accepté."),
+        'refuser': ('refuse', "Devis refusé."),
+    }
+    if action in transitions and not doc.est_facture:
+        doc.statut = transitions[action][0]
+        doc.save(update_fields=['statut'])
+        messages.success(request, transitions[action][1])
+    return redirect('stock:vente_detail', pk=pk)
+
+
+@reauth_required
+@login_required
+@stock_required
+def vente_convertir(request, pk):
+    """Convertit un devis / proforma en facture (copie des lignes)."""
+    entreprise = request.user.entreprise
+    devis = get_object_or_404(DocumentVente, pk=pk, entreprise=entreprise)
+    if devis.est_facture:
+        messages.warning(request, "Ce document est déjà une facture.")
+        return redirect('stock:vente_detail', pk=pk)
+    if not devis.lignes.exists():
+        messages.error(request, "Ajoutez au moins un article avant de convertir.")
+        return redirect('stock:vente_detail', pk=pk)
+    with transaction.atomic():
+        facture = DocumentVente.objects.create(
+            entreprise=entreprise, type_document='facture',
+            reference=_generer_reference(DocumentVente, entreprise, 'FACT'),
+            client=devis.client, depot=devis.depot, date_document=timezone.now().date(),
+            remise_globale_pct=devis.remise_globale_pct, taux_tva=devis.taux_tva,
+            statut='emise', notes=devis.notes, converti_depuis=devis, cree_par=request.user,
+        )
+        for l in devis.lignes.all():
+            LigneVente.objects.create(
+                document=facture, article=l.article, quantite=l.quantite,
+                prix_unitaire=l.prix_unitaire, remise_pct=l.remise_pct,
+            )
+        devis.statut = 'converti'
+        devis.save(update_fields=['statut'])
+    messages.success(request, f"Facture {facture.reference} créée depuis {devis.reference}.")
+    return redirect('stock:vente_detail', pk=facture.pk)
+
+
+@reauth_required
+@login_required
+@stock_required
+def vente_annuler(request, pk):
+    doc = get_object_or_404(DocumentVente, pk=pk, entreprise=request.user.entreprise)
+    if request.method == 'POST':
+        if doc.livraisons.exists() or (doc.montant_paye or 0) > 0:
+            messages.error(request, "Impossible d'annuler : livraisons ou paiements existants.")
+        else:
+            doc.statut = 'annulee'
+            doc.save(update_fields=['statut'])
+            messages.success(request, "Document annulé.")
+        return redirect('stock:vente_detail', pk=pk)
+    return render(request, 'stock/confirm_action.html', {
+        'titre': 'Annuler le document',
+        'message': f"Annuler {doc.reference} ?",
+        'bouton': 'Annuler', 'retour': 'stock:vente_detail', 'retour_pk': doc.pk,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def vente_paiement(request, pk):
+    """Enregistre un encaissement (reçu) sur une facture."""
+    doc = get_object_or_404(DocumentVente, pk=pk, entreprise=request.user.entreprise)
+    if not doc.est_facture:
+        messages.error(request, "Seules les factures acceptent des paiements.")
+        return redirect('stock:vente_detail', pk=pk)
+    if request.method == 'POST':
+        form = PaiementClientForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                paiement = form.save(commit=False)
+                if paiement.montant > doc.montant_du:
+                    messages.error(request, f"Le paiement dépasse le solde dû ({doc.montant_du}).")
+                    return redirect('stock:vente_detail', pk=pk)
+                paiement.document = doc
+                paiement.cree_par = request.user
+                paiement.save()
+                doc.montant_paye = (doc.montant_paye or Decimal('0')) + paiement.montant
+                doc.maj_statut_paiement(sauver=False)
+                doc.save(update_fields=['montant_paye', 'statut'])
+            messages.success(request, "Encaissement enregistré.")
+    return redirect('stock:vente_detail', pk=pk)
+
+
+@reauth_required
+@login_required
+@stock_required
+def livraison_create(request, pk):
+    """Bon de livraison : sortie de stock vers le client."""
+    entreprise = request.user.entreprise
+    doc = get_object_or_404(DocumentVente, pk=pk, entreprise=entreprise)
+    if not doc.est_facture:
+        messages.error(request, "Le bon de livraison se génère depuis une facture.")
+        return redirect('stock:vente_detail', pk=pk)
+    if not doc.lignes.exists():
+        messages.error(request, "Aucun article à livrer.")
+        return redirect('stock:vente_detail', pk=pk)
+    lignes = doc.lignes.select_related('article')
+
+    if request.method == 'POST':
+        form = BonLivraisonForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            depot = form.cleaned_data['depot']
+            # Vérifier le stock disponible avant d'écrire quoi que ce soit.
+            erreurs = []
+            a_livrer = {}
+            for ligne in lignes:
+                valeur = request.POST.get(f'livre_{ligne.pk}', '').strip().replace(',', '.')
+                if not valeur:
+                    continue
+                try:
+                    qte = Decimal(valeur)
+                except (ValueError, ArithmeticError):
+                    continue
+                if qte <= 0:
+                    continue
+                qte = min(qte, ligne.reste_a_livrer)
+                if qte <= 0:
+                    continue
+                dispo = ligne.article.stock_dans(depot)
+                if qte > dispo:
+                    erreurs.append(f"{ligne.article.designation} : {dispo} en stock dans {depot.nom}, {qte} demandé(s).")
+                else:
+                    a_livrer[ligne.pk] = (ligne, qte)
+            if erreurs:
+                for e in erreurs:
+                    messages.error(request, e)
+                return redirect('stock:livraison_create', pk=pk)
+            if not a_livrer:
+                messages.error(request, "Aucune quantité à livrer saisie.")
+                return redirect('stock:livraison_create', pk=pk)
+
+            with transaction.atomic():
+                bl = form.save(commit=False)
+                bl.entreprise = entreprise
+                bl.document = doc
+                bl.reference = _generer_reference(BonLivraison, entreprise, 'BL')
+                bl.cree_par = request.user
+                bl.save()
+                for ligne, qte in a_livrer.values():
+                    article = Article.objects.select_for_update().get(pk=ligne.article_id)
+                    avant, apres = appliquer_mouvement_depot(article, depot, 'sortie', qte)
+                    MouvementStock.objects.create(
+                        entreprise=entreprise, article=article, depot=depot,
+                        type_mouvement='sortie', quantite=qte, quantite_avant=avant, quantite_apres=apres,
+                        prix_unitaire=ligne.prix_unitaire, motif=f"Livraison {bl.reference} - {doc.client.nom}",
+                        reference_document=doc.reference, date_mouvement=timezone.now(), cree_par=request.user,
+                    )
+                    LigneLivraison.objects.create(livraison=bl, ligne_vente=ligne, quantite=qte)
+                    ligne.quantite_livree = (ligne.quantite_livree or Decimal('0')) + qte
+                    ligne.save(update_fields=['quantite_livree'])
+            messages.success(request, f"Bon de livraison {bl.reference} créé (stock déduit de {depot.nom}).")
+            return redirect('stock:vente_detail', pk=pk)
+    else:
+        initial = {}
+        if doc.depot_id:
+            initial['depot'] = doc.depot_id
+        if doc.client.adresse:
+            initial['adresse_livraison'] = doc.client.adresse
+        form = BonLivraisonForm(entreprise=entreprise, initial=initial)
+
+    return render(request, 'stock/livraison_form.html', {
+        'doc': doc, 'lignes': lignes, 'form': form,
     })

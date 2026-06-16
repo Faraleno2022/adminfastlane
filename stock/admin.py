@@ -5,7 +5,54 @@ from .models import (
     Inventaire, LigneInventaire, Depot, StockArticleDepot, Transfert,
     CommandeFournisseur, LigneCommande, Reception, LigneReception,
     FactureFournisseur, PaiementFournisseur,
+    Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
+    LigneLivraison, PaiementClient,
 )
+
+
+class PrixSpecialClientInline(admin.TabularInline):
+    model = PrixSpecialClient
+    extra = 0
+
+
+@admin.register(Client)
+class ClientAdmin(admin.ModelAdmin):
+    list_display = ('nom', 'type_client', 'telephone', 'email', 'remise_defaut', 'actif', 'entreprise')
+    list_filter = ('type_client', 'actif', 'entreprise')
+    search_fields = ('nom', 'contact', 'email', 'telephone')
+    inlines = [PrixSpecialClientInline]
+
+
+class LigneVenteInline(admin.TabularInline):
+    model = LigneVente
+    extra = 0
+
+
+class PaiementClientInline(admin.TabularInline):
+    model = PaiementClient
+    extra = 0
+
+
+@admin.register(DocumentVente)
+class DocumentVenteAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'type_document', 'client', 'date_document', 'statut', 'montant_paye', 'entreprise')
+    list_filter = ('type_document', 'statut', 'entreprise')
+    search_fields = ('reference', 'client__nom')
+    date_hierarchy = 'date_document'
+    inlines = [LigneVenteInline, PaiementClientInline]
+
+
+class LigneLivraisonInline(admin.TabularInline):
+    model = LigneLivraison
+    extra = 0
+
+
+@admin.register(BonLivraison)
+class BonLivraisonAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'document', 'depot', 'date_livraison')
+    list_filter = ('entreprise', 'depot')
+    search_fields = ('reference', 'document__reference')
+    inlines = [LigneLivraisonInline]
 
 
 class LigneCommandeInline(admin.TabularInline):

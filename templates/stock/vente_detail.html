@@ -1,0 +1,144 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}{{ doc.reference }}{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-cart-check me-2"></i>{{ doc.reference }}</h4>
+        <small>{{ doc.get_type_document_display }} · {{ doc.client.nom }} · {{ doc.date_document|date:"d/m/Y" }}</small>
+    </div>
+    <div>
+        {% if doc.modifiable %}
+        <a href="{% url 'stock:vente_edit' doc.pk %}" class="btn btn-outline-light btn-sm"><i class="bi bi-pencil me-1"></i>Modifier</a>
+        {% endif %}
+        {% if not doc.est_facture %}
+            {% if doc.statut == 'brouillon' %}<a href="{% url 'stock:vente_statut' doc.pk 'envoyer' %}" class="btn btn-light btn-sm"><i class="bi bi-send me-1"></i>Envoyer</a>{% endif %}
+            {% if doc.statut == 'envoye' %}
+                <a href="{% url 'stock:vente_statut' doc.pk 'accepter' %}" class="btn btn-light btn-sm"><i class="bi bi-check2 me-1"></i>Accepté</a>
+                <a href="{% url 'stock:vente_statut' doc.pk 'refuser' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-x me-1"></i>Refusé</a>
+            {% endif %}
+            {% if doc.statut != 'converti' and doc.statut != 'annulee' %}<a href="{% url 'stock:vente_convertir' doc.pk %}" class="btn btn-light btn-sm"><i class="bi bi-arrow-right-circle me-1"></i>Convertir en facture</a>{% endif %}
+        {% else %}
+            <a href="{% url 'stock:livraison_create' doc.pk %}" class="btn btn-light btn-sm"><i class="bi bi-truck me-1"></i>Bon de livraison</a>
+        {% endif %}
+        <a href="{% url 'stock:vente_list' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left"></i></a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                <span><i class="bi bi-list-ul me-1"></i>Articles</span>
+                <span class="badge bg-secondary align-self-center">{{ doc.get_statut_display }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-stock-light">
+                        <tr><th>Article</th><th class="text-end">Qté</th><th class="text-end">P.U.</th><th class="text-end">Remise</th><th class="text-end">Montant</th>{% if doc.est_facture %}<th class="text-end">Livré</th>{% endif %}{% if doc.modifiable %}<th></th>{% endif %}</tr>
+                    </thead>
+                    <tbody>
+                        {% for l in lignes %}
+                        <tr>
+                            <td>{{ l.article.designation }}<br><small class="text-muted">{{ l.article.reference }}</small></td>
+                            <td class="text-end">{{ l.quantite|floatformat:0 }}</td>
+                            <td class="text-end">{{ l.prix_unitaire|floatformat:0|intcomma }}</td>
+                            <td class="text-end">{{ l.remise_pct|floatformat:0 }} %</td>
+                            <td class="text-end">{{ l.montant|floatformat:0|intcomma }}</td>
+                            {% if doc.est_facture %}<td class="text-end">{{ l.quantite_livree|floatformat:0 }}/{{ l.quantite|floatformat:0 }}</td>{% endif %}
+                            {% if doc.modifiable %}<td class="text-end"><a href="{% url 'stock:ligne_vente_delete' l.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a></td>{% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" class="text-center text-muted py-3">Aucun article.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if doc.modifiable %}
+        <div class="card mt-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-plus-circle me-1"></i>Ajouter un article</div>
+            <div class="card-body">
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <div class="col-md-4"><label class="form-label small">Article</label>{{ form.article }}</div>
+                    <div class="col-md-2"><label class="form-label small">Quantité</label>{{ form.quantite }}</div>
+                    <div class="col-md-3"><label class="form-label small">Prix unitaire</label>{{ form.prix_unitaire }}</div>
+                    <div class="col-md-2"><label class="form-label small">Remise %</label>{{ form.remise_pct }}</div>
+                    <div class="col-md-1"><button type="submit" class="btn btn-success w-100"><i class="bi bi-plus-lg"></i></button></div>
+                    {% if form.errors %}<div class="col-12"><small class="text-danger">{{ form.errors }}</small></div>{% endif %}
+                </form>
+                <small class="text-muted"><i class="bi bi-info-circle"></i> Prix vide = prix spécial client ou prix de vente ; remise vide = remise habituelle du client.</small>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if livraisons %}
+        <div class="card mt-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-truck me-1"></i>Bons de livraison</div>
+            <ul class="list-group list-group-flush">
+                {% for bl in livraisons %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>{{ bl.reference }} <small class="text-muted">· {{ bl.depot.nom }} · {{ bl.date_livraison|date:"d/m/Y" }}</small></span>
+                    <span class="badge bg-success align-self-center">{{ bl.lignes.count }} ligne(s)</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-cash-stack me-1"></i>Totaux</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th>Total HT {% if doc.remise_globale_pct %}(remise {{ doc.remise_globale_pct|floatformat:0 }} %){% endif %}</th><td class="text-end">{{ doc.total_ht|floatformat:0|intcomma }}</td></tr>
+                    <tr><th>TVA ({{ doc.taux_tva|floatformat:0 }} %)</th><td class="text-end">{{ doc.montant_tva|floatformat:0|intcomma }}</td></tr>
+                    <tr class="fw-bold"><th>Total TTC</th><td class="text-end">{{ doc.montant_ttc|floatformat:0|intcomma }}</td></tr>
+                    {% if doc.est_facture %}
+                    <tr><th>Encaissé</th><td class="text-end text-success">{{ doc.montant_paye|floatformat:0|intcomma }}</td></tr>
+                    <tr class="fw-bold"><th>Solde dû</th><td class="text-end {% if doc.montant_du > 0 %}text-danger{% endif %}">{{ doc.montant_du|floatformat:0|intcomma }}</td></tr>
+                    {% endif %}
+                </table>
+                {% if doc.depot %}<small class="text-muted d-block mt-2"><i class="bi bi-building"></i> Dépôt : {{ doc.depot.nom }}</small>{% endif %}
+                {% if doc.notes %}<hr><small class="text-muted">{{ doc.notes }}</small>{% endif %}
+                {% if doc.modifiable and doc.statut != 'annulee' %}<hr><a href="{% url 'stock:vente_annuler' doc.pk %}" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-x-circle me-1"></i>Annuler</a>{% endif %}
+            </div>
+        </div>
+
+        {% if doc.est_facture and doc.montant_du > 0 %}
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-cash-coin me-1"></i>Encaisser un paiement</div>
+            <div class="card-body">
+                <form method="post" action="{% url 'stock:vente_paiement' doc.pk %}" class="row g-2">
+                    {% csrf_token %}
+                    <div class="col-12"><label class="form-label small">Montant</label>{{ paiement_form.montant }}</div>
+                    <div class="col-6"><label class="form-label small">Date</label>{{ paiement_form.date_paiement }}</div>
+                    <div class="col-6"><label class="form-label small">Mode</label>{{ paiement_form.mode }}</div>
+                    <div class="col-12"><label class="form-label small">Référence reçu</label>{{ paiement_form.reference }}</div>
+                    <div class="col-12 mt-2"><button type="submit" class="btn btn-success w-100"><i class="bi bi-check-circle me-1"></i>Enregistrer le reçu</button></div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if paiements %}
+        <div class="card">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-clock-history me-1"></i>Reçus</div>
+            <ul class="list-group list-group-flush">
+                {% for p in paiements %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>{{ p.date_paiement|date:"d/m/Y" }}<br><small class="text-muted">{{ p.get_mode_display }}{% if p.reference %} · {{ p.reference }}{% endif %}</small></span>
+                    <span class="align-self-center">{{ p.montant|floatformat:0|intcomma }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

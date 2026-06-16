@@ -146,6 +146,20 @@
                         </li>
 
                         <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading px-3 text-muted"><span>VENTES</span></h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'client' in request.resolver_match.url_name or 'prix_special' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:client_list' %}">
+                                <i class="bi bi-people"></i> Clients
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'vente' in request.resolver_match.url_name or 'livraison' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:vente_list' %}">
+                                <i class="bi bi-cart-check"></i> Devis &amp; Factures
+                            </a>
+                        </li>
+
+                        <li class="nav-item mt-3">
                             <h6 class="sidebar-heading px-3 text-muted"><span>RAPPORTS</span></h6>
                         </li>
                         <li class="nav-item">
