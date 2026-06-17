@@ -201,6 +201,11 @@
                                 <i class="bi bi-person-gear"></i> Rôles utilisateurs
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'api' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:api_info' %}">
+                                <i class="bi bi-plug"></i> API REST
+                            </a>
+                        </li>
 
                         <li class="nav-item mt-4 border-top pt-3">
                             <a class="nav-link" href="{% url 'core:profile' %}"><i class="bi bi-person-circle"></i> Mon Profil</a>

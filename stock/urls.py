@@ -1,6 +1,8 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.authtoken.views import obtain_auth_token
 
 from . import views
+from .api import router as api_router
 
 app_name = 'stock'
 
@@ -109,4 +111,9 @@ urlpatterns = [
     # Traçabilité & rôles
     path('journal/', views.journal_audit, name='journal_audit'),
     path('roles/', views.roles_list, name='roles_list'),
+    path('api-info/', views.api_info, name='api_info'),
+
+    # API REST
+    path('api/', include(api_router.urls)),
+    path('api/token/', obtain_auth_token, name='api_token'),
 ]

@@ -2069,3 +2069,27 @@ def reapprovisionnement(request):
         'groupes': groupes_list, 'sans_fournisseur': sans_fournisseur,
         'total_articles': total_articles,
     })
+
+
+# ===========================================================================
+# API — page d'information
+# ===========================================================================
+@reauth_required
+@login_required
+@stock_required
+def api_info(request):
+    endpoints = [
+        ('GET', 'api/articles/', 'Catalogue des articles (stock, prix, CMUP, valeur)'),
+        ('POST/PUT', 'api/articles/', 'Créer / modifier un article (rôle stock)'),
+        ('GET', 'api/categories/', 'Catégories'),
+        ('GET', 'api/fournisseurs/', 'Fournisseurs'),
+        ('GET', 'api/depots/', 'Dépôts'),
+        ('GET', 'api/clients/', 'Clients'),
+        ('GET', 'api/lots/', 'Lots (péremption)'),
+        ('GET', 'api/mouvements/', 'Mouvements de stock'),
+        ('POST', 'api/mouvements/', 'Créer un mouvement entrée/sortie/ajustement (rôle stock)'),
+        ('GET', 'api/commandes/', 'Commandes fournisseurs'),
+        ('GET', 'api/ventes/', 'Documents de vente (devis/factures)'),
+        ('POST', 'api/token/', 'Obtenir un jeton (username + password)'),
+    ]
+    return render(request, 'stock/api_info.html', {'endpoints': endpoints})

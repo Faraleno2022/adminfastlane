@@ -1,0 +1,52 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}API REST{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header">
+    <h4 class="mb-0"><i class="bi bi-plug me-2"></i>API REST</h4>
+    <small>Connectez un site web ou la comptabilité aux données du stock</small>
+</div>
+
+<div class="alert alert-light border">
+    <p class="mb-1"><strong>Base :</strong> <code>{{ request.scheme }}://{{ request.get_host }}/stock/api/</code></p>
+    <p class="mb-1"><strong>Authentification :</strong> session (navigateur) ou jeton (intégrations).</p>
+    <p class="mb-0"><strong>Obtenir un jeton :</strong> <code>POST /stock/api/token/</code> avec <code>username</code> et <code>password</code>, puis envoyez l'en-tête <code>Authorization: Token &lt;votre_jeton&gt;</code>.</p>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header bg-white fw-bold"><i class="bi bi-list-ul me-1"></i>Points d'accès</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light"><tr><th style="width:120px;">Méthode</th><th>Chemin</th><th>Description</th></tr></thead>
+            <tbody>
+                {% for methode, chemin, desc in endpoints %}
+                <tr>
+                    <td><span class="badge bg-secondary">{{ methode }}</span></td>
+                    <td><code>{{ chemin }}</code></td>
+                    <td>{{ desc }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-bold"><i class="bi bi-terminal me-1"></i>Exemple</div>
+    <div class="card-body">
+<pre class="mb-0" style="white-space:pre-wrap;"># 1) Obtenir un jeton
+curl -X POST {{ request.scheme }}://{{ request.get_host }}/stock/api/token/ \
+     -d "username=VOTRE_USER&password=VOTRE_MDP"
+
+# 2) Lister les articles (stock, prix, valeur)
+curl {{ request.scheme }}://{{ request.get_host }}/stock/api/articles/ \
+     -H "Authorization: Token VOTRE_JETON"
+
+# 3) Enregistrer une sortie de stock
+curl -X POST {{ request.scheme }}://{{ request.get_host }}/stock/api/mouvements/ \
+     -H "Authorization: Token VOTRE_JETON" \
+     -d "article=1&depot=1&type_mouvement=sortie&quantite=2"</pre>
+    </div>
+</div>
+{% endblock %}
