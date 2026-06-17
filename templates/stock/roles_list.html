@@ -1,0 +1,55 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Rôles utilisateurs{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header">
+    <h4 class="mb-0"><i class="bi bi-person-gear me-2"></i>Rôles utilisateurs</h4>
+</div>
+
+<div class="alert alert-light border">
+    <strong>Droits par rôle :</strong>
+    <ul class="mb-0 small">
+        <li><strong>Administrateur</strong> : tout, y compris la gestion des rôles.</li>
+        <li><strong>Directeur</strong> : stock, achats, ventes, rapports (validation).</li>
+        <li><strong>Magasinier</strong> : stock (articles, dépôts, mouvements, transferts, inventaires).</li>
+        <li><strong>Responsable achat</strong> : commandes, réceptions, factures fournisseurs.</li>
+        <li><strong>Comptable</strong> : factures, paiements, ventes, rapports.</li>
+        <li><strong>Auditeur</strong> : lecture seule (consultation + journal d'audit).</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>Utilisateur</th><th>Email</th><th style="width:280px;">Rôle</th><th style="width:120px;"></th></tr>
+            </thead>
+            <tbody>
+                {% for l in lignes %}
+                <tr>
+                    <td><strong>{{ l.u.get_full_name|default:l.u.username }}</strong></td>
+                    <td>{{ l.u.email|default:"-" }}</td>
+                    <td colspan="2">
+                        <form method="post" class="row g-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="utilisateur" value="{{ l.u.pk }}">
+                            <div class="col-8">
+                                <select name="role" class="form-select form-select-sm">
+                                    {% for val, lbl in roles %}<option value="{{ val }}" {% if l.role == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check-lg"></i> Enregistrer</button>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">Aucun utilisateur.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

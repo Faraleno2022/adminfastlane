@@ -1,0 +1,56 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Journal d'audit{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-shield-check me-2"></i>Journal d'audit</h4>
+    <small>500 dernières actions</small>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Action</label>
+                <select name="action" class="form-select" onchange="this.form.submit()">
+                    <option value="">Toutes</option>
+                    {% for val, lbl in actions %}<option value="{{ val }}" {% if action_filter == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small">Recherche</label>
+                <input type="text" name="q" value="{{ recherche }}" class="form-control" placeholder="Type d'objet, libellé...">
+            </div>
+            <div class="col-md-3"><button type="submit" class="btn btn-success w-100"><i class="bi bi-search"></i> Filtrer</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>Date / heure</th><th>Utilisateur</th><th>Action</th><th>Type</th><th>Objet</th></tr>
+            </thead>
+            <tbody>
+                {% for e in entrees %}
+                <tr>
+                    <td><small>{{ e.date_heure|date:"d/m/Y H:i:s" }}</small></td>
+                    <td>{{ e.utilisateur.get_full_name|default:e.utilisateur.username|default:"—" }}</td>
+                    <td>
+                        {% if e.action == 'creation' %}<span class="badge bg-success">Création</span>
+                        {% elif e.action == 'modification' %}<span class="badge bg-primary">Modification</span>
+                        {% else %}<span class="badge bg-danger">Suppression</span>{% endif %}
+                    </td>
+                    <td>{{ e.objet_type }}</td>
+                    <td>{{ e.objet_libelle }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">Aucune action enregistrée.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -84,6 +84,15 @@ urlpatterns = [
     path('inventaires/<int:pk>/valider/', views.inventaire_valider, name='inventaire_valider'),
     path('inventaires/<int:pk>/supprimer/', views.inventaire_delete, name='inventaire_delete'),
 
-    # Rapports
+    # Rapports & exports
     path('rapports/', views.rapports, name='rapports'),
+    path('rapports/export/stock/<str:fmt>/', views.export_stock, name='export_stock'),
+    path('rapports/export/mouvements/<str:fmt>/', views.export_mouvements, name='export_mouvements'),
+    path('rapports/export/ventes/<str:fmt>/', views.export_ventes, name='export_ventes'),
+    path('rapports/export/achats/<str:fmt>/', views.export_achats, name='export_achats'),
+    path('ventes/<int:pk>/pdf/', views.vente_pdf, name='vente_pdf'),
+
+    # Traçabilité & rôles
+    path('journal/', views.journal_audit, name='journal_audit'),
+    path('roles/', views.roles_list, name='roles_list'),
 ]

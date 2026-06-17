@@ -103,6 +103,8 @@ MIDDLEWARE = [
     'core.middleware_guardian.ProjectIntegrityMiddleware',
     # Licence middleware
     'core.middleware_licence.LicenceMiddleware',
+    # Traçabilité du module Stock (utilisateur courant pour le journal d'audit)
+    'stock.audit.CurrentUserMiddleware',
 ]
 
 ROOT_URLCONF = 'gestionnaire_rh.urls'

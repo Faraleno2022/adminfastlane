@@ -22,7 +22,7 @@ from .models import (
     CommandeFournisseur, LigneCommande, Reception, LigneReception,
     FactureFournisseur, PaiementFournisseur,
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
-    LigneLivraison, PaiementClient,
+    LigneLivraison, PaiementClient, ProfilStock, JournalAudit,
 )
 from .forms import (
     CategorieArticleForm, FournisseurForm, ArticleForm,
@@ -32,6 +32,8 @@ from .forms import (
     ClientForm, DocumentVenteForm, LigneVenteForm, BonLivraisonForm,
     PaiementClientForm, PrixSpecialClientForm,
 )
+from .permissions import require_perm, a_permission, get_role
+from . import exports
 
 # Nombre de jours sans mouvement au-delà duquel un article est « dormant ».
 JOURS_DORMANT = 90
@@ -209,6 +211,7 @@ def article_list(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('stock')
 def article_create(request):
     entreprise = request.user.entreprise
     if request.method == 'POST':
@@ -230,6 +233,7 @@ def article_create(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('stock')
 def article_edit(request, pk):
     entreprise = request.user.entreprise
     article = get_object_or_404(Article, pk=pk, entreprise=entreprise)
@@ -264,6 +268,7 @@ def article_detail(request, pk):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('stock')
 def article_delete(request, pk):
     article = get_object_or_404(Article, pk=pk, entreprise=request.user.entreprise)
     if request.method == 'POST':
@@ -440,6 +445,7 @@ def mouvement_list(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('stock')
 def mouvement_create(request):
     entreprise = request.user.entreprise
     type_initial = request.GET.get('type', 'entree')
@@ -515,6 +521,7 @@ def depot_list(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('stock')
 def depot_create(request):
     entreprise = request.user.entreprise
     if request.method == 'POST':
@@ -540,6 +547,7 @@ def depot_create(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('stock')
 def depot_edit(request, pk):
     entreprise = request.user.entreprise
     depot = get_object_or_404(Depot, pk=pk, entreprise=entreprise)
@@ -562,6 +570,7 @@ def depot_edit(request, pk):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('stock')
 def depot_delete(request, pk):
     depot = get_object_or_404(Depot, pk=pk, entreprise=request.user.entreprise)
     if request.method == 'POST':
@@ -592,6 +601,7 @@ def transfert_list(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('stock')
 def transfert_create(request):
     entreprise = request.user.entreprise
     if Depot.objects.filter(entreprise=entreprise, actif=True).count() < 2:
@@ -655,6 +665,7 @@ def inventaire_list(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('stock')
 def inventaire_create(request):
     entreprise = request.user.entreprise
     if not Depot.objects.filter(entreprise=entreprise, actif=True).exists():
@@ -725,6 +736,7 @@ def inventaire_detail(request, pk):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('stock')
 def inventaire_valider(request, pk):
     """Valide l'inventaire : applique les écarts au stock via des ajustements."""
     entreprise = request.user.entreprise
@@ -848,6 +860,7 @@ def commande_list(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('achats')
 def commande_create(request):
     entreprise = request.user.entreprise
     if not Fournisseur.objects.filter(entreprise=entreprise, actif=True).exists():
@@ -939,6 +952,7 @@ def ligne_commande_delete(request, pk):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('achats')
 def commande_valider(request, pk):
     commande = get_object_or_404(CommandeFournisseur, pk=pk, entreprise=request.user.entreprise)
     if commande.statut != 'brouillon':
@@ -978,6 +992,7 @@ def commande_annuler(request, pk):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('achats')
 def reception_create(request, pk):
     """Réception (partielle ou totale) d'une commande : alimente le stock."""
     entreprise = request.user.entreprise
@@ -1075,6 +1090,7 @@ def facture_list(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('achats')
 def facture_create(request):
     entreprise = request.user.entreprise
     commande_id = request.GET.get('commande')
@@ -1199,6 +1215,7 @@ def client_list(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('ventes')
 def client_create(request):
     entreprise = request.user.entreprise
     if request.method == 'POST':
@@ -1318,6 +1335,7 @@ def vente_list(request):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('ventes')
 def vente_create(request):
     entreprise = request.user.entreprise
     if not Client.objects.filter(entreprise=entreprise, actif=True).exists():
@@ -1438,6 +1456,7 @@ def vente_statut(request, pk, action):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('ventes')
 def vente_convertir(request, pk):
     """Convertit un devis / proforma en facture (copie des lignes)."""
     entreprise = request.user.entreprise
@@ -1490,6 +1509,7 @@ def vente_annuler(request, pk):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('ventes')
 def vente_paiement(request, pk):
     """Enregistre un encaissement (reçu) sur une facture."""
     doc = get_object_or_404(DocumentVente, pk=pk, entreprise=request.user.entreprise)
@@ -1517,6 +1537,7 @@ def vente_paiement(request, pk):
 @reauth_required
 @login_required
 @stock_required
+@require_perm('ventes')
 def livraison_create(request, pk):
     """Bon de livraison : sortie de stock vers le client."""
     entreprise = request.user.entreprise
@@ -1594,3 +1615,157 @@ def livraison_create(request, pk):
     return render(request, 'stock/livraison_form.html', {
         'doc': doc, 'lignes': lignes, 'form': form,
     })
+
+
+# ===========================================================================
+# TRAÇABILITÉ — Journal d'audit
+# ===========================================================================
+@reauth_required
+@login_required
+@stock_required
+def journal_audit(request):
+    entreprise = request.user.entreprise
+    entrees = JournalAudit.objects.filter(entreprise=entreprise).select_related('utilisateur')
+    action = request.GET.get('action', '')
+    recherche = request.GET.get('q', '')
+    if action:
+        entrees = entrees.filter(action=action)
+    if recherche:
+        entrees = entrees.filter(
+            Q(objet_type__icontains=recherche) | Q(objet_libelle__icontains=recherche)
+        )
+    return render(request, 'stock/journal_audit.html', {
+        'entrees': entrees[:500], 'actions': JournalAudit.ACTIONS,
+        'action_filter': action, 'recherche': recherche,
+    })
+
+
+# ===========================================================================
+# RÔLES UTILISATEURS
+# ===========================================================================
+@reauth_required
+@login_required
+@stock_required
+@require_perm('admin')
+def roles_list(request):
+    entreprise = request.user.entreprise
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    utilisateurs = User.objects.filter(entreprise=entreprise).order_by('username')
+
+    if request.method == 'POST':
+        user_id = request.POST.get('utilisateur')
+        role = request.POST.get('role')
+        valides = dict(ProfilStock.ROLES)
+        cible = utilisateurs.filter(pk=user_id).first()
+        if cible and role in valides:
+            profil, _ = ProfilStock.objects.get_or_create(utilisateur=cible)
+            profil.role = role
+            profil.save()
+            nom = cible.get_full_name() or cible.username
+            messages.success(request, f"Rôle de {nom} mis à jour.")
+        return redirect('stock:roles_list')
+
+    lignes = []
+    for u in utilisateurs:
+        profil = getattr(u, 'profil_stock', None)
+        lignes.append({'u': u, 'role': profil.role if profil else 'administrateur'})
+    return render(request, 'stock/roles_list.html', {
+        'lignes': lignes, 'roles': ProfilStock.ROLES,
+    })
+
+
+# ===========================================================================
+# RAPPORTS — Exports Excel / PDF
+# ===========================================================================
+def _fmt(n):
+    try:
+        return f"{float(n):,.0f}".replace(',', ' ')
+    except (TypeError, ValueError):
+        return str(n)
+
+
+@reauth_required
+@login_required
+@stock_required
+def export_stock(request, fmt):
+    entreprise = request.user.entreprise
+    articles = Article.objects.filter(entreprise=entreprise).select_related('categorie')
+    colonnes = ['Référence', 'Désignation', 'Catégorie', 'Unité', 'Stock', 'Prix achat', 'Valeur']
+    lignes, total_valeur = [], Decimal('0')
+    for a in articles:
+        lignes.append([a.reference, a.designation, a.categorie.nom if a.categorie else '-',
+                       a.get_unite_display(), _fmt(a.quantite_stock), _fmt(a.prix_achat), _fmt(a.valeur_stock)])
+        total_valeur += a.valeur_stock
+    total_row = ['', '', '', '', '', 'TOTAL', _fmt(total_valeur)]
+    if fmt == 'excel':
+        return exports.excel_response('etat_stock', 'État du stock', colonnes, lignes, total_row)
+    return exports.pdf_table_response('etat_stock', 'État du stock', colonnes, lignes, entreprise, total_row)
+
+
+@reauth_required
+@login_required
+@stock_required
+def export_mouvements(request, fmt):
+    entreprise = request.user.entreprise
+    mvts = MouvementStock.objects.filter(entreprise=entreprise).select_related('article', 'depot')
+    type_filter = request.GET.get('type', '')
+    if type_filter:
+        mvts = mvts.filter(type_mouvement=type_filter)
+    colonnes = ['Date', 'Type', 'Article', 'Dépôt', 'Quantité', 'Avant', 'Après', 'Motif']
+    lignes = [[m.date_mouvement.strftime('%d/%m/%Y %H:%M'), m.get_type_mouvement_display(),
+               m.article.designation, m.depot.nom if m.depot else '-', _fmt(m.quantite),
+               _fmt(m.quantite_avant), _fmt(m.quantite_apres), m.motif] for m in mvts[:5000]]
+    titre = 'Mouvements de stock'
+    if fmt == 'excel':
+        return exports.excel_response('mouvements', titre, colonnes, lignes)
+    return exports.pdf_table_response('mouvements', titre, colonnes, lignes, entreprise)
+
+
+@reauth_required
+@login_required
+@stock_required
+def export_ventes(request, fmt):
+    entreprise = request.user.entreprise
+    factures = (DocumentVente.objects.filter(entreprise=entreprise, type_document='facture')
+                .select_related('client'))
+    colonnes = ['Référence', 'Date', 'Client', 'TTC', 'Encaissé', 'Dû', 'Statut']
+    lignes, t_ttc, t_du = [], Decimal('0'), Decimal('0')
+    for f in factures:
+        lignes.append([f.reference, f.date_document.strftime('%d/%m/%Y'), f.client.nom,
+                       _fmt(f.montant_ttc), _fmt(f.montant_paye), _fmt(f.montant_du), f.get_statut_display()])
+        t_ttc += f.montant_ttc
+        t_du += f.montant_du
+    total_row = ['', '', 'TOTAL', _fmt(t_ttc), '', _fmt(t_du), '']
+    titre = 'Rapport des ventes (factures)'
+    if fmt == 'excel':
+        return exports.excel_response('ventes', titre, colonnes, lignes, total_row)
+    return exports.pdf_table_response('ventes', titre, colonnes, lignes, entreprise, total_row)
+
+
+@reauth_required
+@login_required
+@stock_required
+def export_achats(request, fmt):
+    entreprise = request.user.entreprise
+    commandes = (CommandeFournisseur.objects.filter(entreprise=entreprise)
+                 .select_related('fournisseur').exclude(statut='annulee'))
+    colonnes = ['Référence', 'Date', 'Fournisseur', 'Montant', 'Statut']
+    lignes, total = [], Decimal('0')
+    for c in commandes:
+        lignes.append([c.reference, c.date_commande.strftime('%d/%m/%Y'), c.fournisseur.nom,
+                       _fmt(c.montant_total), c.get_statut_display()])
+        total += c.montant_total
+    total_row = ['', '', 'TOTAL', _fmt(total), '']
+    titre = 'Rapport des achats (commandes)'
+    if fmt == 'excel':
+        return exports.excel_response('achats', titre, colonnes, lignes, total_row)
+    return exports.pdf_table_response('achats', titre, colonnes, lignes, entreprise, total_row)
+
+
+@reauth_required
+@login_required
+@stock_required
+def vente_pdf(request, pk):
+    doc = get_object_or_404(DocumentVente, pk=pk, entreprise=request.user.entreprise)
+    return exports.pdf_document_vente(doc)

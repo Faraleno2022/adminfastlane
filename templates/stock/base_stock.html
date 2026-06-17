@@ -163,8 +163,22 @@
                             <h6 class="sidebar-heading px-3 text-muted"><span>RAPPORTS</span></h6>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if 'rapports' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:rapports' %}">
-                                <i class="bi bi-graph-up"></i> Rapports
+                            <a class="nav-link {% if 'rapports' in request.resolver_match.url_name or 'export' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:rapports' %}">
+                                <i class="bi bi-graph-up"></i> Rapports &amp; exports
+                            </a>
+                        </li>
+
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading px-3 text-muted"><span>ADMINISTRATION</span></h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'journal' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:journal_audit' %}">
+                                <i class="bi bi-shield-check"></i> Journal d'audit
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'roles' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:roles_list' %}">
+                                <i class="bi bi-person-gear"></i> Rôles utilisateurs
                             </a>
                         </li>
 

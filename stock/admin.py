@@ -6,8 +6,24 @@ from .models import (
     CommandeFournisseur, LigneCommande, Reception, LigneReception,
     FactureFournisseur, PaiementFournisseur,
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
-    LigneLivraison, PaiementClient,
+    LigneLivraison, PaiementClient, ProfilStock, JournalAudit,
 )
+
+
+@admin.register(ProfilStock)
+class ProfilStockAdmin(admin.ModelAdmin):
+    list_display = ('utilisateur', 'role', 'date_modification')
+    list_filter = ('role',)
+    search_fields = ('utilisateur__username',)
+
+
+@admin.register(JournalAudit)
+class JournalAuditAdmin(admin.ModelAdmin):
+    list_display = ('date_heure', 'utilisateur', 'action', 'objet_type', 'objet_libelle', 'entreprise')
+    list_filter = ('action', 'objet_type', 'entreprise')
+    search_fields = ('objet_libelle', 'objet_type')
+    date_hierarchy = 'date_heure'
+    readonly_fields = ('entreprise', 'utilisateur', 'date_heure', 'action', 'objet_type', 'objet_id', 'objet_libelle', 'details')
 
 
 class PrixSpecialClientInline(admin.TabularInline):

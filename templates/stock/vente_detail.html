@@ -23,6 +23,7 @@
         {% else %}
             <a href="{% url 'stock:livraison_create' doc.pk %}" class="btn btn-light btn-sm"><i class="bi bi-truck me-1"></i>Bon de livraison</a>
         {% endif %}
+        <a href="{% url 'stock:vente_pdf' doc.pk %}" target="_blank" class="btn btn-light btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
         <a href="{% url 'stock:vente_list' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left"></i></a>
     </div>
 </div>

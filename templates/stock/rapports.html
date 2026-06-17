@@ -8,6 +8,46 @@
     <h4 class="mb-0"><i class="bi bi-graph-up me-2"></i>Rapports de stock</h4>
 </div>
 
+<div class="card mb-3">
+    <div class="card-header bg-white fw-bold"><i class="bi bi-download me-1"></i>Exports professionnels</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <tbody>
+                    <tr>
+                        <td><i class="bi bi-box-seam me-1"></i><strong>État du stock</strong> (articles, quantités, valeur)</td>
+                        <td class="text-end">
+                            <a href="{% url 'stock:export_stock' 'excel' %}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+                            <a href="{% url 'stock:export_stock' 'pdf' %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-arrow-left-right me-1"></i><strong>Mouvements de stock</strong> (entrées / sorties / ajustements)</td>
+                        <td class="text-end">
+                            <a href="{% url 'stock:export_mouvements' 'excel' %}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+                            <a href="{% url 'stock:export_mouvements' 'pdf' %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-cart-check me-1"></i><strong>Ventes</strong> (factures, encaissements, créances)</td>
+                        <td class="text-end">
+                            <a href="{% url 'stock:export_ventes' 'excel' %}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+                            <a href="{% url 'stock:export_ventes' 'pdf' %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-cart-plus me-1"></i><strong>Achats</strong> (commandes fournisseurs)</td>
+                        <td class="text-end">
+                            <a href="{% url 'stock:export_achats' 'excel' %}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+                            <a href="{% url 'stock:export_achats' 'pdf' %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <div class="row g-3 mb-3">
     <div class="col-md-4">
         <div class="stat-card-stock text-center">

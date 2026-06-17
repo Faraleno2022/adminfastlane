@@ -539,6 +539,65 @@ class PaiementFournisseur(models.Model):
 
 
 # ===========================================================================
+# RÔLES & TRAÇABILITÉ
+# ===========================================================================
+class ProfilStock(models.Model):
+    """Rôle d'un utilisateur dans le module Stock (contrôle d'accès)."""
+    ROLES = (
+        ('administrateur', 'Administrateur'),
+        ('directeur', 'Directeur'),
+        ('magasinier', 'Magasinier'),
+        ('responsable_achat', "Responsable achat"),
+        ('comptable', 'Comptable'),
+        ('auditeur', 'Auditeur (lecture seule)'),
+    )
+
+    utilisateur = models.OneToOneField(Utilisateur, on_delete=models.CASCADE, related_name='profil_stock')
+    role = models.CharField(max_length=20, choices=ROLES, default='administrateur')
+    date_modification = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'stock_profil'
+        verbose_name = 'Rôle Stock'
+        verbose_name_plural = 'Rôles Stock'
+
+    def __str__(self):
+        return f"{self.utilisateur} - {self.get_role_display()}"
+
+
+class JournalAudit(models.Model):
+    """Journal d'audit : trace chaque action sur les données du module."""
+    ACTIONS = (
+        ('creation', 'Création'),
+        ('modification', 'Modification'),
+        ('suppression', 'Suppression'),
+    )
+
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='journaux_stock')
+    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='actions_stock')
+    date_heure = models.DateTimeField(auto_now_add=True)
+    action = models.CharField(max_length=15, choices=ACTIONS)
+    objet_type = models.CharField(max_length=60, verbose_name="Type d'objet")
+    objet_id = models.CharField(max_length=40, blank=True)
+    objet_libelle = models.CharField(max_length=255, blank=True)
+    details = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'stock_journal_audit'
+        verbose_name = "Entrée du journal d'audit"
+        verbose_name_plural = "Journal d'audit"
+        ordering = ['-date_heure', '-id']
+        indexes = [
+            models.Index(fields=['entreprise', '-date_heure']),
+        ]
+
+    def __str__(self):
+        return f"{self.date_heure:%d/%m/%Y %H:%M} - {self.get_action_display()} {self.objet_type}"
+
+
+# ===========================================================================
 # VENTES — Clients, devis/factures, bons de livraison, paiements
 # ===========================================================================
 class Client(models.Model):
