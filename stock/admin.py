@@ -7,7 +7,23 @@ from .models import (
     FactureFournisseur, PaiementFournisseur,
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
     LigneLivraison, PaiementClient, ProfilStock, JournalAudit,
+    Lot, NumeroSerie,
 )
+
+
+@admin.register(Lot)
+class LotAdmin(admin.ModelAdmin):
+    list_display = ('numero_lot', 'article', 'date_peremption', 'quantite_restante', 'depot', 'entreprise')
+    list_filter = ('entreprise', 'depot')
+    search_fields = ('numero_lot', 'article__designation')
+    date_hierarchy = 'date_peremption'
+
+
+@admin.register(NumeroSerie)
+class NumeroSerieAdmin(admin.ModelAdmin):
+    list_display = ('numero_serie', 'article', 'statut', 'depot', 'entreprise')
+    list_filter = ('statut', 'entreprise')
+    search_fields = ('numero_serie', 'article__designation')
 
 
 @admin.register(ProfilStock)

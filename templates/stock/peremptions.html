@@ -1,0 +1,59 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Péremptions{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header">
+    <h4 class="mb-0"><i class="bi bi-calendar-x me-2"></i>Péremptions</h4>
+    <small>Lots périmés et proches de l'expiration (≤ {{ seuil }} jours)</small>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header bg-white fw-bold text-danger"><i class="bi bi-x-octagon me-1"></i>Lots périmés</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>N° de lot</th><th>Article</th><th>Dépôt</th><th>Péremption</th><th class="text-end">Restant</th></tr>
+            </thead>
+            <tbody>
+                {% for l in perimes %}
+                <tr class="table-danger">
+                    <td><strong>{{ l.numero_lot }}</strong></td>
+                    <td>{{ l.article.designation }}</td>
+                    <td>{{ l.depot.nom|default:"-" }}</td>
+                    <td>{{ l.date_peremption|date:"d/m/Y" }} <span class="badge bg-danger">périmé</span></td>
+                    <td class="text-end">{{ l.quantite_restante|floatformat:0 }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">Aucun lot périmé.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-bold text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Proches de la péremption</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>N° de lot</th><th>Article</th><th>Dépôt</th><th>Péremption</th><th class="text-center">Jours restants</th><th class="text-end">Restant</th></tr>
+            </thead>
+            <tbody>
+                {% for l in proches %}
+                <tr>
+                    <td><strong>{{ l.numero_lot }}</strong></td>
+                    <td>{{ l.article.designation }}</td>
+                    <td>{{ l.depot.nom|default:"-" }}</td>
+                    <td>{{ l.date_peremption|date:"d/m/Y" }}</td>
+                    <td class="text-center"><span class="badge bg-warning text-dark">J-{{ l.jours_avant_peremption }}</span></td>
+                    <td class="text-end">{{ l.quantite_restante|floatformat:0 }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-3">Aucun lot proche de la péremption.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

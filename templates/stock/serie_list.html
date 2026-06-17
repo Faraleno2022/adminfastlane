@@ -1,0 +1,57 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Numéros de série{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-upc me-2"></i>Numéros de série</h4>
+    <a href="{% url 'stock:serie_create' %}" class="btn btn-light btn-sm"><i class="bi bi-plus-circle me-1"></i>Nouveau n° de série</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Statut</label>
+                <select name="statut" class="form-select" onchange="this.form.submit()">
+                    <option value="">Tous</option>
+                    {% for val, lbl in statuts %}<option value="{{ val }}" {% if statut_filter == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-7"><label class="form-label small">Recherche</label><input type="text" name="q" value="{{ recherche }}" class="form-control" placeholder="N° de série, article..."></div>
+            <div class="col-md-2"><button type="submit" class="btn btn-success w-100"><i class="bi bi-search"></i></button></div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>N° de série</th><th>Article</th><th>Lot</th><th>Dépôt</th><th class="text-center">Statut</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for s in series %}
+                <tr>
+                    <td><strong>{{ s.numero_serie }}</strong></td>
+                    <td>{{ s.article.designation }}</td>
+                    <td>{{ s.lot.numero_lot|default:"-" }}</td>
+                    <td>{{ s.depot.nom|default:"-" }}</td>
+                    <td class="text-center">
+                        {% if s.statut == 'en_stock' %}<span class="badge bg-success">{{ s.get_statut_display }}</span>
+                        {% elif s.statut == 'vendu' %}<span class="badge bg-primary">{{ s.get_statut_display }}</span>
+                        {% else %}<span class="badge bg-secondary">{{ s.get_statut_display }}</span>{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'stock:serie_edit' s.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                        <a href="{% url 'stock:serie_delete' s.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Aucun numéro de série.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

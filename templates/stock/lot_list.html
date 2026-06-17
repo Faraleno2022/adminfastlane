@@ -1,0 +1,59 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Lots{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-box2 me-2"></i>Lots</h4>
+    <a href="{% url 'stock:lot_create' %}" class="btn btn-light btn-sm"><i class="bi bi-plus-circle me-1"></i>Nouveau lot</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">État</label>
+                <select name="etat" class="form-select" onchange="this.form.submit()">
+                    <option value="">Tous</option>
+                    <option value="proche" {% if etat_filter == 'proche' %}selected{% endif %}>Proche péremption</option>
+                    <option value="perime" {% if etat_filter == 'perime' %}selected{% endif %}>Périmés</option>
+                </select>
+            </div>
+            <div class="col-md-7"><label class="form-label small">Recherche</label><input type="text" name="q" value="{{ recherche }}" class="form-control" placeholder="N° de lot, article..."></div>
+            <div class="col-md-2"><button type="submit" class="btn btn-success w-100"><i class="bi bi-search"></i></button></div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>N° de lot</th><th>Article</th><th>Dépôt</th><th>Péremption</th><th class="text-end">Restant</th><th class="text-center">État</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for l in lots %}
+                <tr>
+                    <td><strong>{{ l.numero_lot }}</strong></td>
+                    <td>{{ l.article.designation }}</td>
+                    <td>{{ l.depot.nom|default:"-" }}</td>
+                    <td>{{ l.date_peremption|date:"d/m/Y"|default:"-" }}</td>
+                    <td class="text-end">{{ l.quantite_restante|floatformat:0 }}</td>
+                    <td class="text-center">
+                        {% if l.est_perime %}<span class="badge bg-danger">Périmé</span>
+                        {% elif l.proche_peremption %}<span class="badge bg-warning text-dark">J-{{ l.jours_avant_peremption }}</span>
+                        {% else %}<span class="badge bg-success">OK</span>{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'stock:lot_edit' l.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                        <a href="{% url 'stock:lot_delete' l.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">Aucun lot enregistré.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

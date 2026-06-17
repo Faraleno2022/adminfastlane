@@ -92,6 +92,17 @@ urlpatterns = [
     path('rapports/export/achats/<str:fmt>/', views.export_achats, name='export_achats'),
     path('ventes/<int:pk>/pdf/', views.vente_pdf, name='vente_pdf'),
 
+    # Lots, numéros de série & péremption
+    path('lots/', views.lot_list, name='lot_list'),
+    path('lots/nouveau/', views.lot_create, name='lot_create'),
+    path('lots/<int:pk>/modifier/', views.lot_edit, name='lot_edit'),
+    path('lots/<int:pk>/supprimer/', views.lot_delete, name='lot_delete'),
+    path('series/', views.serie_list, name='serie_list'),
+    path('series/nouveau/', views.serie_create, name='serie_create'),
+    path('series/<int:pk>/modifier/', views.serie_edit, name='serie_edit'),
+    path('series/<int:pk>/supprimer/', views.serie_delete, name='serie_delete'),
+    path('peremptions/', views.peremptions, name='peremptions'),
+
     # Traçabilité & rôles
     path('journal/', views.journal_audit, name='journal_audit'),
     path('roles/', views.roles_list, name='roles_list'),

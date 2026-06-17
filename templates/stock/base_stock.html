@@ -130,6 +130,21 @@
                                 <i class="bi bi-clipboard-check"></i> Inventaires
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'lot' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:lot_list' %}">
+                                <i class="bi bi-box2"></i> Lots
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'serie' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:serie_list' %}">
+                                <i class="bi bi-upc"></i> N° de série
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'peremption' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:peremptions' %}">
+                                <i class="bi bi-calendar-x"></i> Péremptions
+                            </a>
+                        </li>
 
                         <li class="nav-item mt-3">
                             <h6 class="sidebar-heading px-3 text-muted"><span>ACHATS</span></h6>

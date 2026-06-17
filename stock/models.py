@@ -128,6 +128,9 @@ class Article(models.Model):
     stock_max = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Stock maximum (0 = illimité)')
     emplacement = models.CharField(max_length=120, blank=True, verbose_name='Emplacement / Rayon / Étagère')
     photo = models.ImageField(upload_to='stock/articles/', blank=True, null=True, verbose_name='Photo du produit')
+    perissable = models.BooleanField(default=False, verbose_name='Produit périssable')
+    gestion_lot = models.BooleanField(default=False, verbose_name='Suivi par lot')
+    gestion_serie = models.BooleanField(default=False, verbose_name='Suivi par numéro de série')
     description = models.TextField(blank=True)
     actif = models.BooleanField(default=True)
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -840,3 +843,84 @@ class PaiementClient(models.Model):
 
     def __str__(self):
         return f"{self.montant} ({self.get_mode_display()})"
+
+
+# ===========================================================================
+# LOTS, NUMÉROS DE SÉRIE & PÉREMPTION
+# ===========================================================================
+class Lot(models.Model):
+    """Lot de fabrication d'un article (traçabilité, péremption)."""
+    SEUIL_PROCHE_JOURS = 30
+
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='lots')
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='lots')
+    numero_lot = models.CharField(max_length=80, verbose_name='Numéro de lot')
+    depot = models.ForeignKey(Depot, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='lots', verbose_name='Dépôt')
+    fournisseur = models.ForeignKey(Fournisseur, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='lots', verbose_name='Fournisseur')
+    date_entree = models.DateField(default=timezone.now, verbose_name="Date d'entrée")
+    date_peremption = models.DateField(null=True, blank=True, verbose_name='Date de péremption')
+    quantite = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Quantité initiale')
+    quantite_restante = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Quantité restante')
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'stock_lot'
+        verbose_name = 'Lot'
+        verbose_name_plural = 'Lots'
+        ordering = ['date_peremption', 'numero_lot']
+        constraints = [
+            models.UniqueConstraint(fields=['article', 'numero_lot'], name='unique_lot_par_article'),
+        ]
+
+    def __str__(self):
+        return f"{self.numero_lot} - {self.article.designation}"
+
+    @property
+    def jours_avant_peremption(self):
+        if not self.date_peremption:
+            return None
+        return (self.date_peremption - timezone.now().date()).days
+
+    @property
+    def est_perime(self):
+        j = self.jours_avant_peremption
+        return j is not None and j < 0
+
+    @property
+    def proche_peremption(self):
+        j = self.jours_avant_peremption
+        return j is not None and 0 <= j <= self.SEUIL_PROCHE_JOURS
+
+
+class NumeroSerie(models.Model):
+    """Numéro de série d'une unité d'article (suivi unitaire)."""
+    STATUTS = (
+        ('en_stock', 'En stock'),
+        ('vendu', 'Vendu'),
+        ('retire', 'Retiré / SAV'),
+    )
+
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='numeros_serie')
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='numeros_serie')
+    numero_serie = models.CharField(max_length=120, verbose_name='Numéro de série')
+    lot = models.ForeignKey(Lot, on_delete=models.SET_NULL, null=True, blank=True, related_name='numeros_serie')
+    depot = models.ForeignKey(Depot, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='numeros_serie', verbose_name='Dépôt')
+    statut = models.CharField(max_length=10, choices=STATUTS, default='en_stock')
+    date_entree = models.DateField(default=timezone.now, verbose_name="Date d'entrée")
+    date_sortie = models.DateField(null=True, blank=True, verbose_name='Date de sortie')
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'stock_numero_serie'
+        verbose_name = 'Numéro de série'
+        verbose_name_plural = 'Numéros de série'
+        ordering = ['article__designation', 'numero_serie']
+        constraints = [
+            models.UniqueConstraint(fields=['article', 'numero_serie'], name='unique_serie_par_article'),
+        ]
+
+    def __str__(self):
+        return f"{self.numero_serie} ({self.article.designation})"

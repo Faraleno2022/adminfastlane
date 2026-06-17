@@ -9,7 +9,7 @@ from .models import (
     Depot, Transfert, CommandeFournisseur, LigneCommande, Reception,
     FactureFournisseur, PaiementFournisseur,
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
-    PaiementClient,
+    PaiementClient, Lot, NumeroSerie,
 )
 
 
@@ -61,7 +61,7 @@ class ArticleForm(BootstrapModelForm):
         model = Article
         fields = ['reference', 'code_barres', 'designation', 'categorie', 'fournisseur', 'unite',
                   'prix_achat', 'prix_vente', 'seuil_alerte', 'stock_max', 'emplacement',
-                  'photo', 'description', 'actif']
+                  'photo', 'perissable', 'gestion_lot', 'gestion_serie', 'description', 'actif']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
         }
@@ -362,3 +362,47 @@ class PrixSpecialClientForm(BootstrapModelForm):
         super().__init__(*args, **kwargs)
         if entreprise is not None:
             self.fields['article'].queryset = Article.objects.filter(entreprise=entreprise, actif=True)
+
+
+# ---------------------------------------------------------------------------
+# Lots & numéros de série
+# ---------------------------------------------------------------------------
+class LotForm(BootstrapModelForm):
+    class Meta:
+        model = Lot
+        fields = ['article', 'numero_lot', 'depot', 'fournisseur', 'date_entree',
+                  'date_peremption', 'quantite', 'quantite_restante', 'notes']
+        widgets = {
+            'date_entree': forms.DateInput(attrs={'type': 'date'}),
+            'date_peremption': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['article'].queryset = Article.objects.filter(entreprise=entreprise, actif=True)
+            self.fields['depot'].queryset = Depot.objects.filter(entreprise=entreprise, actif=True)
+            self.fields['fournisseur'].queryset = Fournisseur.objects.filter(entreprise=entreprise, actif=True)
+        self.fields['depot'].required = False
+        self.fields['fournisseur'].required = False
+
+
+class NumeroSerieForm(BootstrapModelForm):
+    class Meta:
+        model = NumeroSerie
+        fields = ['article', 'numero_serie', 'lot', 'depot', 'statut', 'date_entree', 'date_sortie', 'notes']
+        widgets = {
+            'date_entree': forms.DateInput(attrs={'type': 'date'}),
+            'date_sortie': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['article'].queryset = Article.objects.filter(entreprise=entreprise, actif=True)
+            self.fields['depot'].queryset = Depot.objects.filter(entreprise=entreprise, actif=True)
+            self.fields['lot'].queryset = Lot.objects.filter(entreprise=entreprise)
+        self.fields['lot'].required = False
+        self.fields['depot'].required = False

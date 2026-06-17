@@ -23,6 +23,7 @@ from .models import (
     FactureFournisseur, PaiementFournisseur,
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
     LigneLivraison, PaiementClient, ProfilStock, JournalAudit,
+    Lot, NumeroSerie,
 )
 from .forms import (
     CategorieArticleForm, FournisseurForm, ArticleForm,
@@ -30,7 +31,7 @@ from .forms import (
     CommandeFournisseurForm, LigneCommandeForm, ReceptionForm,
     FactureFournisseurForm, PaiementFournisseurForm,
     ClientForm, DocumentVenteForm, LigneVenteForm, BonLivraisonForm,
-    PaiementClientForm, PrixSpecialClientForm,
+    PaiementClientForm, PrixSpecialClientForm, LotForm, NumeroSerieForm,
 )
 from .permissions import require_perm, a_permission, get_role
 from . import exports
@@ -165,9 +166,18 @@ def dashboard(request):
         .filter(Q(dernier_mvt__lt=limite_dormant) | Q(dernier_mvt__isnull=True))[:10]
     )
 
+    # Péremption des lots
+    aujourdhui = timezone.now().date()
+    limite_perem = aujourdhui + timedelta(days=Lot.SEUIL_PROCHE_JOURS)
+    lots_actifs = Lot.objects.filter(entreprise=entreprise, date_peremption__isnull=False, quantite_restante__gt=0)
+    nb_perime = lots_actifs.filter(date_peremption__lt=aujourdhui).count()
+    nb_proche_perem = lots_actifs.filter(date_peremption__gte=aujourdhui, date_peremption__lte=limite_perem).count()
+
     stats = {
         'total_articles': articles.count(),
         'total_depots': Depot.objects.filter(entreprise=entreprise, actif=True).count(),
+        'nb_perime': nb_perime,
+        'nb_proche_perem': nb_proche_perem,
         'total_categories': CategorieArticle.objects.filter(entreprise=entreprise).count(),
         'total_fournisseurs': Fournisseur.objects.filter(entreprise=entreprise).count(),
         'valeur_totale': valeur_totale,
@@ -1807,3 +1817,174 @@ def export_achats(request, fmt):
 def vente_pdf(request, pk):
     doc = get_object_or_404(DocumentVente, pk=pk, entreprise=request.user.entreprise)
     return exports.pdf_document_vente(doc)
+
+
+# ===========================================================================
+# LOTS, NUMÉROS DE SÉRIE & PÉREMPTION
+# ===========================================================================
+@reauth_required
+@login_required
+@stock_required
+def lot_list(request):
+    entreprise = request.user.entreprise
+    lots = Lot.objects.filter(entreprise=entreprise).select_related('article', 'depot', 'fournisseur')
+    etat = request.GET.get('etat', '')
+    recherche = request.GET.get('q', '')
+    if recherche:
+        lots = lots.filter(Q(numero_lot__icontains=recherche) | Q(article__designation__icontains=recherche))
+    lots = list(lots)
+    if etat == 'perime':
+        lots = [l for l in lots if l.est_perime]
+    elif etat == 'proche':
+        lots = [l for l in lots if l.proche_peremption]
+    return render(request, 'stock/lot_list.html', {
+        'lots': lots, 'etat_filter': etat, 'recherche': recherche,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('stock')
+def lot_create(request):
+    entreprise = request.user.entreprise
+    if request.method == 'POST':
+        form = LotForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            lot = form.save(commit=False)
+            lot.entreprise = entreprise
+            if not lot.quantite_restante:
+                lot.quantite_restante = lot.quantite
+            lot.save()
+            messages.success(request, f"Lot {lot.numero_lot} enregistré.")
+            return redirect('stock:lot_list')
+    else:
+        form = LotForm(entreprise=entreprise)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': 'Nouveau lot', 'retour': 'stock:lot_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('stock')
+def lot_edit(request, pk):
+    entreprise = request.user.entreprise
+    lot = get_object_or_404(Lot, pk=pk, entreprise=entreprise)
+    if request.method == 'POST':
+        form = LotForm(request.POST, instance=lot, entreprise=entreprise)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Lot mis à jour.")
+            return redirect('stock:lot_list')
+    else:
+        form = LotForm(instance=lot, entreprise=entreprise)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': f'Modifier le lot {lot.numero_lot}', 'retour': 'stock:lot_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('stock')
+def lot_delete(request, pk):
+    lot = get_object_or_404(Lot, pk=pk, entreprise=request.user.entreprise)
+    if request.method == 'POST':
+        lot.delete()
+        messages.success(request, "Lot supprimé.")
+        return redirect('stock:lot_list')
+    return render(request, 'stock/confirm_delete.html', {
+        'objet': f"lot {lot.numero_lot}", 'retour': 'stock:lot_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def serie_list(request):
+    entreprise = request.user.entreprise
+    series = NumeroSerie.objects.filter(entreprise=entreprise).select_related('article', 'depot', 'lot')
+    statut = request.GET.get('statut', '')
+    recherche = request.GET.get('q', '')
+    if statut:
+        series = series.filter(statut=statut)
+    if recherche:
+        series = series.filter(Q(numero_serie__icontains=recherche) | Q(article__designation__icontains=recherche))
+    return render(request, 'stock/serie_list.html', {
+        'series': series, 'statuts': NumeroSerie.STATUTS, 'statut_filter': statut, 'recherche': recherche,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('stock')
+def serie_create(request):
+    entreprise = request.user.entreprise
+    if request.method == 'POST':
+        form = NumeroSerieForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            serie = form.save(commit=False)
+            serie.entreprise = entreprise
+            serie.save()
+            messages.success(request, f"Numéro de série {serie.numero_serie} enregistré.")
+            return redirect('stock:serie_list')
+    else:
+        form = NumeroSerieForm(entreprise=entreprise)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': 'Nouveau numéro de série', 'retour': 'stock:serie_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('stock')
+def serie_edit(request, pk):
+    entreprise = request.user.entreprise
+    serie = get_object_or_404(NumeroSerie, pk=pk, entreprise=entreprise)
+    if request.method == 'POST':
+        form = NumeroSerieForm(request.POST, instance=serie, entreprise=entreprise)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Numéro de série mis à jour.")
+            return redirect('stock:serie_list')
+    else:
+        form = NumeroSerieForm(instance=serie, entreprise=entreprise)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': f'Modifier {serie.numero_serie}', 'retour': 'stock:serie_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('stock')
+def serie_delete(request, pk):
+    serie = get_object_or_404(NumeroSerie, pk=pk, entreprise=request.user.entreprise)
+    if request.method == 'POST':
+        serie.delete()
+        messages.success(request, "Numéro de série supprimé.")
+        return redirect('stock:serie_list')
+    return render(request, 'stock/confirm_delete.html', {
+        'objet': f"n° {serie.numero_serie}", 'retour': 'stock:serie_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def peremptions(request):
+    """Lots périmés et proches de la péremption."""
+    entreprise = request.user.entreprise
+    aujourdhui = timezone.now().date()
+    limite = aujourdhui + timedelta(days=Lot.SEUIL_PROCHE_JOURS)
+    lots = (Lot.objects.filter(entreprise=entreprise, date_peremption__isnull=False, quantite_restante__gt=0)
+            .select_related('article', 'depot'))
+    perimes = lots.filter(date_peremption__lt=aujourdhui)
+    proches = lots.filter(date_peremption__gte=aujourdhui, date_peremption__lte=limite)
+    return render(request, 'stock/peremptions.html', {
+        'perimes': perimes, 'proches': proches, 'seuil': Lot.SEUIL_PROCHE_JOURS,
+    })

@@ -66,6 +66,16 @@
         </div>
     </div>
     <div class="col-md-3 col-6">
+        <a href="{% url 'stock:peremptions' %}" class="text-decoration-none">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.nb_perime }}<small class="text-warning fs-6"> / {{ stats.nb_proche_perem }}</small></h3><small class="text-muted">Périmés / proches</small></div>
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-calendar-x"></i></div>
+            </div>
+        </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-6">
         <div class="stat-card-stock">
             <div class="d-flex justify-content-between align-items-center">
                 <div><h3 class="mb-1">{{ stats.total_depots }}</h3><small class="text-muted">Dépôts</small></div>
