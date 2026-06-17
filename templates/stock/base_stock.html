@@ -150,6 +150,11 @@
                             <h6 class="sidebar-heading px-3 text-muted"><span>ACHATS</span></h6>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if 'reappro' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:reapprovisionnement' %}">
+                                <i class="bi bi-arrow-repeat"></i> Réapprovisionnement
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if 'commande' in request.resolver_match.url_name or 'reception' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:commande_list' %}">
                                 <i class="bi bi-cart-plus"></i> Commandes
                             </a>

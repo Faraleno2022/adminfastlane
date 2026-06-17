@@ -1988,3 +1988,84 @@ def peremptions(request):
     return render(request, 'stock/peremptions.html', {
         'perimes': perimes, 'proches': proches, 'seuil': Lot.SEUIL_PROCHE_JOURS,
     })
+
+
+# ===========================================================================
+# RÉAPPROVISIONNEMENT — suggestions de commande
+# ===========================================================================
+def _quantite_a_commander(article):
+    """Quantité suggérée pour ramener le stock à la cible (stock max, sinon 2× le seuil)."""
+    if article.stock_max and article.stock_max > 0:
+        cible = article.stock_max
+    else:
+        cible = (article.seuil_alerte or 0) * 2
+    if cible <= 0:
+        cible = article.seuil_alerte or Decimal('1')
+    qte = cible - (article.quantite_stock or Decimal('0'))
+    return qte if qte > 0 else Decimal('0')
+
+
+@reauth_required
+@login_required
+@stock_required
+def reapprovisionnement(request):
+    """Articles sous le seuil, regroupés par fournisseur, avec génération des bons de commande."""
+    entreprise = request.user.entreprise
+
+    if request.method == 'POST':
+        if not a_permission(request.user, 'achats'):
+            messages.error(request, "Votre rôle ne permet pas de créer des commandes.")
+            return redirect('stock:reapprovisionnement')
+        ids = request.POST.getlist('inclure')
+        depot = get_depot_defaut(entreprise)
+        commandes_creees = {}
+        with transaction.atomic():
+            for art_id in ids:
+                article = Article.objects.filter(pk=art_id, entreprise=entreprise, actif=True).first()
+                if not article or not article.fournisseur_id:
+                    continue
+                valeur = request.POST.get(f'qte_{art_id}', '').strip().replace(',', '.')
+                try:
+                    qte = Decimal(valeur)
+                except (ValueError, ArithmeticError):
+                    continue
+                if qte <= 0:
+                    continue
+                frs_id = article.fournisseur_id
+                if frs_id not in commandes_creees:
+                    commandes_creees[frs_id] = CommandeFournisseur.objects.create(
+                        entreprise=entreprise,
+                        reference=_generer_reference(CommandeFournisseur, entreprise, 'BC'),
+                        fournisseur=article.fournisseur, depot=depot, statut='brouillon',
+                        notes='Généré automatiquement (réapprovisionnement).', cree_par=request.user,
+                    )
+                LigneCommande.objects.create(
+                    commande=commandes_creees[frs_id], article=article,
+                    quantite_commandee=qte, prix_unitaire=(article.cout_unitaire or Decimal('0')),
+                )
+        n = len(commandes_creees)
+        if n:
+            messages.success(request, f"{n} bon(s) de commande créé(s) au brouillon. Vérifiez puis validez.")
+            return redirect('stock:commande_list')
+        messages.warning(request, "Aucun article sélectionné (ou sans fournisseur).")
+        return redirect('stock:reapprovisionnement')
+
+    articles = (Article.objects.filter(entreprise=entreprise, actif=True)
+                .select_related('fournisseur'))
+    groupes = {}          # fournisseur -> liste de suggestions
+    sans_fournisseur = []
+    for a in articles:
+        if not (a.en_rupture or a.en_alerte):
+            continue
+        suggestion = {'article': a, 'qte': _quantite_a_commander(a), 'prix': a.cout_unitaire}
+        if a.fournisseur_id:
+            groupes.setdefault(a.fournisseur, []).append(suggestion)
+        else:
+            sans_fournisseur.append(suggestion)
+
+    groupes_list = sorted(groupes.items(), key=lambda kv: kv[0].nom)
+    total_articles = sum(len(v) for v in groupes.values()) + len(sans_fournisseur)
+    return render(request, 'stock/reapprovisionnement.html', {
+        'groupes': groupes_list, 'sans_fournisseur': sans_fournisseur,
+        'total_articles': total_articles,
+    })

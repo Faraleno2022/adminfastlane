@@ -37,6 +37,9 @@ urlpatterns = [
     path('commandes/<int:pk>/reception/', views.reception_create, name='reception_create'),
     path('commandes/lignes/<int:pk>/supprimer/', views.ligne_commande_delete, name='ligne_commande_delete'),
 
+    # Réapprovisionnement
+    path('reapprovisionnement/', views.reapprovisionnement, name='reapprovisionnement'),
+
     # Factures fournisseurs
     path('factures-fournisseur/', views.facture_list, name='facture_list'),
     path('factures-fournisseur/nouvelle/', views.facture_create, name='facture_create'),

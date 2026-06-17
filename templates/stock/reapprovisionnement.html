@@ -1,0 +1,83 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}Réapprovisionnement{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-arrow-repeat me-2"></i>Réapprovisionnement</h4>
+        <small>{{ total_articles }} article(s) à commander (sous le seuil ou en rupture)</small>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    {% if groupes %}
+    <p class="text-muted small"><i class="bi bi-info-circle me-1"></i>Quantités suggérées pour atteindre le stock maximum (ou 2× le seuil). Décochez ou ajustez avant de générer les bons de commande (créés au brouillon).</p>
+    {% for fournisseur, suggestions in groupes %}
+    <div class="card mb-3">
+        <div class="card-header bg-white fw-bold d-flex justify-content-between">
+            <span><i class="bi bi-truck me-1"></i>{{ fournisseur.nom }}</span>
+            <small class="text-muted align-self-center">{{ suggestions|length }} article(s)</small>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-stock-light">
+                    <tr>
+                        <th style="width:40px;"></th><th>Article</th><th class="text-end">Stock</th>
+                        <th class="text-end">Seuil</th><th class="text-end">Max</th>
+                        <th class="text-end" style="width:140px;">À commander</th><th class="text-end">P.U.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in suggestions %}
+                    <tr>
+                        <td class="text-center"><input type="checkbox" name="inclure" value="{{ s.article.pk }}" class="form-check-input" checked></td>
+                        <td>{{ s.article.designation }}<br><small class="text-muted">{{ s.article.reference }}</small></td>
+                        <td class="text-end">{% if s.article.en_rupture %}<span class="badge bg-danger">{{ s.article.quantite_stock|floatformat:0 }}</span>{% else %}<span class="badge bg-warning text-dark">{{ s.article.quantite_stock|floatformat:0 }}</span>{% endif %}</td>
+                        <td class="text-end">{{ s.article.seuil_alerte|floatformat:0 }}</td>
+                        <td class="text-end">{{ s.article.stock_max|floatformat:0 }}</td>
+                        <td class="text-end"><input type="number" step="any" min="0" name="qte_{{ s.article.pk }}" value="{{ s.qte|floatformat:'-2' }}" class="form-control form-control-sm text-end"></td>
+                        <td class="text-end">{{ s.prix|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="d-flex gap-2 mb-4">
+        <button type="submit" class="btn btn-success"><i class="bi bi-cart-plus me-1"></i>Générer les bons de commande</button>
+    </div>
+    {% else %}
+    <div class="card"><div class="card-body text-center text-muted py-5">
+        <i class="bi bi-check-circle text-success" style="font-size:2.5rem;"></i>
+        <p class="mt-2 mb-0">Aucun article à réapprovisionner. Tout est au-dessus du seuil. 🎉</p>
+    </div></div>
+    {% endif %}
+</form>
+
+{% if sans_fournisseur %}
+<div class="card border-warning">
+    <div class="card-header bg-white fw-bold text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Sans fournisseur (à compléter pour pouvoir commander)</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light"><tr><th>Article</th><th class="text-end">Stock</th><th class="text-end">Seuil</th><th class="text-end">Suggéré</th></tr></thead>
+            <tbody>
+                {% for s in sans_fournisseur %}
+                <tr>
+                    <td><a href="{% url 'stock:article_edit' s.article.pk %}">{{ s.article.designation }}</a></td>
+                    <td class="text-end">{{ s.article.quantite_stock|floatformat:0 }}</td>
+                    <td class="text-end">{{ s.article.seuil_alerte|floatformat:0 }}</td>
+                    <td class="text-end">{{ s.qte|floatformat:0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
