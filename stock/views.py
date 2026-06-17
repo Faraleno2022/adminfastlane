@@ -67,6 +67,35 @@ def get_depot_defaut(entreprise):
             or Depot.objects.filter(entreprise=entreprise, actif=True).first())
 
 
+def maj_cmup(article, quantite_entree, prix_unitaire, stock_avant):
+    """Met à jour le coût moyen unitaire pondéré (CMUP) lors d'une entrée d'achat.
+
+    CMUP = (stock_avant * CMUP_actuel + quantité_entrée * prix) / (stock_avant + quantité_entrée)
+    À appeler avec le stock global AVANT l'entrée. Sauvegarde le champ cmup.
+    """
+    if prix_unitaire is None or prix_unitaire <= 0:
+        return
+    stock_avant = stock_avant or Decimal('0')
+    ancien_cmup = article.cmup if (article.cmup and article.cmup > 0) else (article.prix_achat or Decimal('0'))
+    total = stock_avant + quantite_entree
+    if total > 0:
+        article.cmup = (stock_avant * ancien_cmup + quantite_entree * prix_unitaire) / total
+    else:
+        article.cmup = prix_unitaire
+    article.save(update_fields=['cmup'])
+
+
+def valeur_stock_expr():
+    """Expression SQL de la valeur du stock : quantité × (CMUP si > 0, sinon prix d'achat)."""
+    from django.db.models import Case, When
+    cout = Case(
+        When(cmup__gt=0, then=F('cmup')),
+        default=F('prix_achat'),
+        output_field=DecimalField(max_digits=18, decimal_places=2),
+    )
+    return ExpressionWrapper(F('quantite_stock') * cout, output_field=DecimalField(max_digits=18, decimal_places=2))
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -117,9 +146,7 @@ def dashboard(request):
     entreprise = request.user.entreprise
     articles = Article.objects.filter(entreprise=entreprise, actif=True)
 
-    valeur_expr = ExpressionWrapper(
-        F('quantite_stock') * F('prix_achat'), output_field=DecimalField(max_digits=18, decimal_places=2)
-    )
+    valeur_expr = valeur_stock_expr()
     valeur_totale = (articles.aggregate(total=Sum(valeur_expr))['total'] or Decimal('0'))
 
     articles_alerte = [a for a in articles if a.en_alerte and not a.en_rupture]
@@ -464,6 +491,7 @@ def mouvement_create(request):
                 depot = mouvement.depot
                 quantite = mouvement.quantite
                 stock_depot = article.stock_dans(depot)
+                stock_global_avant = article.quantite_stock or Decimal('0')
 
                 if mouvement.type_mouvement == 'sortie' and quantite > stock_depot:
                     messages.error(
@@ -479,6 +507,9 @@ def mouvement_create(request):
                 avant, apres = appliquer_mouvement_depot(
                     article, depot, mouvement.type_mouvement, quantite
                 )
+                # Entrée d'achat avec prix : mise à jour du CMUP.
+                if mouvement.type_mouvement == 'entree':
+                    maj_cmup(article, quantite, mouvement.prix_unitaire, stock_global_avant)
                 mouvement.entreprise = entreprise
                 mouvement.quantite_avant = avant
                 mouvement.quantite_apres = apres
@@ -509,8 +540,14 @@ def mouvement_create(request):
 @stock_required
 def depot_list(request):
     entreprise = request.user.entreprise
+    from django.db.models import Case, When
+    cout = Case(
+        When(stocks_articles__article__cmup__gt=0, then=F('stocks_articles__article__cmup')),
+        default=F('stocks_articles__article__prix_achat'),
+        output_field=DecimalField(max_digits=18, decimal_places=2),
+    )
     valeur_expr = ExpressionWrapper(
-        F('quantite') * F('article__prix_achat'), output_field=DecimalField(max_digits=18, decimal_places=2)
+        F('stocks_articles__quantite') * cout, output_field=DecimalField(max_digits=18, decimal_places=2)
     )
     depots = (Depot.objects.filter(entreprise=entreprise)
               .annotate(nb_articles=Count('stocks_articles', distinct=True),
@@ -812,9 +849,7 @@ def rapports(request):
     entreprise = request.user.entreprise
     articles = Article.objects.filter(entreprise=entreprise, actif=True).select_related('categorie')
 
-    valeur_expr = ExpressionWrapper(
-        F('quantite_stock') * F('prix_achat'), output_field=DecimalField(max_digits=18, decimal_places=2)
-    )
+    valeur_expr = valeur_stock_expr()
 
     valeur_par_categorie = list(
         articles.values('categorie__nom')
@@ -1029,7 +1064,9 @@ def reception_create(request, pk):
                     if qte <= 0:
                         continue
                     article = Article.objects.select_for_update().get(pk=ligne.article_id)
+                    stock_global_avant = article.quantite_stock or Decimal('0')
                     avant, apres = appliquer_mouvement_depot(article, depot, 'entree', qte)
+                    maj_cmup(article, qte, ligne.prix_unitaire, stock_global_avant)
                     MouvementStock.objects.create(
                         entreprise=entreprise, article=article, depot=depot,
                         type_mouvement='entree', quantite=qte, quantite_avant=avant, quantite_apres=apres,
@@ -1691,13 +1728,14 @@ def _fmt(n):
 def export_stock(request, fmt):
     entreprise = request.user.entreprise
     articles = Article.objects.filter(entreprise=entreprise).select_related('categorie')
-    colonnes = ['Référence', 'Désignation', 'Catégorie', 'Unité', 'Stock', 'Prix achat', 'Valeur']
+    colonnes = ['Référence', 'Désignation', 'Catégorie', 'Unité', 'Stock', 'Prix achat', 'CMUP', 'Valeur']
     lignes, total_valeur = [], Decimal('0')
     for a in articles:
         lignes.append([a.reference, a.designation, a.categorie.nom if a.categorie else '-',
-                       a.get_unite_display(), _fmt(a.quantite_stock), _fmt(a.prix_achat), _fmt(a.valeur_stock)])
+                       a.get_unite_display(), _fmt(a.quantite_stock), _fmt(a.prix_achat),
+                       _fmt(a.cout_unitaire), _fmt(a.valeur_stock)])
         total_valeur += a.valeur_stock
-    total_row = ['', '', '', '', '', 'TOTAL', _fmt(total_valeur)]
+    total_row = ['', '', '', '', '', '', 'TOTAL', _fmt(total_valeur)]
     if fmt == 'excel':
         return exports.excel_response('etat_stock', 'État du stock', colonnes, lignes, total_row)
     return exports.pdf_table_response('etat_stock', 'État du stock', colonnes, lignes, entreprise, total_row)

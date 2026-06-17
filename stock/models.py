@@ -120,6 +120,8 @@ class Article(models.Model):
     unite = models.CharField(max_length=10, choices=UNITES, default='piece', verbose_name='Unité de mesure')
     prix_achat = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name="Prix d'achat (GNF)")
     prix_vente = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Prix de vente (GNF)')
+    cmup = models.DecimalField(max_digits=14, decimal_places=2, default=0,
+                               verbose_name='Coût moyen pondéré (CMUP)')
     quantite_stock = models.DecimalField(max_digits=14, decimal_places=2, default=0,
                                          verbose_name='Quantité en stock (tous dépôts)')
     seuil_alerte = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name="Stock minimum (alerte)")
@@ -145,9 +147,16 @@ class Article(models.Model):
         return f"{self.reference} - {self.designation}"
 
     @property
+    def cout_unitaire(self):
+        """Coût unitaire retenu pour la valorisation : CMUP si disponible, sinon prix d'achat."""
+        if self.cmup and self.cmup > 0:
+            return self.cmup
+        return self.prix_achat or Decimal('0')
+
+    @property
     def valeur_stock(self):
-        """Valeur du stock au prix d'achat."""
-        return (self.quantite_stock or Decimal('0')) * (self.prix_achat or Decimal('0'))
+        """Valeur du stock au coût moyen pondéré (CMUP), sinon au prix d'achat."""
+        return (self.quantite_stock or Decimal('0')) * self.cout_unitaire
 
     @property
     def en_rupture(self):

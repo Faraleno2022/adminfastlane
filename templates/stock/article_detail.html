@@ -23,6 +23,7 @@
                 <tr><th>Unité</th><td>{{ article.get_unite_display }}</td></tr>
                 <tr><th>Emplacement</th><td>{{ article.emplacement|default:"-" }}</td></tr>
                 <tr><th>Prix d'achat</th><td>{{ article.prix_achat|floatformat:0|intcomma }} GNF</td></tr>
+                <tr><th>CMUP</th><td>{{ article.cmup|floatformat:0|intcomma }} GNF</td></tr>
                 <tr><th>Prix de vente</th><td>{{ article.prix_vente|floatformat:0|intcomma }} GNF</td></tr>
             </table>
         </div></div>
