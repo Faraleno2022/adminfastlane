@@ -107,7 +107,7 @@
         <div class="col-md-3">
             <div class="card shadow-sm border-success h-100">
                 <div class="card-body text-center">
-                    <div class="text-muted small mb-1"><i class="fas fa-money-bill me-1"></i>Masse Brute</div>
+                    <div class="text-muted small mb-1"><i class="fas fa-money-bill me-1"></i>Salaire Brut</div>
                     <h4 class="text-success mb-0">{{ indicateurs.brut|floatformat:0|intcomma }} GNF</h4>
                     {% if evol_brut is not None %}
                     <small class="{% if evol_brut >= 0 %}text-danger{% else %}text-success{% endif %}">
@@ -121,7 +121,7 @@
         <div class="col-md-3">
             <div class="card shadow-sm border-info h-100">
                 <div class="card-body text-center">
-                    <div class="text-muted small mb-1"><i class="fas fa-hand-holding-usd me-1"></i>Masse Nette</div>
+                    <div class="text-muted small mb-1"><i class="fas fa-hand-holding-usd me-1"></i>Salaire Net</div>
                     <h4 class="text-info mb-0">{{ indicateurs.net|floatformat:0|intcomma }} GNF</h4>
                     <small class="text-muted">à payer aux employés</small>
                 </div>
@@ -130,7 +130,7 @@
         <div class="col-md-3">
             <div class="card shadow-sm border-warning h-100">
                 <div class="card-body text-center">
-                    <div class="text-muted small mb-1"><i class="fas fa-chart-pie me-1"></i>Coût moyen / employé</div>
+                    <div class="text-muted small mb-1"><i class="fas fa-chart-pie me-1"></i>Coût moyen Salaire brut / Employé</div>
                     <h4 class="text-warning mb-0">{{ indicateurs.cout_moyen|floatformat:0|intcomma }} GNF</h4>
                     <small class="text-muted">Ratio charges: {{ indicateurs.ratio_charges|floatformat:1 }}%</small>
                 </div>
@@ -425,6 +425,28 @@
                         <div class="text-muted small">Total Charges</div>
                         <div class="fw-bold text-primary fs-5">{{ indicateurs.charges_totales|floatformat:0|intcomma }}</div>
                         <small class="text-muted">GNF</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Totaux charges employeur / employé -->
+            <div class="row g-3 text-center mt-1">
+                <div class="col-md-6">
+                    <div class="border rounded p-3 h-100 bg-light border-danger">
+                        <div class="text-muted small fw-bold">
+                            <i class="fas fa-building me-1"></i>Total Charges Employeur
+                        </div>
+                        <div class="fw-bold text-danger fs-4">{{ indicateurs.charge_employeur|floatformat:0|intcomma }} <small class="text-muted">GNF</small></div>
+                        <small class="text-muted">CNSS 18% + VF 6% + {% if effectif_actif > 25 %}ONFPP 1,5%{% else %}TA 2%{% endif %} ({{ effectif_actif }} salariés actifs)</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="border rounded p-3 h-100 bg-light border-warning">
+                        <div class="text-muted small fw-bold">
+                            <i class="fas fa-user me-1"></i>Total Charges Employé
+                        </div>
+                        <div class="fw-bold text-warning fs-4">{{ indicateurs.charge_employe|floatformat:0|intcomma }} <small class="text-muted">GNF</small></div>
+                        <small class="text-muted">CNSS 5% + RTS</small>
                     </div>
                 </div>
             </div>

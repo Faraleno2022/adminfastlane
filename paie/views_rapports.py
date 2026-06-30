@@ -117,6 +117,10 @@ def _calcul_rapport(bulletins_qs):
     charges_totales = cnss_sal + cnss_emp + rts + vf + ta + onfpp
     ratio_charges = (charges_totales / brut * 100) if brut else Decimal('0')
     cout_moyen = (brut / nb) if nb else Decimal('0')
+    # Total charges employeur : CNSS patronal (18%) + VF (6%) + ONFPP (>= 25 salaries) ou TA (< 25)
+    charge_employeur = cnss_emp + vf + onfpp + ta
+    # Total charges employe : CNSS employe (5%) + RTS
+    charge_employe = cnss_sal + rts
     return {
         'nb': nb,
         'brut': brut,
@@ -130,6 +134,8 @@ def _calcul_rapport(bulletins_qs):
         'charges_totales': charges_totales,
         'ratio_charges': ratio_charges,
         'cout_moyen': cout_moyen,
+        'charge_employeur': charge_employeur,
+        'charge_employe': charge_employe,
     }
 
 
@@ -386,6 +392,15 @@ def rapport_masse_salariale(request):
 
     # --- Indicateurs globaux ---
     indicateurs = _calcul_rapport(bulletins)
+
+    # Effectif actif réel (sert à choisir ONFPP >= 25 salariés ou TA < 25)
+    effectif_actif = Employe.objects.filter(
+        entreprise=entreprise,
+        statut_employe='actif',
+    )
+    if service_id:
+        effectif_actif = effectif_actif.filter(service_id=service_id)
+    effectif_actif = effectif_actif.count()
     audit_conformite = _audit_masse_salariale(bulletins)
     audit_mensuel = _audit_masse_salariale_par_mois(entreprise, annee, service_id=service_id or None)
 
@@ -425,6 +440,7 @@ def rapport_masse_salariale(request):
         'evolution_data': evolution_data,
         'top10': top10_data,
         'indicateurs': indicateurs,
+        'effectif_actif': effectif_actif,
         'audit_conformite': audit_conformite,
         'audit_mensuel': audit_mensuel,
         'indic_n1': indic_n1,
