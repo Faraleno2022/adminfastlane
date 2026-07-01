@@ -5981,7 +5981,7 @@ def api_proposition_complete(request):
                 f"Pour un net exact de {fmt(net_cible)} GNF, brut recommandé : "
                 f"{fmt(brut_calcule)} GNF avec {pct_indem}% d'indemnités exonérées. "
                 f"Net à payer = {fmt(retro['net_calcule'])} GNF"
-                + (f". Économie employeur : −{fmt(economie_cout)} GNF vs structure sans optimisation"
+                + (f". Économie employeur : {fmt(economie_cout)} GNF vs structure sans optimisation"
                    if economie_cout > 0 else '')
                 + f". Coût total employeur : {fmt(cp['cout_total_employeur'])} GNF."
             ),
