@@ -644,7 +644,7 @@
             <!-- Analyse professionnelle : message pédagogique + comparatif + qualité/confiance -->
             <div id="prop_analyse_pro" style="display:none;">
                 <div id="prop_pedago" class="alert py-2 px-3 mb-3 d-flex align-items-start gap-2"></div>
-                <div class="row g-3 mb-3">
+                <div class="row g-3 mb-3" id="prop_pro_cards">
                     <div class="col-md-6">
                         <div class="card h-100">
                             <div class="card-header py-2 bg-light"><h6 class="mb-0"><i class="bi bi-table me-2"></i>Comparatif de référence</h6></div>
@@ -2131,6 +2131,8 @@
 
             // ── Optimisation ──
             var op = data.optimisation;
+            var tx = op.taux_optimal || 0;               // taux d'indemnités optimal (0 → structure simple)
+            var modeSimple = (tx <= 0 && (op.economie_cout || 0) <= 0);  // cas « 100 % base, aucune optimisation »
             document.getElementById('prop_o_scenarios').textContent = op.scenarios_testes;
             document.getElementById('prop_o_taux').textContent = op.taux_optimal + '%';
             document.getElementById('prop_o_net').textContent = fmt(op.net_optimal) + ' GNF';
@@ -2153,7 +2155,20 @@
             } else {
                 document.getElementById('prop_o_cout_delta').innerHTML = '<span class="badge bg-info">Identique (structure simple)</span>';
             }
-            document.getElementById('prop_o_sans_surcout').style.display = econCout > 0 ? 'flex' : 'none';
+            // Bannière : message adapté selon qu'il y ait une vraie optimisation ou non
+            var bannerEl = document.getElementById('prop_o_sans_surcout');
+            bannerEl.style.display = 'flex';
+            if (econCout > 0) {
+                bannerEl.className = 'alert alert-info py-2 px-3 mt-2 mb-0 d-flex align-items-center gap-2';
+                bannerEl.innerHTML = '<i class="bi bi-check-circle-fill text-info fs-5"></i>'
+                    + '<strong>Net exact garanti + économie employeur</strong>'
+                    + '<span class="small text-muted ms-2">— L\'employé reçoit exactement le net convenu, l\'entreprise économise grâce à l\'optimisation fiscale</span>';
+            } else {
+                bannerEl.className = 'alert alert-secondary py-2 px-3 mt-2 mb-0 d-flex align-items-center gap-2';
+                bannerEl.innerHTML = '<i class="bi bi-check-circle-fill text-secondary fs-5"></i>'
+                    + '<strong>Net exact garanti</strong>'
+                    + '<span class="small text-muted ms-2">— Aucune optimisation fiscale applicable à ce niveau de rémunération</span>';
+            }
 
             // ── ROI optimisation ──
             var roi = data.roi_optimisation || {};
@@ -2255,9 +2270,14 @@
             } else {
                 roiCard.style.display = 'none';
             }
+            // Cas « structure simple » (aucune optimisation) : masquer le ROI, sinon il
+            // suggère de « revoir la structure » alors qu'elle est déjà optimale.
+            if (modeSimple) { roiCard.style.display = 'none'; }
 
             // ── Analyse professionnelle : pédagogie + comparatif + qualité/confiance ──
-            var tx = op.taux_optimal || 0;
+            // Les cartes avancées (comparatif + qualité) ne s'affichent que s'il y a une
+            // vraie optimisation. En mode simple, seul le message pédagogique reste.
+            document.getElementById('prop_pro_cards').style.display = modeSimple ? 'none' : '';
 
             // #4 — Message pédagogique automatique selon le taux optimal
             var ped = document.getElementById('prop_pedago');
@@ -2273,14 +2293,15 @@
                 pedTxt = "<strong>Optimisation partielle (" + tx + " %).</strong> Une part d'indemnités exonérées réduit les charges sans atteindre le plafond de 25 %, pour rester crédible vis-à-vis de l'administration fiscale.";
             }
             ped.className = 'alert py-2 px-3 mb-3 d-flex align-items-start gap-2 ' + pedCls;
-            ped.innerHTML = '<i class="bi ' + pedIcon + ' fs-5"></i><div>' + pedTxt + '</div>';
+            var pedBadge = modeSimple ? '<span class="badge bg-secondary mb-1 d-inline-block">Mode structure simple</span><br>' : '';
+            ped.innerHTML = '<i class="bi ' + pedIcon + ' fs-5"></i><div>' + pedBadge + pedTxt + '</div>';
 
             // #2 — Comparatif de référence (sans opti / optimisé / économie)
             document.getElementById('prop_comparatif_body').innerHTML =
                 '<table class="table table-sm mb-0"><tbody>' +
                 '<tr><td class="text-muted">Coût sans optimisation</td><td class="text-end fw-semibold">' + fmt(op.cout_standard) + ' GNF</td></tr>' +
                 '<tr><td class="text-muted">Coût optimisé</td><td class="text-end fw-semibold">' + fmt(op.cout_optimal) + ' GNF</td></tr>' +
-                '<tr class="border-top"><td class="fw-bold text-success">Économie employeur</td><td class="text-end fw-bold text-success">' + (econCout > 0 ? fmt(econCout) + ' GNF' : '—') + '</td></tr>' +
+                '<tr class="border-top"><td class="fw-bold">Économie employeur</td>' + (econCout > 0 ? '<td class="text-end fw-bold text-success">' + fmt(econCout) + ' GNF</td>' : '<td class="text-end text-muted">Aucune économie</td>') + '</tr>' +
                 '</tbody></table>';
 
             // #3 + #5 — Indicateurs qualité & confiance
