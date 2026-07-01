@@ -969,7 +969,6 @@
     var PDF_URL       = "{% url 'paie:api_simulation_pdf' %}";
     var VALIDER_URL   = "{% url 'paie:api_valider_simulation' %}";
     var HISTORIQUE_URL = "{% url 'paie:api_historique_simulations_employe' employe.id %}";
-    var MOTEUR_VERSION = '2026.2';  // version du moteur d'optimisation salariale
     var CSRF          = "{{ csrf_token }}";
     var EMPLOYE_ID    = {{ employe.id }};
 
@@ -2303,7 +2302,7 @@
                 '<li><i class="bi bi-bullseye me-1 text-success"></i>Net garanti : <strong>' + netGaranti + '</strong></li>' +
                 '<li><i class="bi bi-shield-check me-1 text-success"></i>Simulation vérifiée : ' + verifBadge + '</li>' +
                 '<li><i class="bi bi-diagram-3 me-1 text-info"></i>Double moteur cohérent : <span class="badge bg-success">Oui</span></li>' +
-                '<li><i class="bi bi-cpu me-1 text-muted"></i>Version moteur : <strong>' + MOTEUR_VERSION + '</strong></li>' +
+                '<li><i class="bi bi-cpu me-1 text-muted"></i>Version moteur : <strong>2026.2</strong></li>' +
                 '</ul>';
 
             document.getElementById('prop_analyse_pro').style.display = 'block';
