@@ -74,7 +74,7 @@ Name: "autostart";     Description: "Lancer GestionnaireRH au démarrage de Wind
 [Files]
 ; Application compilée (tout le dossier dist\GestionnaireRH)
 ; ignoreversion + recursesubdirs : écrase les anciens fichiers lors d'une mise à jour
-Source: "dist\GestionnaireRH\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\GestionnaireRH\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "license.dat"
 
 ; Script de désinstallation
 Source: "desinstaller.bat"; DestDir: "{app}"; Flags: ignoreversion
@@ -98,6 +98,13 @@ Source: "dist\GestionnaireRH\db_template.sqlite3"; DestDir: "{app}"; Flags: only
 
 ; Icône
 Source: "static\img\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
+
+; ── Composant Microsoft Edge WebView2 Runtime ──────────────────────────────────
+; Requis pour afficher l'application dans sa propre fenêtre native.
+; Le bootstrapper n'est extrait que si le runtime n'est pas déjà présent.
+; (Pour un déploiement 100% hors ligne, remplacez ce fichier par le « Standalone
+;  Evergreen Installer » de Microsoft — même nom, l'option /silent /install reste valide.)
+Source: "redist\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: WebView2NotInstalled
 
 [Dirs]
 ; Dossiers avec permissions d'écriture
@@ -126,6 +133,11 @@ Root: HKCU; Subkey: "Software\Guinée RH\GestionnaireRH"; ValueType: string; Val
 Root: HKCU; Subkey: "Software\Guinée RH\GestionnaireRH"; ValueType: string; ValueName: "InstallDir"; ValueData: "{app}";  Flags: uninsdeletevalue
 
 [Run]
+; Installer le runtime WebView2 en silencieux s'il est absent (AVANT le lancement).
+; Le bootstrapper télécharge et installe le composant ; il choisit automatiquement
+; une installation par machine (admin) ou par utilisateur (sans admin).
+Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; StatusMsg: "Installation du composant Microsoft WebView2 (fenêtre de l'application)..."; Check: WebView2NotInstalled; Flags: waituntilterminated
+
 ; Proposer de lancer l'application après installation
 Filename: "{app}\GestionnaireRH.exe"; Description: "Démarrer GestionnaireRH maintenant"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
@@ -183,9 +195,39 @@ Type: files;          Name: "{app}\install_path.txt"
 WelcomeLabel1=Bienvenue dans l'assistant d'installation de GestionnaireRH
 WelcomeLabel2=Ce programme va installer ou mettre à jour GestionnaireRH - Système de Gestion des Ressources Humaines sur votre ordinateur.%n%nGestionnaireRH est une solution complète de gestion RH développée par Guinée RH. Elle fonctionne entièrement hors ligne.%n%nSi une version précédente est installée, vos données seront conservées.%n%nFermez toutes les autres applications avant de continuer.
 FinishedHeadingLabel=Installation de GestionnaireRH terminée !
-FinishedLabel=GestionnaireRH a été installé / mis à jour avec succès sur votre ordinateur.%n%nIdentifiants par défaut (première installation) :%n  Utilisateur : admin%n  Mot de passe  : admin1234%n%nL'application s'ouvre dans votre navigateur sur http://127.0.0.1:8000%n%nNOTE : Si c'est une mise à jour, vos données et votre licence sont conservées.
+FinishedLabel=GestionnaireRH a été installé / mis à jour avec succès sur votre ordinateur.%n%nIdentifiants par défaut (première installation) :%n  Utilisateur : admin%n  Mot de passe  : admin1234%n%nL'application s'ouvre dans sa propre fenêtre, comme un logiciel de bureau.%n%nNOTE : Si c'est une mise à jour, vos données et votre licence sont conservées.
 
 [Code]
+
+var
+  LicenseChoicePage: TInputOptionWizardPage;
+  LicenseFilePage: TInputFileWizardPage;
+  SelectedLicenseFile: String;
+  UseProvidedLicense: Boolean;
+
+// ── Détecter l'absence du runtime Microsoft Edge WebView2 ─────────────────────
+// Retourne True si le runtime n'est PAS installé (donc il faut l'installer).
+// GUID client officiel du runtime Evergreen : {F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}
+function WebView2NotInstalled(): Boolean;
+var
+  pv: String;
+begin
+  Result := True;
+  // HKLM (installation par machine) — vue 32 bits où EdgeUpdate écrit
+  if RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', pv) then
+    if (pv <> '') and (pv <> '0.0.0.0') then
+      Result := False;
+  // HKLM vue native 64 bits
+  if Result then
+    if RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', pv) then
+      if (pv <> '') and (pv <> '0.0.0.0') then
+        Result := False;
+  // HKCU (installation par utilisateur, sans droits admin)
+  if Result then
+    if RegQueryStringValue(HKCU, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', pv) then
+      if (pv <> '') and (pv <> '0.0.0.0') then
+        Result := False;
+end;
 
 // ── Vérifier si l'application est en cours d'exécution ────────────────────────
 function IsAppRunning(): Boolean;
@@ -234,6 +276,105 @@ begin
 end;
 
 // ── Afficher l'ID machine à la fin pour l'activation ─────────────────────────
+procedure InitializeWizard();
+begin
+  LicenseChoicePage := CreateInputOptionPage(
+    wpSelectTasks,
+    'Activation de licence',
+    'Choisissez le mode d''activation de GestionnaireRH.',
+    'Si vous avez deja recu un fichier de licence, vous pouvez l''ajouter maintenant. ' +
+    'Sinon, l''application demarrera en version d''essai de 30 jours.',
+    True,
+    False
+  );
+  LicenseChoicePage.Add('J''ai un fichier de licence (.lic ou license.dat)');
+  LicenseChoicePage.Add('Continuer avec la version d''essai de 30 jours');
+  LicenseChoicePage.SelectedValueIndex := 1;
+
+  LicenseFilePage := CreateInputFilePage(
+    LicenseChoicePage.ID,
+    'Ajouter la licence',
+    'Selectionnez le fichier de licence fourni par Guinee RH.',
+    'Le fichier sera installe automatiquement sous le nom license.dat dans le dossier de l''application.'
+  );
+  LicenseFilePage.Add(
+    'Fichier de licence :',
+    'Fichiers licence (*.lic;license.dat)|*.lic;license.dat|Tous les fichiers (*.*)|*.*',
+    '.lic'
+  );
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := False;
+  if Assigned(LicenseFilePage) and (PageID = LicenseFilePage.ID) then
+    Result := LicenseChoicePage.SelectedValueIndex <> 0;
+end;
+
+function LooksLikeLicenseFile(FileName: String): Boolean;
+var
+  Content: AnsiString;
+begin
+  Result := False;
+  if not LoadStringFromFile(FileName, Content) then
+    Exit;
+
+  Result :=
+    (Pos('"license_data"', Content) > 0) and
+    (Pos('"signature"', Content) > 0) and
+    (Pos('"version"', Content) > 0);
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  LicenseFile: String;
+begin
+  Result := True;
+
+  if Assigned(LicenseChoicePage) and (CurPageID = LicenseChoicePage.ID) then
+  begin
+    UseProvidedLicense := False;
+    SelectedLicenseFile := '';
+  end;
+
+  if Assigned(LicenseFilePage) and (CurPageID = LicenseFilePage.ID) then
+  begin
+    LicenseFile := Trim(LicenseFilePage.Values[0]);
+    if LicenseFile = '' then
+    begin
+      MsgBox(
+        'Veuillez selectionner votre fichier de licence, ou revenez a l''etape precedente pour choisir la version d''essai.',
+        mbError,
+        MB_OK
+      );
+      Result := False;
+      Exit;
+    end;
+
+    if not FileExists(LicenseFile) then
+    begin
+      MsgBox('Le fichier de licence selectionne est introuvable.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+
+    if not LooksLikeLicenseFile(LicenseFile) then
+    begin
+      MsgBox(
+        'Ce fichier ne ressemble pas a une licence GestionnaireRH valide.' + #13#10 +
+        'Selectionnez un fichier .lic ou license.dat fourni par Guinee RH.',
+        mbError,
+        MB_OK
+      );
+      Result := False;
+      Exit;
+    end;
+
+    SelectedLicenseFile := LicenseFile;
+    UseProvidedLicense := True;
+  end;
+end;
+
 function GetMachineId(): String;
 var
   MachineGuid: String;
@@ -323,9 +464,23 @@ begin
     ForceDirectories(ExpandConstant('{app}\data'));
 
     // Restaurer la licence si elle a été écrasée
+    if UseProvidedLicense and FileExists(SelectedLicenseFile) then
+    begin
+      LicensePath := ExpandConstant('{app}\license.dat');
+      if CopyFile(SelectedLicenseFile, LicensePath, False) then
+        Log('Licence installee depuis : ' + SelectedLicenseFile)
+      else
+        MsgBox(
+          'La licence n''a pas pu etre copiee dans le dossier d''installation.' + #13#10 +
+          'Vous pourrez toujours l''activer plus tard depuis l''application.',
+          mbError,
+          MB_OK
+        );
+    end;
+
     LicensePath := ExpandConstant('{app}\license.dat');
     LicenseBackup := ExpandConstant('{app}\backups\license_backup.dat');
-    if (not FileExists(LicensePath)) and FileExists(LicenseBackup) then
+    if (not UseProvidedLicense) and (not FileExists(LicensePath)) and FileExists(LicenseBackup) then
     begin
       CopyFile(LicenseBackup, LicensePath, False);
       Log('Licence restaurée depuis la sauvegarde');

@@ -7,9 +7,37 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from django.views.static import serve
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from core.views_modules.demo import demo_accueil, demo_telecharger_pdf
 import os
+import sys
+import time
+import threading
+
+
+def quitter_application(request):
+    """Ferme complètement l'application de bureau (serveur + fenêtre + processus).
+
+    Réservé au mode bureau (variable GESTIONNAIRE_RH_DESKTOP). Permet à
+    l'utilisateur de libérer le port et la mémoire pour lancer une autre
+    application. os._exit() arrête tout le processus, y compris la fenêtre
+    native et le thread serveur Django.
+    """
+    # Mode bureau = app packagée (sys.frozen) OU lancée via run_server (env).
+    is_desktop = getattr(sys, 'frozen', False) or os.environ.get('GESTIONNAIRE_RH_DESKTOP') == '1'
+    if not is_desktop:
+        return HttpResponse(status=404)
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    def _shutdown():
+        # Laisser le temps à la réponse HTTP de partir avant de tuer le processus.
+        time.sleep(0.5)
+        sys.stdout.flush() if sys.stdout else None
+        os._exit(0)
+
+    threading.Thread(target=_shutdown, daemon=True).start()
+    return JsonResponse({'ok': True, 'message': 'Fermeture de GestionnaireRH...'})
 
 def robots_txt(request):
     content = """# Robots.txt pour GuinéeRH
@@ -64,6 +92,9 @@ urlpatterns = [
     # Démonstration commerciale (accessible sans authentification)
     path('demo/', demo_accueil, name='demo_accueil'),
     path('demo/pdf/', demo_telecharger_pdf, name='demo_telecharger_pdf'),
+
+    # Fermeture complète de l'application de bureau (mode bureau uniquement)
+    path('app/quitter/', quitter_application, name='quitter_application'),
 
     path('robots.txt', robots_txt, name='robots_txt'),
     path('sitemap.xml', sitemap_xml, name='sitemap_xml'),

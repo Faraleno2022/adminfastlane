@@ -7,6 +7,7 @@ Génère un exécutable Windows standalone avec icône
 import os
 import sys
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 # Répertoire du projet
 PROJECT_DIR = Path(r'C:\Users\LENO\Desktop\GestionnaireRHofline')
@@ -18,6 +19,12 @@ import django
 import axes
 DJANGO_DIR = Path(django.__file__).parent
 AXES_DIR = Path(axes.__file__).parent
+
+# ── pywebview + pythonnet (fenêtre native WebView2) ──────────────────────────
+# Collecte complète : binaires .NET (Python.Runtime.dll), data et sous-modules.
+_webview_datas, _webview_binaries, _webview_hidden = collect_all('webview')
+_clr_datas, _clr_binaries, _clr_hidden = collect_all('clr_loader')
+_pythonnet_datas, _pythonnet_binaries, _pythonnet_hidden = collect_all('pythonnet')
 
 # Collecter tous les fichiers de données
 datas = [
@@ -56,6 +63,9 @@ datas = [
     # ── Migrations axes (django-axes) ──
     (str(AXES_DIR / 'migrations'), 'axes/migrations'),
 ]
+
+# Ajouter les données de pywebview / pythonnet
+datas += _webview_datas + _clr_datas + _pythonnet_datas
 
 # Modules cachés nécessaires pour Django
 hiddenimports = [
@@ -150,7 +160,18 @@ hiddenimports = [
     'uuid',
     'socket',
     'platform',
+    # Fenêtre native (pywebview + backend Edge WebView2 via pythonnet)
+    'webview',
+    'webview.platforms.edgechromium',
+    'webview.platforms.winforms',
+    'clr',
+    'clr_loader',
+    'bottle',
+    'proxy_tools',
 ]
+
+# Sous-modules + imports cachés collectés pour pywebview / pythonnet
+hiddenimports += _webview_hidden + _clr_hidden + _pythonnet_hidden
 
 a = Analysis(
     [str(PROJECT_DIR / 'run_server.py')],
@@ -160,7 +181,7 @@ a = Analysis(
         (str(PROJECT_DIR / 'dist_nuitka' / 'license_manager.cp313-win_amd64.pyd'), '.'),
         (str(PROJECT_DIR / 'dist_nuitka' / 'project_guardian.cp313-win_amd64.pyd'), '.'),
         (str(PROJECT_DIR / 'dist_nuitka' / 'runtime_shield.cp313-win_amd64.pyd'), '.'),
-    ],
+    ] + _webview_binaries + _clr_binaries + _pythonnet_binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
@@ -180,7 +201,8 @@ a = Analysis(
     win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
-    optimize=2,   # strip docstrings + assert statements
+    optimize=1,   # strip assert statements UNIQUEMENT — garder les docstrings
+                  # (pycparser, via cffi/pythonnet pour WebView2, en a besoin)
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
@@ -195,7 +217,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # True pour voir les logs, False pour mode silencieux
+    console=False,  # False : pas de fenetre noire — l'app s'ouvre dans sa propre fenetre
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

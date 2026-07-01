@@ -156,7 +156,7 @@
                         </div>
                     </div>
                     <input type="range" class="form-range decomp-slider" id="decomp_pct_base"
-                           min="30" max="80" value="60" data-cle="salaire_base">
+                           min="0" max="100" value="60" data-cle="salaire_base" disabled>
                     <div class="d-flex justify-content-between">
                         <span class="badge bg-primary" id="decomp_pct_base_val">60%</span>
                         <span class="fw-bold text-primary small" id="decomp_mt_base">—</span>
@@ -1300,6 +1300,19 @@
     function recalculer() {
         if (!brutTotal) return;
         var pcts = lirePcts();
+
+        // ── Cohérence structurelle : la base est TOUJOURS le résidu ──────
+        // Le montant de la base = brut − indemnités (cf. plus bas). Le pourcentage
+        // affiché doit suivre la même règle, sinon on peut afficher un total ≠ 100%
+        // (ex. base 80% + indemnités 25% = 105%) alors que les montants font 100%.
+        // On force donc base% = 100 − (transport + logement + cherté).
+        var _indemPct = pcts.transport + pcts.logement + pcts.cherte_vie;
+        pcts.salaire_base = Math.max(0, 100 - _indemPct);
+        var _baseSlider = document.getElementById(SLIDER_IDS['salaire_base']);
+        if (_baseSlider && parseInt(_baseSlider.value, 10) !== pcts.salaire_base) {
+            _baseSlider.value = pcts.salaire_base;
+        }
+
         var total = 0;
         CLES.forEach(function(c) { total += pcts[c]; });
 
@@ -2067,7 +2080,7 @@
             body: JSON.stringify({
                 net_cible: netCible,
                 objectif: objectif,
-                taux_max: parseInt(document.getElementById('prop_taux_max').value) || 25
+                taux_max: (function(){ var _v = parseInt(document.getElementById('prop_taux_max').value, 10); return isNaN(_v) ? 25 : _v; })()
             })
         })
         .then(function(r) {
@@ -2293,10 +2306,13 @@
         var comps = data.recommandation.composantes || [];
         var pctMap = {};
         comps.forEach(function(c) { pctMap[c.cle] = Number(c.pct); });
-        var base = pctMap['salaire_base'] || 75;
-        var t = pctMap['transport'] || 10;
-        var l = pctMap['logement'] || 10;
-        var cv = pctMap['cherte_vie'] || 5;
+        // NB : ne PAS utiliser « || défaut » — un pourcentage recommandé de 0
+        // (ex. structure 100% base, 0% indemnités) est falsy et prendrait le défaut,
+        // injectant 10/10/5 au lieu de 0/0/0 → total incohérent (125% / 105%).
+        var base = pctMap['salaire_base'] != null ? pctMap['salaire_base'] : 75;
+        var t = pctMap['transport'] != null ? pctMap['transport'] : 10;
+        var l = pctMap['logement'] != null ? pctMap['logement'] : 10;
+        var cv = pctMap['cherte_vie'] != null ? pctMap['cherte_vie'] : 5;
 
         var timeoutCopie = null;
 

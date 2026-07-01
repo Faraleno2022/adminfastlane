@@ -1,3 +1,5 @@
+import os
+import sys
 from django.conf import settings
 from .models import Societe, Entreprise
 
@@ -28,4 +30,7 @@ def company_info(request):
         'societe': societe,
         'entreprise_logo': entreprise_logo,
         'entreprise_nom': entreprise_nom,
+        # True en mode bureau : app packagée (sys.frozen) OU lancée via run_server.
+        # Affiche le bouton « Quitter l'application ».
+        'DESKTOP_MODE': getattr(sys, 'frozen', False) or os.environ.get('GESTIONNAIRE_RH_DESKTOP') == '1',
     }

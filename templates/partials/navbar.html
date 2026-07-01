@@ -29,6 +29,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if DESKTOP_MODE %}
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="return quitterApplicationRH();"
+                       title="Fermer complètement l'application pour en lancer une autre"
+                       style="color:#FFFFFF; font-weight:600;">
+                        <i class="fas fa-power-off"></i> Quitter l'application
+                    </a>
+                </li>
+                {% endif %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
                         <i class="fas fa-user-circle"></i> {{ user.get_full_name|default:user.username }}
@@ -48,4 +57,26 @@
         </div>
     </div>
 </nav>
+
+{% if DESKTOP_MODE %}
+<form id="rhQuitForm" method="post" action="{% url 'quitter_application' %}" style="display:none;">{% csrf_token %}</form>
+<script>
+function quitterApplicationRH() {
+    if (confirm("Fermer complètement GestionnaireRH ?\n\nLe serveur et la fenêtre de l'application vont s'arrêter. Vous pourrez ensuite lancer une autre application.")) {
+        try {
+            // Message d'attente pendant la fermeture du processus
+            document.body.insertAdjacentHTML('beforeend',
+                '<div style="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);' +
+                'display:flex;align-items:center;justify-content:center;color:#fff;' +
+                'font-family:sans-serif;font-size:1.3rem;text-align:center;">' +
+                '<div><i class="fas fa-power-off fa-2x"></i><br><br>' +
+                'Fermeture de GestionnaireRH…<br>' +
+                '<span style="font-size:.9rem;opacity:.8">Vous pouvez fermer cette fenêtre si elle reste ouverte.</span></div></div>');
+            document.getElementById('rhQuitForm').submit();
+        } catch (e) {}
+    }
+    return false;
+}
+</script>
+{% endif %}
 

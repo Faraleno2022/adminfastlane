@@ -26,6 +26,59 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 
+# ─── Mode fenêtre (sans console) : rediriger stdout/stderr vers un fichier ─────
+# En build « windowed » (console=False), sys.stdout / sys.stderr valent None :
+# le moindre print() planterait. On les redirige vers un journal pour conserver
+# les logs tout en supprimant la fenêtre noire au démarrage.
+def _setup_console_redirect():
+    if sys.stdout is not None and sys.stderr is not None:
+        return  # console présente : rien à faire
+    log_dir = os.path.join(BASE_DIR, 'logs')
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, 'launcher.log')
+        log_file = open(log_path, 'a', encoding='utf-8', buffering=1)
+    except Exception:
+        # Dossier non inscriptible : repli sur le dossier temporaire
+        import tempfile
+        log_file = open(os.path.join(tempfile.gettempdir(),
+                                     'GestionnaireRH_launcher.log'),
+                        'a', encoding='utf-8', buffering=1)
+    sys.stdout = log_file
+    sys.stderr = log_file
+
+
+_setup_console_redirect()
+
+
+def _safe_pause(message):
+    """Remplace input() : affiche une boîte de dialogue si aucune console.
+
+    En mode fenêtre, input() lèverait une exception (pas de stdin). On montre
+    alors un message graphique avant de fermer l'application.
+    """
+    try:
+        print(message)
+    except Exception:
+        pass
+    has_console = sys.stdin is not None and getattr(sys.stdin, 'isatty', lambda: False)()
+    if has_console:
+        try:
+            input()
+        except Exception:
+            pass
+        return
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+        r = tk.Tk()
+        r.withdraw()
+        messagebox.showerror("GestionnaireRH", message)
+        r.destroy()
+    except Exception:
+        pass
+
+
 # ─── Fenêtre d'activation de licence (tkinter) ────────────────────────────────
 def show_activation_window(mid: str, trial_days_left: int = 0) -> bool:
     """
@@ -259,13 +312,28 @@ def check_license():
     return True
 
 
-# ─── Ouverture du navigateur ──────────────────────────────────────────────────
-def open_browser():
-    """Ouvre le navigateur après un délai — privilégie un navigateur moderne."""
-    time.sleep(1.5)
-    url = 'http://127.0.0.1:8000/'
+APP_URL = 'http://127.0.0.1:8000/'
 
-    # Chemins potentiels vers des navigateurs modernes (Chrome, Edge Chromium)
+
+def _wait_for_server(url=APP_URL, timeout=40):
+    """Attend que le serveur Django réponde avant d'ouvrir la fenêtre."""
+    import urllib.request
+    import urllib.error
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(url, timeout=2)
+            return True
+        except urllib.error.HTTPError:
+            # Le serveur a répondu (redirection/erreur HTTP) → il est prêt
+            return True
+        except Exception:
+            time.sleep(0.3)
+    return False
+
+
+def open_browser_app_mode(url=APP_URL):
+    """Repli : ouvre Chrome/Edge en mode application (fenêtre sans barre d'adresse)."""
     candidates = [
         os.path.expandvars(r'%ProgramFiles%\Google\Chrome\Application\chrome.exe'),
         os.path.expandvars(r'%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe'),
@@ -273,18 +341,58 @@ def open_browser():
         os.path.expandvars(r'%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe'),
         os.path.expandvars(r'%ProgramFiles%\Microsoft\Edge\Application\msedge.exe'),
     ]
+    import subprocess
     for path in candidates:
         if os.path.isfile(path):
             try:
-                webbrowser.get(f'"{path}" %s').open(url)
-                print(f"  Navigateur ouvert: {os.path.basename(path)}")
-                return
+                subprocess.Popen([path, f'--app={url}',
+                                  '--window-size=1280,800'])
+                print(f"  Fenetre application ouverte: {os.path.basename(path)}")
+                return True
             except Exception:
                 continue
+    # Dernier recours : navigateur par défaut
+    try:
+        webbrowser.open(url)
+        print("  Navigateur par defaut ouvert")
+        return True
+    except Exception:
+        return False
 
-    # Fallback : navigateur par défaut du système
-    webbrowser.open(url)
-    print("  Navigateur par defaut ouvert")
+
+def open_app_window():
+    """Ouvre l'application dans sa propre fenêtre native (pywebview/WebView2).
+
+    Bloque jusqu'à la fermeture de la fenêtre, puis arrête l'application.
+    En cas d'échec, repli sur le mode application du navigateur.
+    """
+    if not _wait_for_server():
+        print("  [Fenetre] Le serveur n'a pas demarre a temps.")
+    try:
+        import webview
+        webview.create_window(
+            'GestionnaireRH — Gestion RH Guinée',
+            APP_URL,
+            width=1280,
+            height=800,
+            min_size=(1024, 700),
+            maximized=True,
+        )
+        print("  Fenetre native ouverte (WebView2)")
+        webview.start()
+        # La fenêtre a été fermée par l'utilisateur → on quitte l'application
+        os._exit(0)
+    except Exception as e:
+        print(f"  [Fenetre] pywebview indisponible ({e}) — repli navigateur app-mode")
+        open_browser_app_mode()
+        # IMPORTANT : ne pas rendre la main, sinon main() se termine et le thread
+        # serveur (démon) est tué → le navigateur afficherait ERR_CONNECTION_REFUSED.
+        # On garde le processus (et donc le serveur) vivant tant que le navigateur tourne.
+        try:
+            while True:
+                time.sleep(3600)
+        except KeyboardInterrupt:
+            pass
 
 
 # ─── Patch DB : ajoute les colonnes manquantes (mise à jour sans migration) ──
@@ -486,6 +594,10 @@ def main():
     # Configurer Django
     os.environ['DJANGO_SETTINGS_MODULE'] = 'gestionnaire_rh.settings'
 
+    # Marqueur « application de bureau » : active le bouton « Quitter l'application »
+    # dans l'interface. Absent quand on lance un simple `manage.py runserver` (web).
+    os.environ['GESTIONNAIRE_RH_DESKTOP'] = '1'
+
     if getattr(sys, 'frozen', False):
         os.environ['PYINSTALLER_BASE_DIR'] = BASE_DIR
         os.environ['PYINSTALLER_INTERNAL_DIR'] = INTERNAL_DIR
@@ -509,11 +621,13 @@ def main():
                 print("  Ce logiciel a ete modifie ou copie de maniere non autorisee.")
                 print("  Contactez ICG Guinea pour obtenir une copie legale.")
                 print()
-                input("  Appuyez sur Entree pour fermer...")
+                _safe_pause("Ce logiciel a ete modifie ou copie de maniere non "
+                            "autorisee.\nContactez ICG Guinea pour obtenir une "
+                            "copie legale.")
                 sys.exit(1)
         except ImportError:
             print("  [SECURITE] Module de protection manquant — blocage.")
-            input("  Appuyez sur Entree pour fermer...")
+            _safe_pause("Module de protection manquant. Contactez ICG Guinea.")
             sys.exit(1)
         except Exception:
             pass  # En cas d'erreur inattendue, ne pas bloquer le propriétaire
@@ -526,11 +640,12 @@ def main():
                 print("  [SECURITE] Falsification detectee !")
                 print(f"  [SECURITE] {shield_result.get('reason', 'Environnement compromis')}")
                 print()
-                input("  Appuyez sur Entree pour fermer...")
+                _safe_pause("Falsification detectee. Environnement compromis.\n"
+                            "Contactez ICG Guinea.")
                 sys.exit(1)
         except ImportError:
             print("  [SECURITE] Bouclier runtime manquant — blocage.")
-            input("  Appuyez sur Entree pour fermer...")
+            _safe_pause("Bouclier runtime manquant. Contactez ICG Guinea.")
             sys.exit(1)
         except Exception:
             pass
@@ -629,17 +744,10 @@ def main():
 
         print()
         print("  Serveur demarre sur: http://127.0.0.1:8000/")
-        print()
-        print("  Appuyez sur CTRL+C pour arreter")
+        print("  Ouverture dans la fenetre de l'application...")
         print("=" * 50)
         print()
 
-        # Ouvrir le navigateur
-        browser_thread = threading.Thread(target=open_browser)
-        browser_thread.daemon = True
-        browser_thread.start()
-
-        # Lancer le serveur
         # Désactiver check_migrations : les migrations sont déjà appliquées mais
         # l'archive PYZ peut contenir une version obsolète du graphe de dépendances.
         try:
@@ -647,7 +755,21 @@ def main():
             _rs.Command.check_migrations = lambda self: None
         except Exception:
             pass
-        call_command('runserver', '--noreload', '127.0.0.1:8000')
+
+        # Lancer le serveur Django en arrière-plan (thread démon : il s'arrête
+        # automatiquement à la fermeture de la fenêtre / de l'application).
+        def _run_django_server():
+            try:
+                call_command('runserver', '--noreload', '127.0.0.1:8000')
+            except Exception as exc:
+                print(f"  [Serveur] Arret: {exc}")
+
+        server_thread = threading.Thread(target=_run_django_server, daemon=True)
+        server_thread.start()
+
+        # Ouvrir l'application dans sa propre fenêtre (thread principal).
+        # Bloque jusqu'à la fermeture de la fenêtre.
+        open_app_window()
 
     except KeyboardInterrupt:
         print("\nServeur arrete.")
@@ -658,7 +780,8 @@ def main():
         print()
         traceback.print_exc()
         print()
-        input("Appuyez sur Entree pour fermer...")
+        _safe_pause("Une erreur est survenue au demarrage de GestionnaireRH.\n\n"
+                    f"{e}\n\nConsultez logs/launcher.log pour plus de details.")
         sys.exit(1)
 
 
