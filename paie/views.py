@@ -4112,7 +4112,7 @@ def config_paie_entreprise(request):
                 config.taux_hs_ferie_nuit = to_decimal(request.POST.get('taux_hs_ferie_nuit'), '100')
 
                 config.mode_conges = mode_conges
-                config.jours_conges_par_mois = to_decimal(request.POST.get('jours_conges_par_mois'), '1.5')
+                config.jours_conges_par_mois = to_decimal(request.POST.get('jours_conges_par_mois'), '2.5')
                 config.jours_conges_anciennete = to_decimal(request.POST.get('jours_conges_anciennete'), '2')
                 config.tranche_anciennete_annees = to_int(request.POST.get('tranche_anciennete_annees'), '5')
 
@@ -5847,6 +5847,20 @@ def api_proposition_complete(request):
     taux_optimal = best['taux_indem_pct']
     pct_base = round(100 - taux_optimal, 1)
     pct_indem = taux_optimal
+
+    # Recalculer les charges patronales au taux RÉELLEMENT recommandé (taux_optimal),
+    # et non à taux_max : sinon le coût employeur affiché suppose taux_max% d'indemnités
+    # exonérées (base VF/ONFPP réduite) alors que la structure recommandée en applique
+    # taux_optimal%. Cela rendait le coût de la « Proposition » incohérent avec le bloc
+    # « Structuration » et affichait une fausse économie (ex. −21 054 GNF alors que
+    # taux_optimal = 0%). On aligne cp sur best['cout_total_employeur'].
+    try:
+        cp = calculer_charges_patronales(
+            brut_calcule, annee=annee, nb_salaries=nb_salaries,
+            pct_indemnites_forfaitaires=taux_optimal,
+        )
+    except Exception:
+        pass
 
     # Répartition recommandée des indemnités (proportionnelle)
     # Chaque indemnité floor indépendamment, base absorbe le résidu
