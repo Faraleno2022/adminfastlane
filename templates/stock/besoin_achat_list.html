@@ -1,0 +1,65 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}Besoins d'achat{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-hand-index-thumb me-2"></i>Besoins d'achat</h4>
+    <a href="{% url 'stock:besoin_achat_create' %}" class="btn btn-light btn-sm"><i class="bi bi-plus-circle me-1"></i>Exprimer un besoin</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">Statut</label>
+                <select name="statut" class="form-select" onchange="this.form.submit()">
+                    <option value="">Tous</option>
+                    {% for val, lbl in statuts %}<option value="{{ val }}" {% if statut_filter == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if not peut_valider %}
+<div class="alert alert-info py-2"><i class="bi bi-info-circle me-1"></i>Vous voyez uniquement les besoins que vous avez exprimés.</div>
+{% endif %}
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>Référence</th><th>Demandeur</th><th>Service</th><th>Urgence</th><th>Articles</th><th class="text-center">Statut</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for b in besoins %}
+                <tr>
+                    <td><strong>{{ b.reference }}</strong><br><small class="text-muted">{{ b.date_creation|date:"d/m/Y" }}</small></td>
+                    <td>{{ b.demandeur.get_full_name|default:b.demandeur.username|default:"-" }}</td>
+                    <td>{{ b.service.nom_service|default:"-" }}</td>
+                    <td>
+                        {% if b.urgence == 'critique' %}<span class="badge bg-danger">{{ b.get_urgence_display }}</span>
+                        {% elif b.urgence == 'urgente' %}<span class="badge bg-warning text-dark">{{ b.get_urgence_display }}</span>
+                        {% else %}<span class="badge bg-secondary">{{ b.get_urgence_display }}</span>{% endif %}
+                    </td>
+                    <td>{{ b.lignes.count }}</td>
+                    <td class="text-center">
+                        {% if b.statut == 'soumise' %}<span class="badge bg-secondary">{{ b.get_statut_display }}</span>
+                        {% elif b.statut == 'validee' %}<span class="badge bg-primary">{{ b.get_statut_display }}</span>
+                        {% elif b.statut == 'rejetee' %}<span class="badge bg-danger">{{ b.get_statut_display }}</span>
+                        {% else %}<span class="badge bg-success">{{ b.get_statut_display }}</span>{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'stock:besoin_achat_detail' b.pk %}" class="btn btn-sm btn-outline-success"><i class="bi bi-eye"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">Aucun besoin exprimé pour le moment.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

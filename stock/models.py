@@ -11,7 +11,7 @@ from decimal import Decimal
 from django.db import models
 from django.utils import timezone
 
-from core.models import Entreprise, Utilisateur
+from core.models import Entreprise, Utilisateur, Service
 
 
 class CategorieArticle(models.Model):
@@ -37,6 +37,12 @@ class CategorieArticle(models.Model):
 
 class Fournisseur(models.Model):
     """Fournisseur d'articles."""
+    CATEGORIES = (
+        ('strategique', 'Stratégique (A)'),
+        ('standard', 'Standard (B)'),
+        ('occasionnel', 'Occasionnel (C)'),
+    )
+
     entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='fournisseurs_stock')
     nom = models.CharField(max_length=200, verbose_name='Nom / Raison sociale')
     contact = models.CharField(max_length=200, blank=True, verbose_name='Personne de contact')
@@ -45,6 +51,10 @@ class Fournisseur(models.Model):
     adresse = models.TextField(blank=True, verbose_name='Adresse')
     nif = models.CharField(max_length=50, blank=True, verbose_name='NIF')
     delai_livraison_jours = models.PositiveIntegerField(default=0, verbose_name='Délai moyen de livraison (jours)')
+    categorie = models.CharField(max_length=12, choices=CATEGORIES, default='standard',
+                                 verbose_name='Classification')
+    note_evaluation = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True,
+                                          verbose_name="Note d'évaluation (/20)")
     actif = models.BooleanField(default=True)
     observations = models.TextField(blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -431,6 +441,80 @@ class LigneCommande(models.Model):
         return (self.quantite_commandee or Decimal('0')) - (self.quantite_recue or Decimal('0'))
 
 
+class BesoinAchat(models.Model):
+    """Expression de besoin d'achat : un employé signale un besoin, avant tout
+    choix de fournisseur. Une fois validée, elle alimente l'écran de
+    réapprovisionnement pour générer automatiquement le(s) bon(s) de commande."""
+    URGENCES = (
+        ('normale', 'Normale'),
+        ('urgente', 'Urgente'),
+        ('critique', 'Critique'),
+    )
+    STATUTS = (
+        ('soumise', 'Soumise'),
+        ('validee', 'Validée'),
+        ('rejetee', 'Rejetée'),
+        ('traitee', 'Traitée (commande générée)'),
+    )
+
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='besoins_achat')
+    reference = models.CharField(max_length=40, verbose_name='Référence')
+    demandeur = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='besoins_achat_exprimes', verbose_name='Demandeur')
+    service = models.ForeignKey(Service, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='besoins_achat', verbose_name='Service demandeur')
+    motif = models.TextField(blank=True, verbose_name='Motif / Justification')
+    urgence = models.CharField(max_length=10, choices=URGENCES, default='normale')
+    date_besoin_souhaitee = models.DateField(null=True, blank=True, verbose_name='Besoin pour le')
+    statut = models.CharField(max_length=10, choices=STATUTS, default='soumise')
+    commentaire_validation = models.TextField(blank=True, verbose_name='Commentaire du valideur')
+    valide_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='besoins_achat_valides')
+    date_validation = models.DateTimeField(null=True, blank=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'stock_besoin_achat'
+        verbose_name = 'Expression de besoin (achat)'
+        verbose_name_plural = 'Expressions de besoin (achat)'
+        ordering = ['-date_creation', '-id']
+        constraints = [
+            models.UniqueConstraint(fields=['entreprise', 'reference'], name='unique_besoin_achat_reference_par_entreprise'),
+        ]
+
+    def __str__(self):
+        return f"{self.reference} - {self.demandeur or ''}"
+
+    @property
+    def modifiable(self):
+        return self.statut == 'soumise'
+
+    @property
+    def traite(self):
+        return self.statut == 'traitee' or (
+            self.lignes.exists() and not self.lignes.filter(ligne_commande__isnull=True).exists()
+        )
+
+
+class LigneBesoinAchat(models.Model):
+    """Ligne d'une expression de besoin : un article existant + quantité."""
+    besoin = models.ForeignKey(BesoinAchat, on_delete=models.CASCADE, related_name='lignes')
+    article = models.ForeignKey(Article, on_delete=models.PROTECT, related_name='lignes_besoin_achat')
+    quantite_demandee = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Quantité demandée')
+    ligne_commande = models.ForeignKey(LigneCommande, on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='lignes_besoin_couvertes',
+                                       verbose_name='Ligne de commande générée')
+
+    class Meta:
+        db_table = 'stock_ligne_besoin_achat'
+        verbose_name = "Ligne d'expression de besoin"
+        verbose_name_plural = "Lignes d'expression de besoin"
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.article.designation} x {self.quantite_demandee}"
+
+
 class Reception(models.Model):
     """Réception (totale ou partielle) d'une commande fournisseur."""
     entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='receptions_fournisseur')
@@ -660,6 +744,68 @@ class PrixSpecialClient(models.Model):
 
     def __str__(self):
         return f"{self.client.nom} - {self.article.designation} : {self.prix}"
+
+
+class DemandeVente(models.Model):
+    """Expression de besoin côté client : un commercial saisit ce que le client
+    souhaite. Une fois validée, un devis (DocumentVente) est généré
+    automatiquement avec les informations client et les prix pré-remplis."""
+    STATUTS = (
+        ('soumise', 'Soumise'),
+        ('validee', 'Validée'),
+        ('rejetee', 'Rejetée'),
+        ('convertie', 'Convertie en devis'),
+    )
+
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='demandes_vente')
+    reference = models.CharField(max_length=40, verbose_name='Référence')
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name='demandes_vente')
+    demandeur = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='demandes_vente_creees', verbose_name='Saisie par')
+    date_besoin = models.DateField(default=timezone.now, verbose_name='Date du besoin')
+    notes = models.TextField(blank=True)
+    statut = models.CharField(max_length=10, choices=STATUTS, default='soumise')
+    commentaire_validation = models.TextField(blank=True, verbose_name='Commentaire du valideur')
+    valide_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='demandes_vente_validees')
+    date_validation = models.DateTimeField(null=True, blank=True)
+    document_genere = models.ForeignKey('DocumentVente', on_delete=models.SET_NULL, null=True, blank=True,
+                                        related_name='demande_origine', verbose_name='Devis généré')
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'stock_demande_vente'
+        verbose_name = 'Expression de besoin (vente)'
+        verbose_name_plural = 'Expressions de besoin (vente)'
+        ordering = ['-date_creation', '-id']
+        constraints = [
+            models.UniqueConstraint(fields=['entreprise', 'reference'], name='unique_demande_vente_reference_par_entreprise'),
+        ]
+
+    def __str__(self):
+        return f"{self.reference} - {self.client.nom}"
+
+    @property
+    def modifiable(self):
+        return self.statut == 'soumise'
+
+
+class LigneDemandeVente(models.Model):
+    """Ligne d'une demande de vente : un article existant + quantité souhaitée."""
+    demande = models.ForeignKey(DemandeVente, on_delete=models.CASCADE, related_name='lignes')
+    article = models.ForeignKey(Article, on_delete=models.PROTECT, related_name='lignes_demande_vente')
+    quantite_souhaitee = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Quantité souhaitée')
+    prix_indicatif = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True,
+                                         verbose_name='Prix indicatif (GNF)')
+
+    class Meta:
+        db_table = 'stock_ligne_demande_vente'
+        verbose_name = 'Ligne de demande de vente'
+        verbose_name_plural = 'Lignes de demande de vente'
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.article.designation} x {self.quantite_souhaitee}"
 
 
 class DocumentVente(models.Model):

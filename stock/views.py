@@ -24,6 +24,7 @@ from .models import (
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
     LigneLivraison, PaiementClient, ProfilStock, JournalAudit,
     Lot, NumeroSerie,
+    BesoinAchat, LigneBesoinAchat, DemandeVente, LigneDemandeVente,
 )
 from .forms import (
     CategorieArticleForm, FournisseurForm, ArticleForm,
@@ -32,6 +33,7 @@ from .forms import (
     FactureFournisseurForm, PaiementFournisseurForm,
     ClientForm, DocumentVenteForm, LigneVenteForm, BonLivraisonForm,
     PaiementClientForm, PrixSpecialClientForm, LotForm, NumeroSerieForm,
+    BesoinAchatForm, LigneBesoinAchatForm, DemandeVenteForm, LigneDemandeVenteForm,
 )
 from .permissions import require_perm, a_permission, get_role
 from . import exports
@@ -189,6 +191,8 @@ def dashboard(request):
             entreprise=entreprise, date_mouvement__date=timezone.now().date()
         ).count(),
         'inventaires_en_cours': Inventaire.objects.filter(entreprise=entreprise, statut='en_cours').count(),
+        'besoins_achat_en_attente': BesoinAchat.objects.filter(entreprise=entreprise, statut='soumise').count(),
+        'demandes_vente_en_attente': DemandeVente.objects.filter(entreprise=entreprise, statut='soumise').count(),
     }
 
     return render(request, 'stock/dashboard.html', {
@@ -397,8 +401,13 @@ def fournisseur_list(request):
             Q(nom__icontains=recherche) | Q(contact__icontains=recherche) |
             Q(email__icontains=recherche) | Q(telephone__icontains=recherche)
         )
+    categorie = request.GET.get('categorie', '')
+    if categorie:
+        fournisseurs = fournisseurs.filter(categorie=categorie)
+    fournisseurs = fournisseurs.order_by('-note_evaluation', 'nom')
     return render(request, 'stock/fournisseur_list.html', {
         'fournisseurs': fournisseurs, 'recherche': recherche,
+        'categories': Fournisseur.CATEGORIES, 'categorie_filter': categorie,
     })
 
 
@@ -994,6 +1003,139 @@ def ligne_commande_delete(request, pk):
     return redirect('stock:commande_detail', pk=commande_pk)
 
 
+# ---------------------------------------------------------------------------
+# Expression de besoin (achat) — n'importe quel employé peut exprimer un
+# besoin ; la validation (permission 'achats') l'expose ensuite dans l'écran
+# de réapprovisionnement pour générer le bon de commande automatiquement.
+# ---------------------------------------------------------------------------
+@reauth_required
+@login_required
+@stock_required
+def besoin_achat_list(request):
+    entreprise = request.user.entreprise
+    besoins = (BesoinAchat.objects.filter(entreprise=entreprise)
+               .select_related('demandeur', 'service').prefetch_related('lignes'))
+    if not a_permission(request.user, 'achats'):
+        besoins = besoins.filter(demandeur=request.user)
+    statut = request.GET.get('statut', '')
+    if statut:
+        besoins = besoins.filter(statut=statut)
+    return render(request, 'stock/besoin_achat_list.html', {
+        'besoins': besoins, 'statuts': BesoinAchat.STATUTS, 'statut_filter': statut,
+        'peut_valider': a_permission(request.user, 'achats'),
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def besoin_achat_create(request):
+    entreprise = request.user.entreprise
+    if request.method == 'POST':
+        form = BesoinAchatForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            besoin = form.save(commit=False)
+            besoin.entreprise = entreprise
+            besoin.reference = _generer_reference(BesoinAchat, entreprise, 'EB')
+            besoin.demandeur = request.user
+            besoin.save()
+            messages.success(request, f"Besoin {besoin.reference} soumis. Ajoutez les articles souhaités.")
+            return redirect('stock:besoin_achat_detail', pk=besoin.pk)
+    else:
+        form = BesoinAchatForm(entreprise=entreprise)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': "Exprimer un besoin d'achat", 'retour': 'stock:besoin_achat_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def besoin_achat_detail(request, pk):
+    entreprise = request.user.entreprise
+    besoin = get_object_or_404(BesoinAchat, pk=pk, entreprise=entreprise)
+    peut_gerer = a_permission(request.user, 'achats')
+    if besoin.demandeur_id != request.user.id and not peut_gerer:
+        messages.error(request, "Vous ne pouvez pas consulter ce besoin.")
+        return redirect('stock:besoin_achat_list')
+    lignes = besoin.lignes.select_related('article', 'ligne_commande__commande')
+
+    if request.method == 'POST':
+        if not besoin.modifiable:
+            messages.error(request, "Ce besoin ne peut plus être modifié.")
+            return redirect('stock:besoin_achat_detail', pk=pk)
+        form = LigneBesoinAchatForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            ligne = form.save(commit=False)
+            ligne.besoin = besoin
+            ligne.save()
+            messages.success(request, "Article ajouté au besoin.")
+            return redirect('stock:besoin_achat_detail', pk=pk)
+    else:
+        form = LigneBesoinAchatForm(entreprise=entreprise)
+
+    return render(request, 'stock/besoin_achat_detail.html', {
+        'besoin': besoin, 'lignes': lignes, 'form': form, 'peut_gerer': peut_gerer,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def ligne_besoin_achat_delete(request, pk):
+    ligne = get_object_or_404(LigneBesoinAchat, pk=pk, besoin__entreprise=request.user.entreprise)
+    besoin_pk = ligne.besoin_id
+    peut_gerer = a_permission(request.user, 'achats')
+    if ligne.besoin.demandeur_id != request.user.id and not peut_gerer:
+        messages.error(request, "Action non autorisée.")
+        return redirect('stock:besoin_achat_detail', pk=besoin_pk)
+    if ligne.besoin.modifiable:
+        ligne.delete()
+        messages.success(request, "Ligne supprimée.")
+    else:
+        messages.error(request, "Besoin non modifiable.")
+    return redirect('stock:besoin_achat_detail', pk=besoin_pk)
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('achats')
+def besoin_achat_valider(request, pk):
+    besoin = get_object_or_404(BesoinAchat, pk=pk, entreprise=request.user.entreprise)
+    if besoin.statut != 'soumise':
+        messages.warning(request, "Ce besoin a déjà été traité.")
+        return redirect('stock:besoin_achat_detail', pk=pk)
+    if not besoin.lignes.exists():
+        messages.error(request, "Ajoutez au moins un article avant de valider.")
+        return redirect('stock:besoin_achat_detail', pk=pk)
+    besoin.statut = 'validee'
+    besoin.valide_par = request.user
+    besoin.date_validation = timezone.now()
+    besoin.save(update_fields=['statut', 'valide_par', 'date_validation'])
+    messages.success(request, f"Besoin {besoin.reference} validé. Il apparaît dans le réapprovisionnement.")
+    return redirect('stock:besoin_achat_detail', pk=pk)
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('achats')
+def besoin_achat_rejeter(request, pk):
+    besoin = get_object_or_404(BesoinAchat, pk=pk, entreprise=request.user.entreprise)
+    if besoin.statut != 'soumise':
+        messages.warning(request, "Ce besoin a déjà été traité.")
+        return redirect('stock:besoin_achat_detail', pk=pk)
+    if request.method == 'POST':
+        besoin.statut = 'rejetee'
+        besoin.valide_par = request.user
+        besoin.date_validation = timezone.now()
+        besoin.commentaire_validation = request.POST.get('commentaire', '').strip()
+        besoin.save(update_fields=['statut', 'valide_par', 'date_validation', 'commentaire_validation'])
+        messages.success(request, f"Besoin {besoin.reference} rejeté.")
+    return redirect('stock:besoin_achat_detail', pk=pk)
+
+
 @reauth_required
 @login_required
 @stock_required
@@ -1352,6 +1494,163 @@ def prix_special_delete(request, pk):
     ps.delete()
     messages.success(request, "Prix spécial supprimé.")
     return redirect('stock:client_detail', pk=client_pk)
+
+
+# ---------------------------------------------------------------------------
+# Expression de besoin (vente) — un commercial saisit ce que le client
+# souhaite ; la validation (permission 'ventes') génère automatiquement le
+# devis (DocumentVente) avec client et prix pré-remplis.
+# ---------------------------------------------------------------------------
+@reauth_required
+@login_required
+@stock_required
+def demande_vente_list(request):
+    entreprise = request.user.entreprise
+    demandes = (DemandeVente.objects.filter(entreprise=entreprise)
+                .select_related('client', 'demandeur').prefetch_related('lignes'))
+    if not a_permission(request.user, 'ventes'):
+        demandes = demandes.filter(demandeur=request.user)
+    statut = request.GET.get('statut', '')
+    if statut:
+        demandes = demandes.filter(statut=statut)
+    return render(request, 'stock/demande_vente_list.html', {
+        'demandes': demandes, 'statuts': DemandeVente.STATUTS, 'statut_filter': statut,
+        'peut_valider': a_permission(request.user, 'ventes'),
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def demande_vente_create(request):
+    entreprise = request.user.entreprise
+    if not Client.objects.filter(entreprise=entreprise, actif=True).exists():
+        messages.warning(request, "Créez d'abord un client.")
+        return redirect('stock:client_create')
+    if request.method == 'POST':
+        form = DemandeVenteForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            demande = form.save(commit=False)
+            demande.entreprise = entreprise
+            demande.reference = _generer_reference(DemandeVente, entreprise, 'DV')
+            demande.demandeur = request.user
+            demande.save()
+            messages.success(request, f"Demande {demande.reference} soumise. Ajoutez les articles souhaités.")
+            return redirect('stock:demande_vente_detail', pk=demande.pk)
+    else:
+        form = DemandeVenteForm(entreprise=entreprise)
+    return render(request, 'stock/form.html', {
+        'form': form, 'titre': "Exprimer un besoin client", 'retour': 'stock:demande_vente_list',
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def demande_vente_detail(request, pk):
+    entreprise = request.user.entreprise
+    demande = get_object_or_404(DemandeVente, pk=pk, entreprise=entreprise)
+    peut_gerer = a_permission(request.user, 'ventes')
+    if demande.demandeur_id != request.user.id and not peut_gerer:
+        messages.error(request, "Vous ne pouvez pas consulter cette demande.")
+        return redirect('stock:demande_vente_list')
+    lignes = demande.lignes.select_related('article')
+
+    if request.method == 'POST':
+        if not demande.modifiable:
+            messages.error(request, "Cette demande ne peut plus être modifiée.")
+            return redirect('stock:demande_vente_detail', pk=pk)
+        form = LigneDemandeVenteForm(request.POST, entreprise=entreprise)
+        if form.is_valid():
+            ligne = form.save(commit=False)
+            ligne.demande = demande
+            ligne.save()
+            messages.success(request, "Article ajouté à la demande.")
+            return redirect('stock:demande_vente_detail', pk=pk)
+    else:
+        form = LigneDemandeVenteForm(entreprise=entreprise)
+
+    return render(request, 'stock/demande_vente_detail.html', {
+        'demande': demande, 'lignes': lignes, 'form': form, 'peut_gerer': peut_gerer,
+    })
+
+
+@reauth_required
+@login_required
+@stock_required
+def ligne_demande_vente_delete(request, pk):
+    ligne = get_object_or_404(LigneDemandeVente, pk=pk, demande__entreprise=request.user.entreprise)
+    demande_pk = ligne.demande_id
+    peut_gerer = a_permission(request.user, 'ventes')
+    if ligne.demande.demandeur_id != request.user.id and not peut_gerer:
+        messages.error(request, "Action non autorisée.")
+        return redirect('stock:demande_vente_detail', pk=demande_pk)
+    if ligne.demande.modifiable:
+        ligne.delete()
+        messages.success(request, "Ligne supprimée.")
+    else:
+        messages.error(request, "Demande non modifiable.")
+    return redirect('stock:demande_vente_detail', pk=demande_pk)
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('ventes')
+def demande_vente_valider(request, pk):
+    entreprise = request.user.entreprise
+    demande = get_object_or_404(DemandeVente, pk=pk, entreprise=entreprise)
+    if demande.statut != 'soumise':
+        messages.warning(request, "Cette demande a déjà été traitée.")
+        return redirect('stock:demande_vente_detail', pk=pk)
+    lignes = list(demande.lignes.select_related('article'))
+    if not lignes:
+        messages.error(request, "Ajoutez au moins un article avant de valider.")
+        return redirect('stock:demande_vente_detail', pk=pk)
+
+    with transaction.atomic():
+        doc = DocumentVente.objects.create(
+            entreprise=entreprise,
+            reference=_generer_reference(DocumentVente, entreprise, _PREFIXES_VENTE['devis']),
+            type_document='devis', client=demande.client, statut='brouillon',
+            notes=f"Généré automatiquement depuis la demande {demande.reference}.",
+            cree_par=request.user,
+        )
+        for ligne in lignes:
+            # Même logique de prix/remise que la saisie manuelle d'une ligne de vente :
+            # prix spécial client, sinon prix de vente ; remise habituelle du client.
+            sp = PrixSpecialClient.objects.filter(client=demande.client, article=ligne.article).first()
+            prix = sp.prix if sp else (ligne.article.prix_vente or Decimal('0'))
+            LigneVente.objects.create(
+                document=doc, article=ligne.article, quantite=ligne.quantite_souhaitee,
+                prix_unitaire=prix, remise_pct=demande.client.remise_defaut or Decimal('0'),
+            )
+        demande.statut = 'convertie'
+        demande.valide_par = request.user
+        demande.date_validation = timezone.now()
+        demande.document_genere = doc
+        demande.save(update_fields=['statut', 'valide_par', 'date_validation', 'document_genere'])
+    messages.success(request, f"Demande validée : devis {doc.reference} généré automatiquement.")
+    return redirect('stock:vente_detail', pk=doc.pk)
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('ventes')
+def demande_vente_rejeter(request, pk):
+    demande = get_object_or_404(DemandeVente, pk=pk, entreprise=request.user.entreprise)
+    if demande.statut != 'soumise':
+        messages.warning(request, "Cette demande a déjà été traitée.")
+        return redirect('stock:demande_vente_detail', pk=pk)
+    if request.method == 'POST':
+        demande.statut = 'rejetee'
+        demande.valide_par = request.user
+        demande.date_validation = timezone.now()
+        demande.commentaire_validation = request.POST.get('commentaire', '').strip()
+        demande.save(update_fields=['statut', 'valide_par', 'date_validation', 'commentaire_validation'])
+        messages.success(request, f"Demande {demande.reference} rejetée.")
+    return redirect('stock:demande_vente_detail', pk=pk)
 
 
 # ===========================================================================
@@ -2005,11 +2304,51 @@ def _quantite_a_commander(article):
     return qte if qte > 0 else Decimal('0')
 
 
+def _creer_commandes_groupees(entreprise, user, depot, items):
+    """Crée un CommandeFournisseur (brouillon) par fournisseur à partir d'une liste
+    d'items {'article', 'quantite', 'prix', 'ligne_besoin' (optionnel)}.
+
+    Relie chaque LigneBesoinAchat traitée à la LigneCommande générée et marque le
+    BesoinAchat parent comme 'traitee' une fois toutes ses lignes couvertes.
+    Doit être appelé à l'intérieur d'une transaction. Renvoie {fournisseur_id: CommandeFournisseur}.
+    """
+    commandes = {}
+    besoins_a_verifier = set()
+    for item in items:
+        article = item['article']
+        frs_id = article.fournisseur_id
+        if not frs_id:
+            continue
+        if frs_id not in commandes:
+            commandes[frs_id] = CommandeFournisseur.objects.create(
+                entreprise=entreprise,
+                reference=_generer_reference(CommandeFournisseur, entreprise, 'BC'),
+                fournisseur=article.fournisseur, depot=depot, statut='brouillon',
+                notes='Généré automatiquement (réapprovisionnement).', cree_par=user,
+            )
+        ligne = LigneCommande.objects.create(
+            commande=commandes[frs_id], article=article,
+            quantite_commandee=item['quantite'], prix_unitaire=(item['prix'] or Decimal('0')),
+        )
+        ligne_besoin = item.get('ligne_besoin')
+        if ligne_besoin is not None:
+            ligne_besoin.ligne_commande = ligne
+            ligne_besoin.save(update_fields=['ligne_commande'])
+            besoins_a_verifier.add(ligne_besoin.besoin_id)
+    for besoin_id in besoins_a_verifier:
+        besoin = BesoinAchat.objects.filter(pk=besoin_id).first()
+        if besoin and not besoin.lignes.filter(ligne_commande__isnull=True).exists():
+            besoin.statut = 'traitee'
+            besoin.save(update_fields=['statut'])
+    return commandes
+
+
 @reauth_required
 @login_required
 @stock_required
 def reapprovisionnement(request):
-    """Articles sous le seuil, regroupés par fournisseur, avec génération des bons de commande."""
+    """Articles sous le seuil + besoins d'achat validés, regroupés par fournisseur,
+    avec génération automatique des bons de commande."""
     entreprise = request.user.entreprise
 
     if request.method == 'POST':
@@ -2018,31 +2357,33 @@ def reapprovisionnement(request):
             return redirect('stock:reapprovisionnement')
         ids = request.POST.getlist('inclure')
         depot = get_depot_defaut(entreprise)
-        commandes_creees = {}
-        with transaction.atomic():
-            for art_id in ids:
-                article = Article.objects.filter(pk=art_id, entreprise=entreprise, actif=True).first()
+        items = []
+        for raw_id in ids:
+            valeur = request.POST.get(f'qte_{raw_id}', '').strip().replace(',', '.')
+            try:
+                qte = Decimal(valeur)
+            except (ValueError, ArithmeticError):
+                continue
+            if qte <= 0:
+                continue
+            if raw_id.startswith('art:'):
+                article = Article.objects.filter(pk=raw_id[4:], entreprise=entreprise, actif=True).first()
                 if not article or not article.fournisseur_id:
                     continue
-                valeur = request.POST.get(f'qte_{art_id}', '').strip().replace(',', '.')
-                try:
-                    qte = Decimal(valeur)
-                except (ValueError, ArithmeticError):
+                items.append({'article': article, 'quantite': qte,
+                              'prix': article.cout_unitaire or Decimal('0'), 'ligne_besoin': None})
+            elif raw_id.startswith('besoin:'):
+                ligne_besoin = (LigneBesoinAchat.objects
+                                .filter(pk=raw_id[7:], besoin__entreprise=entreprise,
+                                        besoin__statut='validee', ligne_commande__isnull=True)
+                                .select_related('article__fournisseur', 'besoin').first())
+                if not ligne_besoin or not ligne_besoin.article.fournisseur_id:
                     continue
-                if qte <= 0:
-                    continue
-                frs_id = article.fournisseur_id
-                if frs_id not in commandes_creees:
-                    commandes_creees[frs_id] = CommandeFournisseur.objects.create(
-                        entreprise=entreprise,
-                        reference=_generer_reference(CommandeFournisseur, entreprise, 'BC'),
-                        fournisseur=article.fournisseur, depot=depot, statut='brouillon',
-                        notes='Généré automatiquement (réapprovisionnement).', cree_par=request.user,
-                    )
-                LigneCommande.objects.create(
-                    commande=commandes_creees[frs_id], article=article,
-                    quantite_commandee=qte, prix_unitaire=(article.cout_unitaire or Decimal('0')),
-                )
+                items.append({'article': ligne_besoin.article, 'quantite': qte,
+                              'prix': ligne_besoin.article.cout_unitaire or Decimal('0'),
+                              'ligne_besoin': ligne_besoin})
+        with transaction.atomic():
+            commandes_creees = _creer_commandes_groupees(entreprise, request.user, depot, items)
         n = len(commandes_creees)
         if n:
             messages.success(request, f"{n} bon(s) de commande créé(s) au brouillon. Vérifiez puis validez.")
@@ -2057,7 +2398,21 @@ def reapprovisionnement(request):
     for a in articles:
         if not (a.en_rupture or a.en_alerte):
             continue
-        suggestion = {'article': a, 'qte': _quantite_a_commander(a), 'prix': a.cout_unitaire}
+        suggestion = {'source': 'alerte', 'checkbox_id': f'art:{a.pk}',
+                      'article': a, 'qte': _quantite_a_commander(a), 'prix': a.cout_unitaire, 'besoin_ref': ''}
+        if a.fournisseur_id:
+            groupes.setdefault(a.fournisseur, []).append(suggestion)
+        else:
+            sans_fournisseur.append(suggestion)
+
+    lignes_besoin = (LigneBesoinAchat.objects
+                      .filter(besoin__entreprise=entreprise, besoin__statut='validee', ligne_commande__isnull=True)
+                      .select_related('article__fournisseur', 'besoin'))
+    for lb in lignes_besoin:
+        a = lb.article
+        suggestion = {'source': 'besoin', 'checkbox_id': f'besoin:{lb.pk}',
+                      'article': a, 'qte': lb.quantite_demandee, 'prix': a.cout_unitaire,
+                      'besoin_ref': lb.besoin.reference}
         if a.fournisseur_id:
             groupes.setdefault(a.fournisseur, []).append(suggestion)
         else:
@@ -2067,7 +2422,7 @@ def reapprovisionnement(request):
     total_articles = sum(len(v) for v in groupes.values()) + len(sans_fournisseur)
     return render(request, 'stock/reapprovisionnement.html', {
         'groupes': groupes_list, 'sans_fournisseur': sans_fournisseur,
-        'total_articles': total_articles,
+        'total_articles': total_articles, 'nb_besoins_en_attente': lignes_besoin.count(),
     })
 
 

@@ -150,6 +150,11 @@
                             <h6 class="sidebar-heading px-3 text-muted"><span>ACHATS</span></h6>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if 'besoin_achat' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:besoin_achat_list' %}">
+                                <i class="bi bi-hand-index-thumb"></i> Besoins d'achat
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if 'reappro' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:reapprovisionnement' %}">
                                 <i class="bi bi-arrow-repeat"></i> Réapprovisionnement
                             </a>
@@ -167,6 +172,11 @@
 
                         <li class="nav-item mt-3">
                             <h6 class="sidebar-heading px-3 text-muted"><span>VENTES</span></h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'demande_vente' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:demande_vente_list' %}">
+                                <i class="bi bi-hand-index-thumb"></i> Demandes clients
+                            </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if 'client' in request.resolver_match.url_name or 'prix_special' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:client_list' %}">

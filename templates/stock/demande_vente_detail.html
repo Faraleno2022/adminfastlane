@@ -1,0 +1,116 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}Demande {{ demande.reference }}{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-hand-index-thumb me-2"></i>{{ demande.reference }}</h4>
+        <small>{{ demande.client.nom }} · {{ demande.date_creation|date:"d/m/Y" }}</small>
+    </div>
+    <div>
+        {% if peut_gerer and demande.statut == 'soumise' %}
+        <a href="{% url 'stock:demande_vente_valider' demande.pk %}" class="btn btn-light btn-sm" onclick="return confirm('Valider cette demande ? Un devis sera généré automatiquement.');"><i class="bi bi-check2-circle me-1"></i>Valider &amp; générer le devis</a>
+        <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="collapse" data-bs-target="#rejetForm"><i class="bi bi-x-circle me-1"></i>Rejeter</button>
+        {% endif %}
+        {% if demande.document_genere %}
+        <a href="{% url 'stock:vente_detail' demande.document_genere_id %}" class="btn btn-outline-light btn-sm"><i class="bi bi-file-earmark-text me-1"></i>Voir le devis</a>
+        {% endif %}
+        <a href="{% url 'stock:demande_vente_list' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left"></i></a>
+    </div>
+</div>
+
+{% if peut_gerer and demande.statut == 'soumise' %}
+<div class="collapse mb-3" id="rejetForm">
+    <div class="card border-danger">
+        <div class="card-body">
+            <form method="post" action="{% url 'stock:demande_vente_rejeter' demande.pk %}">
+                {% csrf_token %}
+                <label class="form-label small">Motif du rejet</label>
+                <textarea name="commentaire" class="form-control mb-2" rows="2"></textarea>
+                <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Confirmer le rejet</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                <span><i class="bi bi-list-ul me-1"></i>Articles souhaités</span>
+                <span>
+                    {% if demande.statut == 'soumise' %}<span class="badge bg-secondary">{{ demande.get_statut_display }}</span>
+                    {% elif demande.statut == 'validee' %}<span class="badge bg-primary">{{ demande.get_statut_display }}</span>
+                    {% elif demande.statut == 'rejetee' %}<span class="badge bg-danger">{{ demande.get_statut_display }}</span>
+                    {% else %}<span class="badge bg-success">{{ demande.get_statut_display }}</span>{% endif %}
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-stock-light">
+                        <tr><th>Article</th><th class="text-end">Quantité souhaitée</th><th class="text-end">Prix indicatif</th>{% if demande.modifiable %}<th></th>{% endif %}</tr>
+                    </thead>
+                    <tbody>
+                        {% for l in lignes %}
+                        <tr>
+                            <td>{{ l.article.designation }}<br><small class="text-muted">{{ l.article.reference }}</small></td>
+                            <td class="text-end">{{ l.quantite_souhaitee|floatformat:0 }}</td>
+                            <td class="text-end">{% if l.prix_indicatif %}{{ l.prix_indicatif|floatformat:0|intcomma }}{% else %}<span class="text-muted">Prix catalogue</span>{% endif %}</td>
+                            {% if demande.modifiable %}
+                            <td class="text-end"><a href="{% url 'stock:ligne_demande_vente_delete' l.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a></td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Aucun article. Ajoutez-en ci-dessous.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if demande.modifiable %}
+        <div class="card mt-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-plus-circle me-1"></i>Ajouter un article</div>
+            <div class="card-body">
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <div class="col-md-5">
+                        <label class="form-label small">Article</label>{{ form.article }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Quantité</label>{{ form.quantite_souhaitee }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Prix indicatif</label>{{ form.prix_indicatif }}
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-success w-100"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                    {% if form.errors %}<div class="col-12"><small class="text-danger">{{ form.errors }}</small></div>{% endif %}
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-info-circle me-1"></i>Informations</div>
+            <div class="card-body">
+                <p class="mb-1"><strong>Client :</strong> <a href="{% url 'stock:client_detail' demande.client.pk %}">{{ demande.client.nom }}</a></p>
+                <p class="mb-1"><strong>Besoin pour le :</strong> {{ demande.date_besoin|date:"d/m/Y" }}</p>
+                {% if demande.notes %}<hr><small class="text-muted">{{ demande.notes }}</small>{% endif %}
+                {% if demande.valide_par %}
+                <hr>
+                <p class="mb-1"><strong>{% if demande.statut == 'rejetee' %}Rejeté{% else %}Traité{% endif %} par :</strong> {{ demande.valide_par.get_full_name|default:demande.valide_par.username }}</p>
+                <p class="mb-1 small text-muted">{{ demande.date_validation|date:"d/m/Y H:i" }}</p>
+                {% if demande.commentaire_validation %}<p class="mb-0 small text-muted">« {{ demande.commentaire_validation }} »</p>{% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -115,6 +115,26 @@
             </div>
         </div>
     </div>
+    <div class="col-md-3 col-6">
+        <a href="{% url 'stock:besoin_achat_list' %}?statut=soumise" class="text-decoration-none">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.besoins_achat_en_attente }}</h3><small class="text-muted">Besoins d'achat à valider</small></div>
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-hand-index-thumb"></i></div>
+            </div>
+        </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-6">
+        <a href="{% url 'stock:demande_vente_list' %}?statut=soumise" class="text-decoration-none">
+        <div class="stat-card-stock">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><h3 class="mb-1">{{ stats.demandes_vente_en_attente }}</h3><small class="text-muted">Demandes clients à valider</small></div>
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-hand-index-thumb"></i></div>
+            </div>
+        </div>
+        </a>
+    </div>
 </div>
 
 <div class="row g-3">

@@ -1,0 +1,61 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}Demandes clients{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-hand-index-thumb me-2"></i>Demandes clients</h4>
+    <a href="{% url 'stock:demande_vente_create' %}" class="btn btn-light btn-sm"><i class="bi bi-plus-circle me-1"></i>Exprimer un besoin client</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">Statut</label>
+                <select name="statut" class="form-select" onchange="this.form.submit()">
+                    <option value="">Tous</option>
+                    {% for val, lbl in statuts %}<option value="{{ val }}" {% if statut_filter == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if not peut_valider %}
+<div class="alert alert-info py-2"><i class="bi bi-info-circle me-1"></i>Vous voyez uniquement les demandes que vous avez saisies.</div>
+{% endif %}
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-stock-light">
+                <tr><th>Référence</th><th>Client</th><th>Saisie par</th><th>Besoin pour le</th><th>Articles</th><th class="text-center">Statut</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for d in demandes %}
+                <tr>
+                    <td><strong>{{ d.reference }}</strong><br><small class="text-muted">{{ d.date_creation|date:"d/m/Y" }}</small></td>
+                    <td>{{ d.client.nom }}</td>
+                    <td>{{ d.demandeur.get_full_name|default:d.demandeur.username|default:"-" }}</td>
+                    <td>{{ d.date_besoin|date:"d/m/Y" }}</td>
+                    <td>{{ d.lignes.count }}</td>
+                    <td class="text-center">
+                        {% if d.statut == 'soumise' %}<span class="badge bg-secondary">{{ d.get_statut_display }}</span>
+                        {% elif d.statut == 'validee' %}<span class="badge bg-primary">{{ d.get_statut_display }}</span>
+                        {% elif d.statut == 'rejetee' %}<span class="badge bg-danger">{{ d.get_statut_display }}</span>
+                        {% else %}<span class="badge bg-success">{{ d.get_statut_display }}</span>{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'stock:demande_vente_detail' d.pk %}" class="btn btn-sm btn-outline-success"><i class="bi bi-eye"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">Aucune demande client pour le moment.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

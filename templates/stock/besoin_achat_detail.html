@@ -1,0 +1,118 @@
+{% extends 'stock/base_stock.html' %}
+{% load humanize %}
+
+{% block title %}Besoin {{ besoin.reference }}{% endblock %}
+
+{% block stock_content %}
+<div class="stock-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-hand-index-thumb me-2"></i>{{ besoin.reference }}</h4>
+        <small>{{ besoin.demandeur.get_full_name|default:besoin.demandeur.username|default:"-" }} · {{ besoin.date_creation|date:"d/m/Y" }}</small>
+    </div>
+    <div>
+        {% if peut_gerer and besoin.statut == 'soumise' %}
+        <a href="{% url 'stock:besoin_achat_valider' besoin.pk %}" class="btn btn-light btn-sm" onclick="return confirm('Valider ce besoin ? Il pourra ensuite être commandé depuis le réapprovisionnement.');"><i class="bi bi-check2-circle me-1"></i>Valider</a>
+        <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="collapse" data-bs-target="#rejetForm"><i class="bi bi-x-circle me-1"></i>Rejeter</button>
+        {% endif %}
+        <a href="{% url 'stock:besoin_achat_list' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left"></i></a>
+    </div>
+</div>
+
+{% if peut_gerer and besoin.statut == 'soumise' %}
+<div class="collapse mb-3" id="rejetForm">
+    <div class="card border-danger">
+        <div class="card-body">
+            <form method="post" action="{% url 'stock:besoin_achat_rejeter' besoin.pk %}">
+                {% csrf_token %}
+                <label class="form-label small">Motif du rejet</label>
+                <textarea name="commentaire" class="form-control mb-2" rows="2"></textarea>
+                <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Confirmer le rejet</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                <span><i class="bi bi-list-ul me-1"></i>Articles demandés</span>
+                <span>
+                    {% if besoin.statut == 'soumise' %}<span class="badge bg-secondary">{{ besoin.get_statut_display }}</span>
+                    {% elif besoin.statut == 'validee' %}<span class="badge bg-primary">{{ besoin.get_statut_display }}</span>
+                    {% elif besoin.statut == 'rejetee' %}<span class="badge bg-danger">{{ besoin.get_statut_display }}</span>
+                    {% else %}<span class="badge bg-success">{{ besoin.get_statut_display }}</span>{% endif %}
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-stock-light">
+                        <tr><th>Article</th><th class="text-end">Quantité demandée</th><th>Bon de commande généré</th>{% if besoin.modifiable %}<th></th>{% endif %}</tr>
+                    </thead>
+                    <tbody>
+                        {% for l in lignes %}
+                        <tr>
+                            <td>{{ l.article.designation }}<br><small class="text-muted">{{ l.article.reference }}</small></td>
+                            <td class="text-end">{{ l.quantite_demandee|floatformat:0 }}</td>
+                            <td>
+                                {% if l.ligne_commande %}
+                                <a href="{% url 'stock:commande_detail' l.ligne_commande.commande_id %}">{{ l.ligne_commande.commande.reference }}</a>
+                                {% else %}<span class="text-muted">En attente</span>{% endif %}
+                            </td>
+                            {% if besoin.modifiable %}
+                            <td class="text-end"><a href="{% url 'stock:ligne_besoin_achat_delete' l.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a></td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Aucun article. Ajoutez-en ci-dessous.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if besoin.modifiable %}
+        <div class="card mt-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-plus-circle me-1"></i>Ajouter un article</div>
+            <div class="card-body">
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <div class="col-md-7">
+                        <label class="form-label small">Article</label>{{ form.article }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Quantité</label>{{ form.quantite_demandee }}
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-success w-100"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                    {% if form.errors %}<div class="col-12"><small class="text-danger">{{ form.errors }}</small></div>{% endif %}
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-bold"><i class="bi bi-info-circle me-1"></i>Informations</div>
+            <div class="card-body">
+                <p class="mb-1"><strong>Service :</strong> {{ besoin.service.nom_service|default:"Non précisé" }}</p>
+                <p class="mb-1"><strong>Urgence :</strong> {{ besoin.get_urgence_display }}</p>
+                <p class="mb-1"><strong>Besoin pour le :</strong> {{ besoin.date_besoin_souhaitee|date:"d/m/Y"|default:"-" }}</p>
+                {% if besoin.motif %}<hr><small class="text-muted">{{ besoin.motif }}</small>{% endif %}
+                {% if besoin.valide_par %}
+                <hr>
+                <p class="mb-1"><strong>{% if besoin.statut == 'rejetee' %}Rejeté{% else %}Validé{% endif %} par :</strong> {{ besoin.valide_par.get_full_name|default:besoin.valide_par.username }}</p>
+                <p class="mb-1 small text-muted">{{ besoin.date_validation|date:"d/m/Y H:i" }}</p>
+                {% if besoin.commentaire_validation %}<p class="mb-0 small text-muted">« {{ besoin.commentaire_validation }} »</p>{% endif %}
+                {% endif %}
+                {% if besoin.statut == 'validee' %}
+                <hr><a href="{% url 'stock:reapprovisionnement' %}" class="btn btn-sm btn-outline-success w-100"><i class="bi bi-arrow-repeat me-1"></i>Générer le bon de commande</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

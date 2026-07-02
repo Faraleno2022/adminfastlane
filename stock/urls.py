@@ -39,6 +39,14 @@ urlpatterns = [
     path('commandes/<int:pk>/reception/', views.reception_create, name='reception_create'),
     path('commandes/lignes/<int:pk>/supprimer/', views.ligne_commande_delete, name='ligne_commande_delete'),
 
+    # Expression de besoin (achat)
+    path('besoins-achat/', views.besoin_achat_list, name='besoin_achat_list'),
+    path('besoins-achat/nouveau/', views.besoin_achat_create, name='besoin_achat_create'),
+    path('besoins-achat/<int:pk>/', views.besoin_achat_detail, name='besoin_achat_detail'),
+    path('besoins-achat/<int:pk>/valider/', views.besoin_achat_valider, name='besoin_achat_valider'),
+    path('besoins-achat/<int:pk>/rejeter/', views.besoin_achat_rejeter, name='besoin_achat_rejeter'),
+    path('besoins-achat/lignes/<int:pk>/supprimer/', views.ligne_besoin_achat_delete, name='ligne_besoin_achat_delete'),
+
     # Réapprovisionnement
     path('reapprovisionnement/', views.reapprovisionnement, name='reapprovisionnement'),
 
@@ -55,6 +63,14 @@ urlpatterns = [
     path('clients/<int:pk>/modifier/', views.client_edit, name='client_edit'),
     path('clients/<int:pk>/supprimer/', views.client_delete, name='client_delete'),
     path('clients/prix-special/<int:pk>/supprimer/', views.prix_special_delete, name='prix_special_delete'),
+
+    # Expression de besoin (vente)
+    path('demandes-vente/', views.demande_vente_list, name='demande_vente_list'),
+    path('demandes-vente/nouveau/', views.demande_vente_create, name='demande_vente_create'),
+    path('demandes-vente/<int:pk>/', views.demande_vente_detail, name='demande_vente_detail'),
+    path('demandes-vente/<int:pk>/valider/', views.demande_vente_valider, name='demande_vente_valider'),
+    path('demandes-vente/<int:pk>/rejeter/', views.demande_vente_rejeter, name='demande_vente_rejeter'),
+    path('demandes-vente/lignes/<int:pk>/supprimer/', views.ligne_demande_vente_delete, name='ligne_demande_vente_delete'),
 
     # Ventes (devis / proforma / factures)
     path('ventes/', views.vente_list, name='vente_list'),

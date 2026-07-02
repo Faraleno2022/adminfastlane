@@ -4,12 +4,15 @@ Le widget Bootstrap est appliqué automatiquement à tous les champs.
 """
 from django import forms
 
+from core.models import Service
+
 from .models import (
     CategorieArticle, Fournisseur, Article, MouvementStock, Inventaire,
     Depot, Transfert, CommandeFournisseur, LigneCommande, Reception,
     FactureFournisseur, PaiementFournisseur,
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
     PaiementClient, Lot, NumeroSerie,
+    BesoinAchat, LigneBesoinAchat, DemandeVente, LigneDemandeVente,
 )
 
 
@@ -43,11 +46,16 @@ class FournisseurForm(BootstrapModelForm):
     class Meta:
         model = Fournisseur
         fields = ['nom', 'contact', 'telephone', 'email', 'adresse', 'nif',
-                  'delai_livraison_jours', 'actif', 'observations']
+                  'delai_livraison_jours', 'categorie', 'note_evaluation', 'actif', 'observations']
         widgets = {
             'adresse': forms.Textarea(attrs={'rows': 2}),
             'observations': forms.Textarea(attrs={'rows': 2}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['note_evaluation'].required = False
+        self.fields['note_evaluation'].help_text = 'Optionnel — note globale de fiabilité (0 à 20).'
 
 
 class DepotForm(BootstrapModelForm):
@@ -217,6 +225,40 @@ class LigneCommandeForm(BootstrapModelForm):
         return q
 
 
+class BesoinAchatForm(BootstrapModelForm):
+    class Meta:
+        model = BesoinAchat
+        fields = ['service', 'urgence', 'date_besoin_souhaitee', 'motif']
+        widgets = {
+            'date_besoin_souhaitee': forms.DateInput(attrs={'type': 'date'}),
+            'motif': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['service'].queryset = Service.objects.filter(entreprise=entreprise, actif=True)
+        self.fields['service'].required = False
+        self.fields['motif'].required = False
+
+
+class LigneBesoinAchatForm(BootstrapModelForm):
+    class Meta:
+        model = LigneBesoinAchat
+        fields = ['article', 'quantite_demandee']
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['article'].queryset = Article.objects.filter(entreprise=entreprise, actif=True)
+
+    def clean_quantite_demandee(self):
+        q = self.cleaned_data['quantite_demandee']
+        if q is None or q <= 0:
+            raise forms.ValidationError("La quantité doit être supérieure à zéro.")
+        return q
+
+
 class ReceptionForm(BootstrapModelForm):
     class Meta:
         model = Reception
@@ -279,6 +321,41 @@ class ClientForm(BootstrapModelForm):
             'adresse': forms.Textarea(attrs={'rows': 2}),
             'observations': forms.Textarea(attrs={'rows': 2}),
         }
+
+
+class DemandeVenteForm(BootstrapModelForm):
+    class Meta:
+        model = DemandeVente
+        fields = ['client', 'date_besoin', 'notes']
+        widgets = {
+            'date_besoin': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['client'].queryset = Client.objects.filter(entreprise=entreprise, actif=True)
+        self.fields['notes'].required = False
+
+
+class LigneDemandeVenteForm(BootstrapModelForm):
+    class Meta:
+        model = LigneDemandeVente
+        fields = ['article', 'quantite_souhaitee', 'prix_indicatif']
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise is not None:
+            self.fields['article'].queryset = Article.objects.filter(entreprise=entreprise, actif=True)
+        self.fields['prix_indicatif'].required = False
+        self.fields['prix_indicatif'].help_text = "Optionnel — le devis utilisera le prix spécial client ou le prix de vente."
+
+    def clean_quantite_souhaitee(self):
+        q = self.cleaned_data['quantite_souhaitee']
+        if q is None or q <= 0:
+            raise forms.ValidationError("La quantité doit être supérieure à zéro.")
+        return q
 
 
 class DocumentVenteForm(BootstrapModelForm):

@@ -8,6 +8,7 @@ from .models import (
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
     LigneLivraison, PaiementClient, ProfilStock, JournalAudit,
     Lot, NumeroSerie,
+    BesoinAchat, LigneBesoinAchat, DemandeVente, LigneDemandeVente,
 )
 
 
@@ -159,9 +160,37 @@ class CategorieArticleAdmin(admin.ModelAdmin):
 
 @admin.register(Fournisseur)
 class FournisseurAdmin(admin.ModelAdmin):
-    list_display = ('nom', 'contact', 'telephone', 'email', 'actif')
-    list_filter = ('actif', 'entreprise')
+    list_display = ('nom', 'contact', 'telephone', 'email', 'categorie', 'note_evaluation', 'actif')
+    list_filter = ('actif', 'categorie', 'entreprise')
     search_fields = ('nom', 'contact', 'email', 'telephone')
+
+
+class LigneBesoinAchatInline(admin.TabularInline):
+    model = LigneBesoinAchat
+    extra = 0
+
+
+@admin.register(BesoinAchat)
+class BesoinAchatAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'demandeur', 'service', 'urgence', 'statut', 'date_creation', 'entreprise')
+    list_filter = ('statut', 'urgence', 'entreprise')
+    search_fields = ('reference', 'demandeur__username')
+    date_hierarchy = 'date_creation'
+    inlines = [LigneBesoinAchatInline]
+
+
+class LigneDemandeVenteInline(admin.TabularInline):
+    model = LigneDemandeVente
+    extra = 0
+
+
+@admin.register(DemandeVente)
+class DemandeVenteAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'client', 'demandeur', 'date_besoin', 'statut', 'entreprise')
+    list_filter = ('statut', 'entreprise')
+    search_fields = ('reference', 'client__nom')
+    date_hierarchy = 'date_besoin'
+    inlines = [LigneDemandeVenteInline]
 
 
 @admin.register(Article)
