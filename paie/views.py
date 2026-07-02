@@ -3077,6 +3077,8 @@ def elements_salaire_employe(request, employe_id):
         'employe': employe,
         'gains': gains,
         'retenues': retenues,
+        'gains_actifs_count': sum(1 for e in gains if e.actif),
+        'retenues_actifs_count': sum(1 for e in retenues if e.actif),
         'total_gains': total_gains,
         'total_retenues': total_retenues,
         'cnss_estime': cnss_estime,
