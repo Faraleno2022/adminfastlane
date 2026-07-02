@@ -312,7 +312,35 @@ def check_license():
     return True
 
 
-APP_URL = 'http://127.0.0.1:8000/'
+APP_HOST = '127.0.0.1'
+
+
+def _find_free_port(preferres=(8749, 8750, 8751, 8752)):
+    """Choisit un port TCP libre pour GestionnaireRH.
+
+    IMPORTANT : GestionnaireRH ne doit PAS utiliser le port 8000 — d'autres
+    applications de bureau (ex. MySchoolGN) l'occupent, ce qui ferait charger
+    la mauvaise application dans la fenêtre. On privilégie un port dédié peu
+    courant, puis on laisse l'OS en attribuer un libre si tous sont pris.
+    """
+    import socket
+    candidats = list(preferres) + [0]  # 0 = port libre attribué par l'OS
+    for port in candidats:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind((APP_HOST, port))
+            chosen = s.getsockname()[1]
+            return chosen
+        except OSError:
+            continue
+        finally:
+            s.close()
+    return 8749
+
+
+# Port dédié à GestionnaireRH (jamais 8000) — évite la collision avec d'autres apps.
+APP_PORT = _find_free_port()
+APP_URL = f'http://{APP_HOST}:{APP_PORT}/'
 
 
 def _wait_for_server(url=APP_URL, timeout=40):
@@ -743,7 +771,7 @@ def main():
             print(f"  Verification tables: {e}")
 
         print()
-        print("  Serveur demarre sur: http://127.0.0.1:8000/")
+        print(f"  Serveur demarre sur: {APP_URL}")
         print("  Ouverture dans la fenetre de l'application...")
         print("=" * 50)
         print()
@@ -760,7 +788,7 @@ def main():
         # automatiquement à la fermeture de la fenêtre / de l'application).
         def _run_django_server():
             try:
-                call_command('runserver', '--noreload', '127.0.0.1:8000')
+                call_command('runserver', '--noreload', f'{APP_HOST}:{APP_PORT}')
             except Exception as exc:
                 print(f"  [Serveur] Arret: {exc}")
 
