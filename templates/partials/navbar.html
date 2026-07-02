@@ -62,19 +62,29 @@
 <form id="rhQuitForm" method="post" action="{% url 'quitter_application' %}" style="display:none;">{% csrf_token %}</form>
 <script>
 function quitterApplicationRH() {
-    if (confirm("Fermer complètement GestionnaireRH ?\n\nLe serveur et la fenêtre de l'application vont s'arrêter. Vous pourrez ensuite lancer une autre application.")) {
-        try {
-            // Message d'attente pendant la fermeture du processus
-            document.body.insertAdjacentHTML('beforeend',
-                '<div style="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);' +
-                'display:flex;align-items:center;justify-content:center;color:#fff;' +
-                'font-family:sans-serif;font-size:1.3rem;text-align:center;">' +
-                '<div><i class="fas fa-power-off fa-2x"></i><br><br>' +
-                'Fermeture de GestionnaireRH…<br>' +
-                '<span style="font-size:.9rem;opacity:.8">Vous pouvez fermer cette fenêtre si elle reste ouverte.</span></div></div>');
-            document.getElementById('rhQuitForm').submit();
-        } catch (e) {}
+    if (!confirm("Fermer complètement GestionnaireRH ?\n\nLe serveur et la fenêtre de l'application vont s'arrêter. Vous pourrez ensuite lancer une autre application.")) {
+        return false;
     }
+    // Overlay d'attente pendant la fermeture du processus
+    document.body.insertAdjacentHTML('beforeend',
+        '<div style="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);' +
+        'display:flex;align-items:center;justify-content:center;color:#fff;' +
+        'font-family:sans-serif;font-size:1.3rem;text-align:center;">' +
+        '<div><i class="fas fa-power-off fa-2x"></i><br><br>' +
+        'Fermeture de GestionnaireRH…<br>' +
+        '<span style="font-size:.9rem;opacity:.8">La fenêtre va se fermer automatiquement.</span></div></div>');
+    // POST via fetch (et NON un envoi de formulaire) : évite de naviguer vers la
+    // réponse JSON du serveur (qui s'afficherait en texte brut dans la fenêtre).
+    // Le processus s'arrête côté serveur (os._exit) → la fenêtre se ferme seule.
+    try {
+        var form = document.getElementById('rhQuitForm');
+        var tokenEl = form.querySelector('[name=csrfmiddlewaretoken]');
+        fetch(form.getAttribute('action'), {
+            method: 'POST',
+            headers: {'X-CSRFToken': tokenEl ? tokenEl.value : ''},
+            body: new FormData(form)
+        }).catch(function () {});
+    } catch (e) {}
     return false;
 }
 </script>
