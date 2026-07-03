@@ -868,8 +868,16 @@ def facture_valider(request, pk):
     
     facture.statut = 'validee'
     facture.save()
-    
-    messages.success(request, "Facture validée avec succès.")
+
+    # Moteur comptable : génération automatique de l'écriture (vente/achat/avoir)
+    try:
+        from .moteur_comptable import comptabiliser_facture, ErreurComptabilisation
+        ecriture = comptabiliser_facture(facture, request.user)
+        messages.success(request,
+                         f"Facture validée. Écriture {ecriture.numero_ecriture} générée automatiquement.")
+    except Exception as exc:
+        messages.warning(request,
+                         f"Facture validée, mais l'écriture n'a pas pu être générée : {exc}")
     return redirect('comptabilite:facture_detail', pk=pk)
 
 
@@ -957,9 +965,18 @@ def reglement_create(request):
                     if facture.montant_paye >= facture.montant_ttc:
                         facture.statut = 'payee'
                     facture.save()
-                    
-                    messages.success(request, "Règlement enregistré avec succès.")
-                    return redirect('comptabilite:facture_detail', pk=facture.pk)
+
+                # Moteur comptable : écriture d'encaissement / paiement automatique
+                try:
+                    from .moteur_comptable import comptabiliser_reglement
+                    ecriture = comptabiliser_reglement(reglement, request.user)
+                    messages.success(request,
+                                     f"Règlement enregistré. Écriture {ecriture.numero_ecriture} "
+                                     f"générée automatiquement.")
+                except Exception as exc:
+                    messages.warning(request,
+                                     f"Règlement enregistré, mais l'écriture n'a pas pu être générée : {exc}")
+                return redirect('comptabilite:facture_detail', pk=facture.pk)
             except Exception as e:
                 messages.error(request, f"Une erreur est survenue lors de la création: {str(e)}")
         else:

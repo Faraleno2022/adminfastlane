@@ -1,0 +1,62 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Situation bancaire - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-bank2 me-2"></i>Situation bancaire</h1>
+            <p class="text-muted mb-0">Soldes comptables des comptes bancaires et derniers rapprochements</p>
+        </div>
+        <button class="btn btn-outline-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimer</button>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=excel" class="btn btn-success btn-export-xl"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=pdf" class="btn btn-danger btn-export-xl"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Compte</th>
+                        <th>Banque</th>
+                        <th class="text-end">Solde comptable (GNF)</th>
+                        <th>Dernier rapprochement</th>
+                        <th class="text-end">Écart au rapprochement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in situation %}
+                    <tr>
+                        <td><a href="{% url 'comptabilite:compte-bancaire-detail' s.compte.pk %}">{{ s.compte.code }} — {{ s.compte.libelle }}</a></td>
+                        <td>{{ s.compte.banque }}</td>
+                        <td class="text-end fw-bold {% if s.solde < 0 %}text-danger{% endif %}">{{ s.solde|floatformat:0|intcomma }}</td>
+                        <td>
+                            {% if s.rapprochement %}
+                                {{ s.rapprochement.date_rapprochement|date:"d/m/Y" }}
+                                <span class="badge {% if s.rapprochement.statut == 'valide' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ s.rapprochement.get_statut_display }}</span>
+                            {% else %}
+                                <span class="text-muted">Jamais rapproché</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">{% if s.rapprochement %}{{ s.rapprochement.ecart|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Aucun compte bancaire actif.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="2" class="text-end">TRÉSORERIE BANCAIRE TOTALE</td>
+                        <td class="text-end">{{ total|floatformat:0|intcomma }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+            <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>Solde = solde initial + mouvements validés du compte comptable associé. Associez un compte comptable (classe 52) à chaque compte bancaire pour un calcul exact.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

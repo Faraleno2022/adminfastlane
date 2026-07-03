@@ -1,0 +1,75 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Tableau des flux de trésorerie - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-arrow-left-right me-2"></i>Tableau des flux de trésorerie</h1>
+            <p class="text-muted mb-0">Exercice {{ annee }} — méthode indirecte simplifiée (SYSCOHADA)</p>
+        </div>
+        <div>
+            <form method="get" class="d-inline-flex align-items-center gap-2 d-print-none">
+                <input type="number" name="annee" value="{{ annee }}" class="form-control" style="width:110px">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-repeat"></i></button>
+            </form>
+            <button class="btn btn-outline-primary" onclick="window.print()"><i class="bi bi-printer"></i></button>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=excel" class="btn btn-success btn-export-xl"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=pdf" class="btn btn-danger btn-export-xl"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body table-responsive">
+            <table class="table table-sm">
+                <tbody>
+                    <tr class="table-primary fw-bold"><td colspan="2">A. FLUX DE TRÉSORERIE DES ACTIVITÉS OPÉRATIONNELLES</td></tr>
+                    <tr><td>Résultat net de l'exercice</td><td class="text-end">{{ resultat|floatformat:0|intcomma }}</td></tr>
+                    <tr><td>+ Dotations aux amortissements et provisions</td><td class="text-end">{{ dotations|floatformat:0|intcomma }}</td></tr>
+                    <tr><td>− Reprises d'amortissements et provisions</td><td class="text-end">{{ reprises|floatformat:0|intcomma }}</td></tr>
+                    <tr class="fw-bold"><td>= Capacité d'AutoFinancement Globale (CAFG)</td><td class="text-end">{{ cafg|floatformat:0|intcomma }}</td></tr>
+                    <tr><td>− Variation du besoin en fonds de roulement (stocks + créances/dettes)</td><td class="text-end">{{ variation_bfr|floatformat:0|intcomma }}</td></tr>
+                    <tr class="table-light fw-bold"><td>FLUX DE TRÉSORERIE OPÉRATIONNELS (A)</td><td class="text-end">{{ flux_activite|floatformat:0|intcomma }}</td></tr>
+
+                    <tr class="table-primary fw-bold"><td colspan="2">B. FLUX DE TRÉSORERIE DES ACTIVITÉS D'INVESTISSEMENT</td></tr>
+                    <tr><td>− Acquisitions d'immobilisations (mouvements débit classe 2)</td><td class="text-end">{{ acquisitions|floatformat:0|intcomma }}</td></tr>
+                    <tr><td>+ Cessions d'immobilisations (mouvements crédit classe 2)</td><td class="text-end">{{ cessions|floatformat:0|intcomma }}</td></tr>
+                    <tr class="table-light fw-bold"><td>FLUX DE TRÉSORERIE D'INVESTISSEMENT (B)</td><td class="text-end">{{ flux_investissement|floatformat:0|intcomma }}</td></tr>
+
+                    <tr class="table-primary fw-bold"><td colspan="2">C. FLUX DE TRÉSORERIE DES ACTIVITÉS DE FINANCEMENT</td></tr>
+                    <tr><td>+ Apports en capital et subventions (crédits 10/13)</td><td class="text-end">{{ apports|floatformat:0|intcomma }}</td></tr>
+                    <tr><td>+ Emprunts contractés (crédits 16)</td><td class="text-end">{{ emprunts_recus|floatformat:0|intcomma }}</td></tr>
+                    <tr><td>− Remboursements d'emprunts (débits 16)</td><td class="text-end">{{ remboursements|floatformat:0|intcomma }}</td></tr>
+                    <tr class="table-light fw-bold"><td>FLUX DE TRÉSORERIE DE FINANCEMENT (C)</td><td class="text-end">{{ flux_financement|floatformat:0|intcomma }}</td></tr>
+
+                    <tr class="table-success fw-bold"><td>VARIATION DE TRÉSORERIE DE LA PÉRIODE (A + B + C)</td><td class="text-end">{{ variation_calculee|floatformat:0|intcomma }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><strong>Contrôle de cohérence</strong></div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm">
+                <tbody>
+                    <tr><td>Trésorerie à l'ouverture (comptes classe 5 au 31/12/{{ annee|add:"-1" }})</td><td class="text-end">{{ treso_debut|floatformat:0|intcomma }}</td></tr>
+                    <tr><td>Trésorerie à la clôture (comptes classe 5 au 31/12/{{ annee }})</td><td class="text-end">{{ treso_fin|floatformat:0|intcomma }}</td></tr>
+                    <tr class="fw-bold"><td>Variation réelle de trésorerie</td><td class="text-end">{{ variation_reelle|floatformat:0|intcomma }}</td></tr>
+                    <tr class="{% if ecart == 0 %}table-success{% else %}table-warning{% endif %} fw-bold">
+                        <td>Écart (flux calculés − variation réelle)</td>
+                        <td class="text-end">{{ ecart|floatformat:0|intcomma }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="text-muted small mb-0">
+                <i class="bi bi-info-circle me-1"></i>État calculé automatiquement à partir des écritures validées
+                (méthode indirecte simplifiée). Un écart peut provenir d'écritures non validées, de comptes
+                hors nomenclature SYSCOHADA ou d'opérations sans contrepartie de trésorerie.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

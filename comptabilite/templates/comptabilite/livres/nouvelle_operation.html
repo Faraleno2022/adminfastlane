@@ -1,0 +1,144 @@
+{% extends "comptabilite/base_compta.html" %}
+
+{% block title %}Nouvelle opération - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="mb-3">
+                <h1 class="h3 mb-0"><i class="bi bi-magic me-2"></i>Nouvelle opération</h1>
+                <p class="text-muted mb-0">Saisissez l'opération métier : le moteur comptable génère l'écriture SYSCOHADA automatiquement — aucun compte à connaître.</p>
+            </div>
+            <div class="row">
+                <div class="col-lg-7">
+                    <div class="card shadow">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Saisie de l'opération</h6>
+                        </div>
+                        <div class="card-body">
+                            <form method="post">
+                                {% csrf_token %}
+                                {% if form.non_field_errors %}
+                                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                                {% endif %}
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label">{{ form.type_operation.label }} *</label>
+                                        {{ form.type_operation }}{{ form.type_operation.errors }}
+                                    </div>
+                                    <div class="col-md-8" id="champ-tiers">
+                                        <label class="form-label">{{ form.tiers.label }}</label>
+                                        {{ form.tiers }}{{ form.tiers.errors }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">{{ form.date_operation.label }} *</label>
+                                        {{ form.date_operation }}{{ form.date_operation.errors }}
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">{{ form.libelle.label }}</label>
+                                        {{ form.libelle }}{{ form.libelle.errors }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">{{ form.montant_ht.label }} *</label>
+                                        {{ form.montant_ht }}{{ form.montant_ht.errors }}
+                                    </div>
+                                    <div class="col-md-4" id="champ-tva">
+                                        <label class="form-label">{{ form.taux_tva.label }}</label>
+                                        {{ form.taux_tva }}{{ form.taux_tva.errors }}
+                                    </div>
+                                    <div class="col-md-4" id="champ-mode">
+                                        <label class="form-label">{{ form.mode_paiement.label }}</label>
+                                        {{ form.mode_paiement }}{{ form.mode_paiement.errors }}
+                                    </div>
+                                </div>
+                                <div class="d-grid mt-4">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="bi bi-check-circle me-2"></i>Valider l'opération
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="card shadow">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="bi bi-eye me-2"></i>Aperçu de l'écriture générée</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm" id="apercu">
+                                <thead class="table-light">
+                                    <tr><th></th><th>Compte</th><th class="text-end">Débit</th><th class="text-end">Crédit</th></tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <p class="text-muted small mb-0">
+                                <i class="bi bi-info-circle me-1"></i>L'écriture est équilibrée, validée et
+                                enregistrée au journal correspondant (ventes, achats, banque, caisse…).
+                                Les comptes manquants du plan SYSCOHADA sont créés automatiquement.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Table de correspondance visuelle (miroir du moteur comptable serveur)
+var SCHEMAS = {
+    'vente':                {tiers: true,  tva: true,  mode: false, lignes: [['Client (TTC)', 'D'], ['Ventes (HT)', 'C'], ['TVA facturée', 'C']]},
+    'achat':                {tiers: true,  tva: true,  mode: false, lignes: [['Achats (HT)', 'D'], ['TVA récupérable', 'D'], ['Fournisseur (TTC)', 'C']]},
+    'encaissement_client':  {tiers: true,  tva: false, mode: true,  lignes: [['Banque / Caisse', 'D'], ['Client', 'C']]},
+    'paiement_fournisseur': {tiers: true,  tva: false, mode: true,  lignes: [['Fournisseur', 'D'], ['Banque / Caisse', 'C']]},
+    'entree_caisse':        {tiers: false, tva: false, mode: false, lignes: [['Caisse', 'D'], ['Produits divers', 'C']]},
+    'sortie_caisse':        {tiers: false, tva: false, mode: false, lignes: [['Charges diverses', 'D'], ['Caisse', 'C']]},
+    'salaire':              {tiers: false, tva: false, mode: true,  lignes: [['Salaires', 'D'], ['Banque / Caisse', 'C']]},
+    'achat_immobilisation': {tiers: true,  tva: true,  mode: true,  lignes: [['Immobilisation (HT)', 'D'], ['TVA récupérable', 'D'], ['Fournisseur ou Banque (TTC)', 'C']]},
+    'avoir_client':         {tiers: true,  tva: true,  mode: false, lignes: [['Ventes (HT)', 'D'], ['TVA facturée', 'D'], ['Client (TTC)', 'C']]},
+    'avoir_fournisseur':    {tiers: true,  tva: true,  mode: false, lignes: [['Fournisseur (TTC)', 'D'], ['Achats (HT)', 'C'], ['TVA récupérable', 'C']]}
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+    var select = document.querySelector('[name="type_operation"]');
+    var montantInp = document.querySelector('[name="montant_ht"]');
+    var tvaInp = document.querySelector('[name="taux_tva"]');
+    var corps = document.querySelector('#apercu tbody');
+    var fmt = function (n) { return n ? n.toLocaleString('fr-FR') : ''; };
+
+    function rafraichir() {
+        var schema = SCHEMAS[select.value] || {lignes: []};
+        document.getElementById('champ-tiers').style.display = schema.tiers ? '' : 'none';
+        document.getElementById('champ-tva').style.display = schema.tva ? '' : 'none';
+        document.getElementById('champ-mode').style.display = schema.mode ? '' : 'none';
+
+        var ht = parseFloat(montantInp.value) || 0;
+        var taux = schema.tva ? (parseFloat(tvaInp.value) || 0) : 0;
+        var tva = Math.round(ht * taux / 100);
+        var ttc = ht + tva;
+
+        corps.innerHTML = '';
+        schema.lignes.forEach(function (l) {
+            var libelle = l[0], sens = l[1];
+            var montant = ttc;
+            if (libelle.indexOf('HT') >= 0) montant = ht;
+            else if (libelle.indexOf('TVA') >= 0) montant = tva;
+            if (libelle.indexOf('TVA') >= 0 && tva === 0) return;
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td><span class="badge ' + (sens === 'D' ? 'bg-primary">Débit' : 'bg-success">Crédit') + '</span></td>' +
+                '<td>' + libelle + '</td>' +
+                '<td class="text-end">' + (sens === 'D' ? fmt(montant) : '') + '</td>' +
+                '<td class="text-end">' + (sens === 'C' ? fmt(montant) : '') + '</td>';
+            corps.appendChild(tr);
+        });
+    }
+
+    select.addEventListener('change', rafraichir);
+    montantInp.addEventListener('input', rafraichir);
+    if (tvaInp) tvaInp.addEventListener('input', rafraichir);
+    rafraichir();
+});
+</script>
+{% endblock %}

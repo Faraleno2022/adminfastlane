@@ -17,25 +17,13 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_save, sender='comptabilite.ExerciceComptable')
 def on_exercice_created(sender, instance, created, **kwargs):
-    """Crée les journaux par défaut pour un nouvel exercice."""
+    """Crée les journaux SYSCOHADA par défaut pour un nouvel exercice."""
     if created:
         try:
-            from .models import JournalComptable
-            
-            types_journal = ['VENTE', 'ACHAT', 'BANQUE', 'TRESORERIE', 'OD']
-            
-            for type_j in types_journal:
-                JournalComptable.objects.get_or_create(
-                    code_journal=f"{type_j[:2]}-{instance.code}",
-                    entreprise=instance.entreprise,
-                    defaults={
-                        'libelle': f"Journal de {type_j}",
-                        'type_journal': type_j,
-                        'actif': True
-                    }
-                )
-            
-            logger.info(f"Journaux créés pour exercice {instance.code}")
+            from .moteur_comptable import obtenir_journal, JOURNAUX_DEFAUT
+            for type_journal in JOURNAUX_DEFAUT:
+                obtenir_journal(instance.entreprise, type_journal)
+            logger.info(f"Journaux SYSCOHADA vérifiés pour l'exercice {instance.libelle}")
         except Exception as e:
             logger.error(f"Erreur création journaux: {e}")
 

@@ -1,0 +1,125 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Tableau de bord comptable - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-speedometer2 me-2"></i>Tableau de bord comptable</h1>
+            <p class="text-muted mb-0">Exercice {{ annee }} — indicateurs calculés en temps réel</p>
+        </div>
+        <a href="{% url 'comptabilite:nouvelle_operation' %}" class="btn btn-primary btn-lg">
+            <i class="bi bi-magic me-2"></i>Nouvelle opération
+        </a>
+    </div>
+
+    {% if alertes %}
+    <div class="row mb-3">
+        <div class="col-12">
+            {% for a in alertes %}
+            <div class="alert alert-{{ a.niveau }} py-2 mb-2 d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-{{ a.icone }} me-2"></i>{{ a.texte }}</span>
+                {% if a.arg %}<a href="{% url a.url a.arg %}" class="alert-link small">Voir →</a>
+                {% else %}<a href="{% url a.url %}" class="alert-link small">Voir →</a>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-primary h-100"><div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-graph-up me-1"></i>Chiffre d'affaires {{ annee }}</h6>
+                <h4 class="mb-0">{{ ca|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white {% if resultat >= 0 %}bg-success{% else %}bg-danger{% endif %} h-100"><div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-cash-stack me-1"></i>{% if resultat >= 0 %}Bénéfice{% else %}Perte{% endif %}</h6>
+                <h4 class="mb-0">{{ resultat|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-info h-100"><div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-bank2 me-1"></i>Banque</h6>
+                <h4 class="mb-0">{{ banque|floatformat:0|intcomma }} GNF</h4>
+                <a href="{% url 'comptabilite:situation_bancaire' %}" class="text-white small">Situation →</a>
+            </div></div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-secondary h-100"><div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-cash-coin me-1"></i>Caisse</h6>
+                <h4 class="mb-0">{{ caisse_pieces|floatformat:0|intcomma }} GNF</h4>
+                <a href="{% url 'comptabilite:livre_caisse' %}" class="text-white small">Livre de caisse →</a>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card border-danger h-100"><div class="card-body">
+                <h6 class="text-muted mb-1">Clients débiteurs (à encaisser)</h6>
+                <h4 class="text-danger mb-1">{{ creances|floatformat:0|intcomma }} GNF</h4>
+                <a href="{% url 'comptabilite:echeancier_tiers' 'clients' %}" class="small">Échéancier clients →</a>
+            </div></div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-warning h-100"><div class="card-body">
+                <h6 class="text-muted mb-1">Fournisseurs créditeurs (à payer)</h6>
+                <h4 class="text-warning mb-1">{{ dettes|floatformat:0|intcomma }} GNF</h4>
+                <a href="{% url 'comptabilite:echeancier_tiers' 'fournisseurs' %}" class="small">Échéancier fournisseurs →</a>
+            </div></div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-info h-100"><div class="card-body">
+                <h6 class="text-muted mb-1">TVA {% if tva_a_payer >= 0 %}à payer{% else %}(crédit){% endif %}</h6>
+                <h4 class="text-info mb-1">{{ tva_a_payer|floatformat:0|intcomma }} GNF</h4>
+                <a href="{% url 'comptabilite:journal_tva' %}" class="small">Journal de TVA →</a>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-7 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong><i class="bi bi-journal-text me-1"></i>Dernières écritures générées</strong>
+                    <a href="{% url 'comptabilite:ecriture_list' %}" class="small">Toutes →</a>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <tbody>
+                            {% for e in dernieres_ecritures %}
+                            <tr>
+                                <td>{{ e.date_ecriture|date:"d/m" }}</td>
+                                <td><span class="badge bg-light text-dark">{{ e.journal.code }}</span></td>
+                                <td><a href="{% url 'comptabilite:ecriture_detail' e.pk %}">{{ e.numero_ecriture }}</a></td>
+                                <td class="text-truncate" style="max-width:260px;">{{ e.libelle }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td class="text-muted text-center py-3">Aucune écriture — utilisez « Nouvelle opération » pour commencer.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5 mb-4">
+            <div class="card h-100">
+                <div class="card-header"><strong><i class="bi bi-lightning me-1"></i>Actions rapides</strong></div>
+                <div class="card-body d-grid gap-2">
+                    <a href="{% url 'comptabilite:nouvelle_operation' %}?type=vente" class="btn btn-outline-success"><i class="bi bi-cart-check me-2"></i>Enregistrer une vente</a>
+                    <a href="{% url 'comptabilite:nouvelle_operation' %}?type=achat" class="btn btn-outline-primary"><i class="bi bi-bag me-2"></i>Enregistrer un achat</a>
+                    <a href="{% url 'comptabilite:nouvelle_operation' %}?type=encaissement_client" class="btn btn-outline-info"><i class="bi bi-arrow-down-circle me-2"></i>Encaissement client</a>
+                    <a href="{% url 'comptabilite:nouvelle_operation' %}?type=paiement_fournisseur" class="btn btn-outline-warning"><i class="bi bi-arrow-up-circle me-2"></i>Paiement fournisseur</a>
+                    <a href="{% url 'comptabilite:piece_caisse_create' %}" class="btn btn-outline-secondary"><i class="bi bi-cash-coin me-2"></i>Pièce de caisse</a>
+                    <a href="{% url 'comptabilite:bilan' %}" class="btn btn-outline-dark"><i class="bi bi-pie-chart me-2"></i>États financiers</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

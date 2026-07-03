@@ -1,0 +1,121 @@
+{% extends "comptabilite/base_compta.html" %}
+
+{% block title %}Nouveau bordereau - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-card-checklist me-2"></i>Nouveau bordereau de remise</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.type_bordereau.label }} *</label>
+                                {{ form.type_bordereau }}{{ form.type_bordereau.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.date_remise.label }} *</label>
+                                {{ form.date_remise }}{{ form.date_remise.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.compte_bancaire.label }} *</label>
+                                {{ form.compte_bancaire }}{{ form.compte_bancaire.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.deposant.label }}</label>
+                                {{ form.deposant }}{{ form.deposant.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.observation.label }}</label>
+                                {{ form.observation }}{{ form.observation.errors }}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6><i class="bi bi-list-ol me-1"></i>Lignes du bordereau
+                            <small class="text-muted">(chèques ou détail des espèces)</small></h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle" id="table-lignes">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:30%">Description / N° chèque *</th>
+                                        <th style="width:22%">Banque émettrice</th>
+                                        <th style="width:22%">Tireur / Origine</th>
+                                        <th style="width:20%">Montant (GNF) *</th>
+                                        <th style="width:6%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lignes-body">
+                                    <tr>
+                                        <td><input type="text" name="ligne_description[]" class="form-control form-control-sm"></td>
+                                        <td><input type="text" name="ligne_banque[]" class="form-control form-control-sm"></td>
+                                        <td><input type="text" name="ligne_tireur[]" class="form-control form-control-sm"></td>
+                                        <td><input type="number" name="ligne_montant[]" min="0" step="1" class="form-control form-control-sm montant-ligne"></td>
+                                        <td><button type="button" class="btn btn-sm btn-outline-danger btn-suppr"><i class="bi bi-x"></i></button></td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="3" class="text-end fw-bold">Total :</td>
+                                        <td class="fw-bold" id="total-bordereau">0</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btn-ajouter">
+                            <i class="bi bi-plus-circle me-1"></i>Ajouter une ligne
+                        </button>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'comptabilite:bordereau_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Enregistrer et imprimer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var body = document.getElementById('lignes-body');
+
+    function recalc() {
+        var total = 0;
+        body.querySelectorAll('.montant-ligne').forEach(function (inp) {
+            total += parseFloat(inp.value) || 0;
+        });
+        document.getElementById('total-bordereau').textContent = total.toLocaleString('fr-FR');
+    }
+
+    document.getElementById('btn-ajouter').addEventListener('click', function () {
+        var tr = body.querySelector('tr').cloneNode(true);
+        tr.querySelectorAll('input').forEach(function (inp) { inp.value = ''; });
+        body.appendChild(tr);
+    });
+
+    body.addEventListener('input', recalc);
+    body.addEventListener('click', function (e) {
+        var btn = e.target.closest('.btn-suppr');
+        if (btn && body.querySelectorAll('tr').length > 1) {
+            btn.closest('tr').remove();
+            recalc();
+        }
+    });
+});
+</script>
+{% endblock %}

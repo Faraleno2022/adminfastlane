@@ -12,6 +12,13 @@
             <p class="text-muted mb-0">Gestion des comptes SYSCOHADA</p>
         </div>
         <div>
+            <form method="post" action="{% url 'comptabilite:initialiser_plan_syscohada' %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success"
+                        onclick="return confirm('Créer automatiquement les comptes SYSCOHADA essentiels manquants ?');">
+                    <i class="bi bi-stars me-2"></i>Initialiser le plan SYSCOHADA
+                </button>
+            </form>
             <a href="{% url 'comptabilite:plan_comptable_create' %}" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-2"></i>Nouveau Compte
             </a>

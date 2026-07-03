@@ -1,0 +1,118 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Pièces de caisse - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-cash-coin me-2"></i>Pièces de caisse</h1>
+            <p class="text-muted mb-0">Justificatifs des entrées et sorties d'espèces</p>
+        </div>
+        <div>
+            <a href="{% url 'comptabilite:piece_caisse_create' %}?type=entree" class="btn btn-success">
+                <i class="bi bi-plus-circle me-1"></i>Entrée
+            </a>
+            <a href="{% url 'comptabilite:piece_caisse_create' %}?type=sortie" class="btn btn-danger">
+                <i class="bi bi-dash-circle me-1"></i>Sortie
+            </a>
+            <a href="{% url 'comptabilite:livre_caisse' %}" class="btn btn-outline-primary">
+                <i class="bi bi-book me-1"></i>Livre de caisse
+            </a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=excel" class="btn btn-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=pdf" class="btn btn-danger"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-success"><div class="card-body">
+                <h6 class="mb-1">Total entrées</h6>
+                <h4 class="mb-0">{{ total_entrees|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-danger"><div class="card-body">
+                <h6 class="mb-1">Total sorties</h6>
+                <h4 class="mb-0">{{ total_sorties|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-primary"><div class="card-body">
+                <h6 class="mb-1">Solde (période filtrée)</h6>
+                <h4 class="mb-0">{{ solde_periode|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="card mb-4 d-print-none">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Type</label>
+                    <select name="type" class="form-select">
+                        <option value="">Tous</option>
+                        <option value="entree" {% if type_piece == 'entree' %}selected{% endif %}>Entrées</option>
+                        <option value="sortie" {% if type_piece == 'sortie' %}selected{% endif %}>Sorties</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date début</label>
+                    <input type="date" name="date_debut" value="{{ date_debut }}" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date fin</label>
+                    <input type="date" name="date_fin" value="{{ date_fin }}" class="form-control">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Filtrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>N° Pièce</th>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Motif</th>
+                        <th>Tiers / Bénéficiaire</th>
+                        <th class="text-end">Montant (GNF)</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in pieces %}
+                    <tr>
+                        <td>{{ p.numero }}</td>
+                        <td>{{ p.date_operation|date:"d/m/Y" }}</td>
+                        <td>
+                            {% if p.type_piece == 'entree' %}
+                                <span class="badge bg-success">Entrée</span>
+                            {% else %}
+                                <span class="badge bg-danger">Sortie</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ p.libelle }}</td>
+                        <td>{{ p.tiers.raison_sociale|default:p.beneficiaire|default:"—" }}</td>
+                        <td class="text-end fw-bold">{{ p.montant|floatformat:0|intcomma }}</td>
+                        <td class="text-end">
+                            <a href="{% url 'comptabilite:piece_caisse_print' p.pk %}" class="btn btn-sm btn-outline-secondary" title="Imprimer">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">Aucune pièce de caisse.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

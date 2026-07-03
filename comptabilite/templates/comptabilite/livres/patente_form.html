@@ -1,0 +1,81 @@
+{% extends "comptabilite/base_compta.html" %}
+
+{% block title %}Déclaration de patente - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-award me-2"></i>{% if instance %}Modifier{% else %}Nouvelle{% endif %} déclaration de patente</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.annee.label }} *</label>
+                                {{ form.annee }}{{ form.annee.errors }}
+                            </div>
+                            <div class="col-md-9">
+                                <label class="form-label">{{ form.activite.label }} *</label>
+                                {{ form.activite }}{{ form.activite.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.reference_tarif.label }}</label>
+                                {{ form.reference_tarif }}{{ form.reference_tarif.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.chiffre_affaires.label }}</label>
+                                {{ form.chiffre_affaires }}{{ form.chiffre_affaires.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.droit_fixe.label }}</label>
+                                {{ form.droit_fixe }}{{ form.droit_fixe.errors }}
+                                <small class="text-muted">Selon le tarif des patentes de votre activité</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.valeur_locative.label }}</label>
+                                {{ form.valeur_locative }}{{ form.valeur_locative.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.taux_proportionnel.label }}</label>
+                                {{ form.taux_proportionnel }}{{ form.taux_proportionnel.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.droit_proportionnel.label }}</label>
+                                {{ form.droit_proportionnel }}{{ form.droit_proportionnel.errors }}
+                                <small class="text-muted">Laissez 0 pour un calcul automatique : valeur locative × taux</small>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.date_declaration.label }}</label>
+                                {{ form.date_declaration }}{{ form.date_declaration.errors }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.statut.label }}</label>
+                                {{ form.statut }}{{ form.statut.errors }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ form.observation.label }}</label>
+                                {{ form.observation }}{{ form.observation.errors }}
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'comptabilite:patente_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Enregistrer et imprimer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

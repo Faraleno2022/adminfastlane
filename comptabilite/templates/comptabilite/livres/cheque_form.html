@@ -1,0 +1,73 @@
+{% extends "comptabilite/base_compta.html" %}
+
+{% block title %}Émettre un chèque - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-wallet2 me-2"></i>Émettre un chèque</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.compte_bancaire.label }} *</label>
+                                {{ form.compte_bancaire }}{{ form.compte_bancaire.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.numero_cheque.label }} *</label>
+                                {{ form.numero_cheque }}{{ form.numero_cheque.errors }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ form.beneficiaire.label }} *</label>
+                                {{ form.beneficiaire }}{{ form.beneficiaire.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.montant.label }} *</label>
+                                {{ form.montant }}{{ form.montant.errors }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.date_emission.label }} *</label>
+                                {{ form.date_emission }}{{ form.date_emission.errors }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.lieu_emission.label }} *</label>
+                                {{ form.lieu_emission }}{{ form.lieu_emission.errors }}
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">{{ form.motif.label }}</label>
+                                {{ form.motif }}{{ form.motif.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.statut.label }}</label>
+                                {{ form.statut }}{{ form.statut.errors }}
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    {{ form.barre }}
+                                    <label class="form-check-label" for="{{ form.barre.id_for_label }}">{{ form.barre.label }}</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'comptabilite:cheque_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Enregistrer et imprimer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

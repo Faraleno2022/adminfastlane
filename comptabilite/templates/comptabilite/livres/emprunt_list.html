@@ -1,0 +1,77 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Situation des emprunts - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-bank me-2"></i>Situation des emprunts</h1>
+            <p class="text-muted mb-0">Capital restant dû au {{ aujourd_hui|date:"d/m/Y" }}</p>
+        </div>
+        <div>
+            <a href="{% url 'comptabilite:emprunt_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Nouvel emprunt
+            </a>
+            <button class="btn btn-outline-primary" onclick="window.print()"><i class="bi bi-printer"></i></button>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=excel" class="btn btn-success btn-export-xl"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=pdf" class="btn btn-danger btn-export-xl"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card text-white bg-primary"><div class="card-body">
+                <h6 class="mb-1">Capital total emprunté</h6>
+                <h4 class="mb-0">{{ total_capital|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-white bg-danger"><div class="card-body">
+                <h6 class="mb-1">Capital restant dû</h6>
+                <h4 class="mb-0">{{ total_crd|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Libellé</th>
+                        <th>Prêteur</th>
+                        <th class="text-end">Capital</th>
+                        <th class="text-end">Taux annuel</th>
+                        <th class="text-center">Échéances</th>
+                        <th>Périodicité</th>
+                        <th class="text-end">Capital restant dû</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in situation %}
+                    <tr>
+                        <td><a href="{% url 'comptabilite:emprunt_detail' s.emprunt.pk %}">{{ s.emprunt.libelle }}</a></td>
+                        <td>{{ s.emprunt.preteur }}</td>
+                        <td class="text-end">{{ s.emprunt.capital_emprunte|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ s.emprunt.taux_annuel }} %</td>
+                        <td class="text-center">{{ s.emprunt.nombre_echeances }}</td>
+                        <td>{{ s.emprunt.get_periodicite_display }}</td>
+                        <td class="text-end fw-bold">{{ s.crd|floatformat:0|intcomma }}</td>
+                        <td>
+                            {% if s.emprunt.statut == 'en_cours' %}<span class="badge bg-primary">En cours</span>
+                            {% elif s.emprunt.statut == 'solde' %}<span class="badge bg-success">Soldé</span>
+                            {% else %}<span class="badge bg-danger">Contentieux</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">Aucun emprunt enregistré.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

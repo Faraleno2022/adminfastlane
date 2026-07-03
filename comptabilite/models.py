@@ -230,6 +230,9 @@ class Facture(models.Model):
     TYPES_FACTURE = [
         ('achat', 'Facture d\'achat'),
         ('vente', 'Facture de vente'),
+        ('avoir_client', 'Facture d\'avoir (client)'),
+        ('avoir_fournisseur', 'Facture d\'avoir (fournisseur)'),
+        ('acompte', 'Facture d\'acompte'),
     ]
     STATUTS = [
         ('brouillon', 'Brouillon'),
@@ -241,7 +244,7 @@ class Facture(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     entreprise = models.ForeignKey('core.Entreprise', on_delete=models.CASCADE, related_name='factures')
     numero = models.CharField(max_length=50, verbose_name='N° Facture')
-    type_facture = models.CharField(max_length=10, choices=TYPES_FACTURE)
+    type_facture = models.CharField(max_length=20, choices=TYPES_FACTURE)
     tiers = models.ForeignKey(Tiers, on_delete=models.CASCADE, related_name='factures')
     date_facture = models.DateField(verbose_name='Date facture')
     date_echeance = models.DateField(verbose_name='Date échéance', null=True, blank=True)
@@ -2078,4 +2081,10 @@ from .models_archivage import (
     ClassementDocument, PolitiqueRetention, ArchiveDocument, MatricePiecesJustificatives,
     ValidationDocument, VerificationSignature, FluxDocument, SuppressionDocument,
     TraceAccesDocument, AlerteArchivage, RapportArchivage
+)
+
+# Import des modèles livres et documents SYSCOHADA (caisse, bordereaux, emprunts)
+from .models_livres import (
+    PieceCaisse, BordereauRemise, LigneBordereau, Emprunt, ArreteCaisse,
+    ChequeEmis, DeclarationPatente
 )

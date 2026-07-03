@@ -1,0 +1,86 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Arrêté de caisse {{ arrete.numero }}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 30px; color: #222; }
+  .document { border: 2px solid #333; border-radius: 8px; padding: 24px; max-width: 680px; margin: auto; }
+  .entete { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 16px; }
+  .titre { text-align: center; margin: 12px 0 20px; }
+  .titre h2 { margin: 0; text-transform: uppercase; color: #1a5276; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  table.billetage th, table.billetage td { border: 1px solid #888; padding: 7px 10px; }
+  table.billetage th { background: #eef2f7; }
+  td.montant, th.montant { text-align: right; }
+  .recap { margin-top: 18px; }
+  .recap td { padding: 8px 6px; border-bottom: 1px dotted #999; }
+  .recap td.label { width: 260px; color: #555; font-weight: bold; }
+  .ecart-ok { color: #198754; font-weight: bold; }
+  .ecart-ko { color: #dc3545; font-weight: bold; }
+  .signatures { display: flex; justify-content: space-between; margin-top: 48px; }
+  .signature { width: 45%; text-align: center; border-top: 1px solid #333; padding-top: 6px; }
+  .no-print { text-align: center; margin: 18px; }
+  @media print { .no-print { display: none; } body { margin: 8px; } }
+</style>
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()" style="padding:8px 24px;">🖨 Imprimer</button>
+    <a href="{% url 'comptabilite:arrete_caisse_list' %}">Retour à la liste</a>
+</div>
+<div class="document">
+    <div class="entete">
+        <div>
+            <strong>{{ entreprise.nom_entreprise }}</strong><br>
+            {% if entreprise.adresse %}{{ entreprise.adresse }}<br>{% endif %}
+            {% if entreprise.nif %}NIF : {{ entreprise.nif }}{% endif %}
+        </div>
+        <div style="text-align:right;">
+            N° <strong>{{ arrete.numero }}</strong><br>
+            Date : {{ arrete.date_arrete|date:"d/m/Y" }}
+        </div>
+    </div>
+
+    <div class="titre"><h2>Arrêté de caisse</h2></div>
+
+    <table class="billetage">
+        <thead>
+            <tr><th>Coupure</th><th class="montant">Quantité</th><th class="montant">Montant (GNF)</th></tr>
+        </thead>
+        <tbody>
+            {% for b in arrete.detail_billetage %}
+            <tr>
+                <td>Billets de {{ b.coupure|intcomma }}</td>
+                <td class="montant">{{ b.quantite }}</td>
+                <td class="montant">{{ b.montant|floatformat:0|intcomma }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td>Autres valeurs (pièces…)</td>
+                <td class="montant">—</td>
+                <td class="montant">{{ arrete.autres_valeurs|floatformat:0|intcomma }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table class="recap">
+        <tr><td class="label">Total des espèces comptées :</td><td style="text-align:right;font-weight:bold;">{{ arrete.total_compte|floatformat:0|intcomma }} GNF</td></tr>
+        <tr><td class="label">Solde théorique (livre de caisse) :</td><td style="text-align:right;">{{ arrete.solde_theorique|floatformat:0|intcomma }} GNF</td></tr>
+        <tr>
+            <td class="label">Écart constaté :</td>
+            <td style="text-align:right;" class="{% if arrete.ecart == 0 %}ecart-ok{% else %}ecart-ko{% endif %}">
+                {{ arrete.ecart|floatformat:0|intcomma }} GNF
+                {% if arrete.ecart == 0 %}(caisse juste){% elif arrete.ecart > 0 %}(excédent){% else %}(manquant){% endif %}
+            </td>
+        </tr>
+        {% if arrete.observation %}<tr><td class="label">Observation :</td><td>{{ arrete.observation }}</td></tr>{% endif %}
+    </table>
+
+    <div class="signatures">
+        <div class="signature">Le Caissier{% if arrete.caissier %}<br>{{ arrete.caissier }}{% endif %}</div>
+        <div class="signature">Le Responsable</div>
+    </div>
+</div>
+</body>
+</html>

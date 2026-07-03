@@ -1,0 +1,57 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Arrêtés de caisse - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-calculator me-2"></i>Arrêtés de caisse</h1>
+            <p class="text-muted mb-0">Comptages physiques (billetage) confrontés au livre de caisse</p>
+        </div>
+        <a href="{% url 'comptabilite:arrete_caisse_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Nouvel arrêté
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>N°</th>
+                        <th>Date</th>
+                        <th>Caissier</th>
+                        <th class="text-end">Espèces comptées</th>
+                        <th class="text-end">Solde théorique</th>
+                        <th class="text-end">Écart</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in arretes %}
+                    <tr>
+                        <td>{{ a.numero }}</td>
+                        <td>{{ a.date_arrete|date:"d/m/Y" }}</td>
+                        <td>{{ a.caissier|default:"—" }}</td>
+                        <td class="text-end">{{ a.total_compte|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ a.solde_theorique|floatformat:0|intcomma }}</td>
+                        <td class="text-end fw-bold {% if a.ecart == 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ a.ecart|floatformat:0|intcomma }}
+                        </td>
+                        <td class="text-end">
+                            <a href="{% url 'comptabilite:arrete_caisse_print' a.pk %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">Aucun arrêté de caisse.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

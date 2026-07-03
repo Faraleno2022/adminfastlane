@@ -1,0 +1,93 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}{{ titre }} - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-journal-text me-2"></i>{{ titre }}</h1>
+            <p class="text-muted mb-0">Écritures validées{% if date_debut or date_fin %} — période {{ date_debut|default:"…" }} au {{ date_fin|default:"…" }}{% endif %}</p>
+        </div>
+        <button class="btn btn-outline-primary" onclick="window.print()">
+            <i class="bi bi-printer me-2"></i>Imprimer
+        </button>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=excel" class="btn btn-success btn-export-xl"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=pdf" class="btn btn-danger btn-export-xl"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+    </div>
+
+    <!-- Sélecteur de journal + période -->
+    <div class="card mb-4 d-print-none">
+        <div class="card-body">
+            <div class="btn-group mb-3 flex-wrap">
+                {% for code, libelle in types_journaux.items %}
+                <a href="{% url 'comptabilite:journal_par_type' code %}"
+                   class="btn btn-sm {% if code == type_journal %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    {{ libelle }}
+                </a>
+                {% endfor %}
+            </div>
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Date début</label>
+                    <input type="date" name="date_debut" value="{{ date_debut }}" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date fin</label>
+                    <input type="date" name="date_fin" value="{{ date_fin }}" class="form-control">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Filtrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>N° Écriture</th>
+                        <th>Journal</th>
+                        <th>Compte</th>
+                        <th>Libellé</th>
+                        <th class="text-end">Débit</th>
+                        <th class="text-end">Crédit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ecriture in ecritures %}
+                        {% for ligne in ecriture.lignes.all %}
+                        <tr>
+                            {% if forloop.first %}
+                            <td>{{ ecriture.date_ecriture|date:"d/m/Y" }}</td>
+                            <td><a href="{% url 'comptabilite:ecriture_detail' ecriture.pk %}">{{ ecriture.numero_ecriture }}</a></td>
+                            <td>{{ ecriture.journal.code }}</td>
+                            {% else %}
+                            <td></td><td></td><td></td>
+                            {% endif %}
+                            <td>{{ ligne.compte.numero_compte }} — {{ ligne.compte.intitule }}</td>
+                            <td>{{ ligne.libelle|default:ecriture.libelle }}</td>
+                            <td class="text-end">{% if ligne.montant_debit %}{{ ligne.montant_debit|floatformat:0|intcomma }}{% endif %}</td>
+                            <td class="text-end">{% if ligne.montant_credit %}{{ ligne.montant_credit|floatformat:0|intcomma }}{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">Aucune écriture validée sur ce journal pour la période.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="5" class="text-end">TOTAUX</td>
+                        <td class="text-end">{{ total_debit|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ total_credit|floatformat:0|intcomma }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

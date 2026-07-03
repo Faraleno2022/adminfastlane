@@ -1,0 +1,70 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Variation des capitaux propres - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-diagram-2 me-2"></i>Tableau de variation des capitaux propres</h1>
+            <p class="text-muted mb-0">Exercice {{ annee }}</p>
+        </div>
+        <div>
+            <form method="get" class="d-inline-flex align-items-center gap-2 d-print-none">
+                <input type="number" name="annee" value="{{ annee }}" class="form-control" style="width:110px">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-repeat"></i></button>
+            </form>
+            <button class="btn btn-outline-primary" onclick="window.print()"><i class="bi bi-printer"></i></button>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=excel" class="btn btn-success btn-export-xl"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=pdf" class="btn btn-danger btn-export-xl"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body table-responsive">
+            <table class="table table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>Rubrique</th>
+                        <th class="text-end">Ouverture (01/01/{{ annee }})</th>
+                        <th class="text-end">Mouvements de l'exercice</th>
+                        <th class="text-end">Clôture (31/12/{{ annee }})</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in lignes %}
+                    <tr>
+                        <td>{{ l.libelle }}</td>
+                        <td class="text-end">{{ l.ouverture|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ l.mouvements|floatformat:0|intcomma }}</td>
+                        <td class="text-end fw-bold">{{ l.cloture|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="table-light fw-bold">
+                        <td>Sous-total capitaux (classes 10-13)</td>
+                        <td class="text-end">{{ total_ouverture|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ total_mouvements|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ total_cloture|floatformat:0|intcomma }}</td>
+                    </tr>
+                    <tr>
+                        <td>Résultat de l'exercice {{ annee }} (non affecté)</td>
+                        <td class="text-end">—</td>
+                        <td class="text-end">{{ resultat_exercice|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ resultat_exercice|floatformat:0|intcomma }}</td>
+                    </tr>
+                </tbody>
+                <tfoot class="table-success fw-bold">
+                    <tr>
+                        <td>TOTAL CAPITAUX PROPRES</td>
+                        <td class="text-end">{{ total_ouverture|floatformat:0|intcomma }}</td>
+                        <td class="text-end"></td>
+                        <td class="text-end">{{ total_final|floatformat:0|intcomma }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>Calculé à partir des écritures validées. Le résultat de l'exercice s'ajoute aux capitaux jusqu'à son affectation.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Déclaration de patente {{ declaration.annee }}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 30px; color: #222; line-height: 1.45; }
+  .document { border: 2px solid #333; border-radius: 8px; padding: 26px; max-width: 700px; margin: auto; }
+  .entete { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 16px; }
+  .officiel { text-align: center; font-size: 0.8rem; color: #555; margin-bottom: 8px; }
+  .titre { text-align: center; margin: 10px 0 20px; }
+  .titre h2 { margin: 0; text-transform: uppercase; color: #1a5276; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  td { padding: 8px 6px; border-bottom: 1px dotted #999; vertical-align: top; }
+  td.label { width: 280px; color: #555; font-weight: bold; }
+  table.calcul th, table.calcul td { border: 1px solid #888; padding: 8px 10px; }
+  table.calcul th { background: #eef2f7; text-align: left; }
+  table.calcul td.montant { text-align: right; }
+  .total { background: #d5f5e3; font-weight: bold; font-size: 1.05rem; }
+  .lettres { background: #eaf4fb; border-radius: 6px; padding: 10px 14px; margin-top: 14px; }
+  .signatures { display: flex; justify-content: space-between; margin-top: 44px; }
+  .signature { width: 45%; text-align: center; border-top: 1px solid #333; padding-top: 6px; }
+  .no-print { text-align: center; margin: 18px; }
+  @media print { .no-print { display: none; } body { margin: 8px; } }
+</style>
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()" style="padding:8px 24px;">🖨 Imprimer</button>
+    <a href="{% url 'comptabilite:patente_list' %}">Retour à la liste</a>
+</div>
+<div class="document">
+    <div class="officiel">
+        RÉPUBLIQUE DE GUINÉE — Travail · Justice · Solidarité<br>
+        Ministère de l'Économie et des Finances — Direction Générale des Impôts
+    </div>
+    <div class="entete">
+        <div>
+            <strong>{{ entreprise.nom_entreprise }}</strong><br>
+            {% if entreprise.adresse %}{{ entreprise.adresse }}<br>{% endif %}
+            {% if entreprise.nif %}NIF : {{ entreprise.nif }}{% endif %}
+        </div>
+        <div style="text-align:right;">
+            Exercice : <strong>{{ declaration.annee }}</strong><br>
+            Date : {{ declaration.date_declaration|date:"d/m/Y" }}
+        </div>
+    </div>
+
+    <div class="titre"><h2>Déclaration de contribution des patentes</h2></div>
+
+    <table>
+        <tr><td class="label">Activité exercée :</td><td>{{ declaration.activite }}</td></tr>
+        {% if declaration.reference_tarif %}<tr><td class="label">Classe / référence du tarif :</td><td>{{ declaration.reference_tarif }}</td></tr>{% endif %}
+        <tr><td class="label">Chiffre d'affaires déclaré :</td><td>{{ declaration.chiffre_affaires|floatformat:0|intcomma }} GNF</td></tr>
+        <tr><td class="label">Valeur locative des locaux :</td><td>{{ declaration.valeur_locative|floatformat:0|intcomma }} GNF</td></tr>
+    </table>
+
+    <table class="calcul" style="margin-top:18px;">
+        <thead>
+            <tr><th>Élément</th><th style="width:180px;">Montant (GNF)</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Droit fixe</td><td class="montant">{{ declaration.droit_fixe|floatformat:0|intcomma }}</td></tr>
+            <tr>
+                <td>Droit proportionnel ({{ declaration.taux_proportionnel }} % de la valeur locative)</td>
+                <td class="montant">{{ declaration.droit_proportionnel|floatformat:0|intcomma }}</td>
+            </tr>
+            <tr class="total"><td>TOTAL DE LA PATENTE</td><td class="montant">{{ declaration.total_patente|floatformat:0|intcomma }}</td></tr>
+        </tbody>
+    </table>
+
+    <div class="lettres">
+        Arrêtée la présente déclaration à la somme de : <strong>{{ total_lettres }}</strong>.
+    </div>
+
+    {% if declaration.observation %}
+    <p><strong>Observation :</strong> {{ declaration.observation }}</p>
+    {% endif %}
+
+    <div class="signatures">
+        <div class="signature">Le Déclarant</div>
+        <div class="signature">Cachet du service des impôts</div>
+    </div>
+</div>
+</body>
+</html>

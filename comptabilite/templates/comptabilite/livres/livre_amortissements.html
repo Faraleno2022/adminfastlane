@@ -1,0 +1,67 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Livre des amortissements - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-graph-down me-2"></i>Livre des amortissements</h1>
+            <p class="text-muted mb-0">Dotations par immobilisation et par exercice</p>
+        </div>
+        <div>
+            <form method="get" class="d-inline-flex align-items-center gap-2 d-print-none">
+                <select name="exercice" class="form-select" style="width:220px">
+                    <option value="">Tous les exercices</option>
+                    {% for ex in exercices %}
+                    <option value="{{ ex.pk }}" {% if exercice_id == ex.pk|stringformat:"s" %}selected{% endif %}>{{ ex.libelle }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i></button>
+            </form>
+            <button class="btn btn-outline-primary" onclick="window.print()"><i class="bi bi-printer"></i></button>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=excel" class="btn btn-success btn-export-xl"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=pdf" class="btn btn-danger btn-export-xl"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Exercice</th>
+                        <th>N° Immobilisation</th>
+                        <th>Désignation</th>
+                        <th class="text-end">Taux (%)</th>
+                        <th class="text-end">Dotation de l'exercice</th>
+                        <th class="text-end">Cumul amorti</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in amortissements %}
+                    <tr>
+                        <td>{{ a.exercice.libelle }}</td>
+                        <td>{{ a.immobilisation.numero }}</td>
+                        <td>{{ a.immobilisation.designation }}</td>
+                        <td class="text-end">{{ a.taux_amortissement }}</td>
+                        <td class="text-end">{{ a.montant_amortissement|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ a.montant_cumule|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">Aucune dotation enregistrée.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="4" class="text-end">TOTAL DES DOTATIONS</td>
+                        <td class="text-end">{{ total_dotations|floatformat:0|intcomma }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

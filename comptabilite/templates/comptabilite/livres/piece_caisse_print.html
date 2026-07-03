@@ -1,0 +1,64 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Pièce de caisse {{ piece.numero }}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 30px; color: #222; }
+  .document { border: 2px solid #333; border-radius: 8px; padding: 24px; max-width: 640px; margin: auto; }
+  .entete { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 16px; }
+  .titre { text-align: center; margin: 12px 0 20px; }
+  .titre h2 { margin: 0; text-transform: uppercase; }
+  .badge-type { display: inline-block; padding: 4px 14px; border-radius: 4px; color: #fff; font-weight: bold;
+                background: {% if piece.type_piece == 'entree' %}#198754{% else %}#dc3545{% endif %}; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  td { padding: 8px 6px; border-bottom: 1px dotted #999; vertical-align: top; }
+  td.label { width: 220px; color: #555; font-weight: bold; }
+  .montant { font-size: 1.4rem; font-weight: bold; }
+  .signatures { display: flex; justify-content: space-between; margin-top: 48px; }
+  .signature { width: 45%; text-align: center; border-top: 1px solid #333; padding-top: 6px; }
+  .no-print { text-align: center; margin: 18px; }
+  @media print { .no-print { display: none; } body { margin: 8px; } }
+</style>
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()" style="padding:8px 24px;">🖨 Imprimer</button>
+    <a href="{% url 'comptabilite:piece_caisse_list' %}">Retour à la liste</a>
+</div>
+<div class="document">
+    <div class="entete">
+        <div>
+            <strong>{{ entreprise.nom_entreprise }}</strong><br>
+            {% if entreprise.adresse %}{{ entreprise.adresse }}<br>{% endif %}
+            {% if entreprise.nif %}NIF : {{ entreprise.nif }}{% endif %}
+        </div>
+        <div style="text-align:right;">
+            N° <strong>{{ piece.numero }}</strong><br>
+            Date : {{ piece.date_operation|date:"d/m/Y" }}
+        </div>
+    </div>
+
+    <div class="titre">
+        <h2>Pièce de caisse</h2>
+        <span class="badge-type">{{ piece.get_type_piece_display }}</span>
+    </div>
+
+    <table>
+        <tr>
+            <td class="label">{% if piece.type_piece == 'entree' %}Reçu de{% else %}Payé à{% endif %} :</td>
+            <td>{{ piece.tiers.raison_sociale|default:piece.beneficiaire|default:"—" }}</td>
+        </tr>
+        <tr><td class="label">Motif :</td><td>{{ piece.libelle }}</td></tr>
+        {% if piece.reference %}<tr><td class="label">Référence :</td><td>{{ piece.reference }}</td></tr>{% endif %}
+        <tr><td class="label">Montant :</td><td class="montant">{{ piece.montant|floatformat:0|intcomma }} GNF</td></tr>
+        {% if piece.observation %}<tr><td class="label">Observation :</td><td>{{ piece.observation }}</td></tr>{% endif %}
+    </table>
+
+    <div class="signatures">
+        <div class="signature">Le Caissier</div>
+        <div class="signature">{% if piece.type_piece == 'entree' %}Le Verseur{% else %}Le Bénéficiaire{% endif %}</div>
+    </div>
+</div>
+</body>
+</html>

@@ -1775,10 +1775,12 @@ ajax_patterns = [
 # DASHBOARDS & REPORTS
 # ============================================================================
 
+from . import views_livres as _views_livres_dash
+
 dashboard_report_patterns = [
-    # Dashboard principal
-    path('', TemplateView.as_view(template_name='comptabilite/dashboard.html'), name='dashboard'),
-    path('tableau-de-bord/', TemplateView.as_view(template_name='comptabilite/dashboard.html'), name='dashboard'),
+    # Dashboard principal — tableau de bord métier calculé (moteur comptable)
+    path('', _views_livres_dash.tableau_bord_compta, name='dashboard'),
+    path('tableau-de-bord/', _views_livres_dash.tableau_bord_compta, name='dashboard'),
 ]
 
 # ============================================================================
@@ -1838,6 +1840,66 @@ archivage_patterns = [
     path('archivage/', include('comptabilite.urls_archivage')),
 ]
 
+# ── Livres et documents SYSCOHADA (journaux par type, caisse, bordereaux,
+#    emprunts, TFT, notes annexes, registre immobilisations) ────────────────
+from . import views_livres
+
+livres_patterns = [
+    # Journaux par type (AC/VT/CA/BQ/OD/SA)
+    path('livres/journal/<str:type_journal>/', views_livres.journal_par_type, name='journal_par_type'),
+    # Balance auxiliaire clients / fournisseurs
+    path('livres/balance-auxiliaire/<str:categorie>/', views_livres.balance_auxiliaire, name='balance_auxiliaire'),
+    # Caisse
+    path('caisse/pieces/', views_livres.piece_caisse_list, name='piece_caisse_list'),
+    path('caisse/pieces/nouvelle/', views_livres.piece_caisse_create, name='piece_caisse_create'),
+    path('caisse/pieces/<int:pk>/imprimer/', views_livres.piece_caisse_print, name='piece_caisse_print'),
+    path('caisse/livre/', views_livres.livre_caisse, name='livre_caisse'),
+    path('caisse/situation/', views_livres.situation_caisse, name='situation_caisse'),
+    # Reçu / quittance
+    path('reglements/<uuid:pk>/recu/', views_livres.reglement_recu, name='reglement_recu'),
+    # Bordereaux
+    path('bordereaux/', views_livres.bordereau_list, name='bordereau_list'),
+    path('bordereaux/nouveau/', views_livres.bordereau_create, name='bordereau_create'),
+    path('bordereaux/<int:pk>/imprimer/', views_livres.bordereau_print, name='bordereau_print'),
+    # Emprunts
+    path('emprunts/', views_livres.emprunt_list, name='emprunt_list'),
+    path('emprunts/nouveau/', views_livres.emprunt_create, name='emprunt_create'),
+    path('emprunts/<int:pk>/', views_livres.emprunt_detail, name='emprunt_detail'),
+    # États financiers complémentaires
+    path('etats/flux-tresorerie/', views_livres.tableau_flux_tresorerie, name='flux_tresorerie'),
+    path('etats/notes-annexes/', views_livres.notes_annexes, name='notes_annexes'),
+    path('etats/registre-immobilisations/', views_livres.registre_immobilisations, name='registre_immobilisations'),
+    # Arrêté de caisse
+    path('caisse/arretes/', views_livres.arrete_caisse_list, name='arrete_caisse_list'),
+    path('caisse/arretes/nouveau/', views_livres.arrete_caisse_create, name='arrete_caisse_create'),
+    path('caisse/arretes/<int:pk>/imprimer/', views_livres.arrete_caisse_print, name='arrete_caisse_print'),
+    # Relevés de tiers, relances, échéanciers
+    path('tiers/<uuid:pk>/releve/', views_livres.releve_tiers, name='releve_tiers'),
+    path('tiers/<uuid:pk>/relance/', views_livres.lettre_relance, name='lettre_relance'),
+    path('livres/echeancier/<str:categorie>/', views_livres.echeancier_tiers, name='echeancier_tiers'),
+    # Journaux spécialisés et livres
+    path('livres/journal-tva/', views_livres.journal_tva, name='journal_tva'),
+    path('livres/journal-immobilisations/', views_livres.journal_immobilisations, name='journal_immobilisations'),
+    path('livres/amortissements/', views_livres.livre_amortissements, name='livre_amortissements'),
+    # Analyses et états de gestion
+    path('etats/analyse-charges-produits/', views_livres.analyse_charges_produits, name='analyse_charges_produits'),
+    path('etats/variation-capitaux/', views_livres.variation_capitaux_propres, name='variation_capitaux'),
+    path('etats/situation-bancaire/', views_livres.situation_bancaire, name='situation_bancaire'),
+    # Chèques émis
+    path('cheques/', views_livres.cheque_list, name='cheque_list'),
+    path('cheques/nouveau/', views_livres.cheque_create, name='cheque_create'),
+    path('cheques/<int:pk>/imprimer/', views_livres.cheque_print, name='cheque_print'),
+    # Assistant opération (moteur comptable)
+    path('operations/nouvelle/', views_livres.nouvelle_operation, name='nouvelle_operation'),
+    path('plan-comptable/initialiser-syscohada/', views_livres.initialiser_plan_syscohada,
+         name='initialiser_plan_syscohada'),
+    # Déclarations de patente
+    path('fiscal/patente/', views_livres.patente_list, name='patente_list'),
+    path('fiscal/patente/nouvelle/', views_livres.patente_create, name='patente_create'),
+    path('fiscal/patente/<int:pk>/modifier/', views_livres.patente_create, name='patente_update'),
+    path('fiscal/patente/<int:pk>/imprimer/', views_livres.patente_print, name='patente_print'),
+]
+
 urlpatterns = (
     # Comptabilité Générale
     plan_comptable_patterns +
@@ -1876,7 +1938,10 @@ urlpatterns = (
     
     # Documentation & Archivage
     archivage_patterns +
-    
+
+    # Livres et documents SYSCOHADA
+    livres_patterns +
+
     # Utilities
     import_export_patterns +
     ajax_patterns +

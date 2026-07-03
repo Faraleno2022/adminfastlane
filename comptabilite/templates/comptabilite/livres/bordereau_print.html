@@ -1,0 +1,88 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Bordereau {{ bordereau.numero }}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 30px; color: #222; }
+  .document { border: 2px solid #333; border-radius: 8px; padding: 24px; max-width: 720px; margin: auto; }
+  .entete { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 16px; }
+  .titre { text-align: center; margin: 12px 0 20px; }
+  .titre h2 { margin: 0; text-transform: uppercase; color: #1a5276; }
+  .infos td { padding: 6px; }
+  .infos td.label { color: #555; font-weight: bold; width: 200px; }
+  table.lignes { width: 100%; border-collapse: collapse; margin-top: 14px; }
+  table.lignes th, table.lignes td { border: 1px solid #888; padding: 7px 8px; }
+  table.lignes th { background: #eef2f7; text-align: left; }
+  table.lignes td.montant { text-align: right; }
+  tfoot td { font-weight: bold; background: #eef2f7; }
+  .signatures { display: flex; justify-content: space-between; margin-top: 48px; }
+  .signature { width: 45%; text-align: center; border-top: 1px solid #333; padding-top: 6px; }
+  .no-print { text-align: center; margin: 18px; }
+  @media print { .no-print { display: none; } body { margin: 8px; } }
+</style>
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()" style="padding:8px 24px;">🖨 Imprimer</button>
+    <a href="{% url 'comptabilite:bordereau_list' %}">Retour à la liste</a>
+</div>
+<div class="document">
+    <div class="entete">
+        <div>
+            <strong>{{ entreprise.nom_entreprise }}</strong><br>
+            {% if entreprise.adresse %}{{ entreprise.adresse }}<br>{% endif %}
+            {% if entreprise.nif %}NIF : {{ entreprise.nif }}{% endif %}
+        </div>
+        <div style="text-align:right;">
+            N° <strong>{{ bordereau.numero }}</strong><br>
+            Date : {{ bordereau.date_remise|date:"d/m/Y" }}
+        </div>
+    </div>
+
+    <div class="titre">
+        <h2>{{ bordereau.get_type_bordereau_display }}</h2>
+    </div>
+
+    <table class="infos">
+        <tr><td class="label">Compte à créditer :</td><td>{{ bordereau.compte_bancaire }}</td></tr>
+        {% if bordereau.deposant %}<tr><td class="label">Déposant :</td><td>{{ bordereau.deposant }}</td></tr>{% endif %}
+        {% if bordereau.observation %}<tr><td class="label">Observation :</td><td>{{ bordereau.observation }}</td></tr>{% endif %}
+    </table>
+
+    <table class="lignes">
+        <thead>
+            <tr>
+                <th style="width:38px;">#</th>
+                <th>Description / N° chèque</th>
+                <th>Banque émettrice</th>
+                <th>Tireur / Origine</th>
+                <th style="width:140px;">Montant (GNF)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in bordereau.lignes.all %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ l.description }}</td>
+                <td>{{ l.banque_emettrice|default:"—" }}</td>
+                <td>{{ l.tireur|default:"—" }}</td>
+                <td class="montant">{{ l.montant|floatformat:0|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" style="text-align:right;">TOTAL</td>
+                <td class="montant">{{ bordereau.montant_total|floatformat:0|intcomma }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="signatures">
+        <div class="signature">Le Déposant</div>
+        <div class="signature">Cachet de la banque</div>
+    </div>
+</div>
+</body>
+</html>

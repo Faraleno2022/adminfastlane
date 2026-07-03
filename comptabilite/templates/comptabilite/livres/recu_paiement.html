@@ -1,0 +1,69 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{% if est_quittance %}Quittance{% else %}Reçu{% endif %} {{ reglement.numero }}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 30px; color: #222; }
+  .document { border: 2px solid #333; border-radius: 8px; padding: 24px; max-width: 640px; margin: auto; }
+  .entete { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 16px; }
+  .titre { text-align: center; margin: 12px 0 20px; }
+  .titre h2 { margin: 0; text-transform: uppercase; color: #1a5276; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  td { padding: 8px 6px; border-bottom: 1px dotted #999; vertical-align: top; }
+  td.label { width: 220px; color: #555; font-weight: bold; }
+  .montant { font-size: 1.4rem; font-weight: bold; color: #198754; }
+  .mention { background: #eaf4fb; border-radius: 6px; padding: 10px 14px; margin-top: 16px; font-size: 0.95rem; }
+  .signatures { display: flex; justify-content: space-between; margin-top: 48px; }
+  .signature { width: 45%; text-align: center; border-top: 1px solid #333; padding-top: 6px; }
+  .no-print { text-align: center; margin: 18px; }
+  @media print { .no-print { display: none; } body { margin: 8px; } }
+</style>
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()" style="padding:8px 24px;">🖨 Imprimer</button>
+    <a href="{% url 'comptabilite:reglement_detail' reglement.pk %}">Retour au règlement</a>
+</div>
+<div class="document">
+    <div class="entete">
+        <div>
+            <strong>{{ entreprise.nom_entreprise }}</strong><br>
+            {% if entreprise.adresse %}{{ entreprise.adresse }}<br>{% endif %}
+            {% if entreprise.nif %}NIF : {{ entreprise.nif }}{% endif %}
+        </div>
+        <div style="text-align:right;">
+            N° <strong>{{ reglement.numero }}</strong><br>
+            Date : {{ reglement.date_reglement|date:"d/m/Y" }}
+        </div>
+    </div>
+
+    <div class="titre">
+        <h2>{% if est_quittance %}Quittance de règlement{% else %}Reçu de paiement{% endif %}</h2>
+    </div>
+
+    <table>
+        <tr><td class="label">Reçu de :</td><td>{{ facture.tiers.raison_sociale }}</td></tr>
+        <tr><td class="label">Au titre de :</td><td>Facture {{ facture.numero }} du {{ facture.date_facture|date:"d/m/Y" }}</td></tr>
+        <tr><td class="label">Mode de paiement :</td><td>{{ reglement.get_mode_paiement_display|default:reglement.mode_paiement }}</td></tr>
+        {% if reglement.reference %}<tr><td class="label">Référence :</td><td>{{ reglement.reference }}</td></tr>{% endif %}
+        <tr><td class="label">Montant reçu :</td><td class="montant">{{ reglement.montant|floatformat:0|intcomma }} GNF</td></tr>
+        <tr><td class="label">Total facture (TTC) :</td><td>{{ facture.montant_ttc|floatformat:0|intcomma }} GNF</td></tr>
+        <tr><td class="label">Total réglé à ce jour :</td><td>{{ facture.montant_paye|floatformat:0|intcomma }} GNF</td></tr>
+        <tr><td class="label">Reste à payer :</td><td>{{ facture.reste_a_payer|floatformat:0|intcomma }} GNF</td></tr>
+    </table>
+
+    {% if est_quittance %}
+    <div class="mention">
+        <strong>Pour quittance :</strong> la présente vaut quittance du règlement intégral de la facture
+        {{ facture.numero }}. Le débiteur est libéré de son obligation au titre de cette facture.
+    </div>
+    {% endif %}
+
+    <div class="signatures">
+        <div class="signature">Le Payeur</div>
+        <div class="signature">Pour {{ entreprise.nom_entreprise }}</div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,79 @@
+{% extends "comptabilite/base_compta.html" %}
+
+{% block title %}Nouvel emprunt - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-bank me-2"></i>Nouvel emprunt</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.libelle.label }} *</label>
+                                {{ form.libelle }}{{ form.libelle.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.preteur.label }} *</label>
+                                {{ form.preteur }}{{ form.preteur.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.reference_contrat.label }}</label>
+                                {{ form.reference_contrat }}{{ form.reference_contrat.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.capital_emprunte.label }} *</label>
+                                {{ form.capital_emprunte }}{{ form.capital_emprunte.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.taux_annuel.label }} *</label>
+                                {{ form.taux_annuel }}{{ form.taux_annuel.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.nombre_echeances.label }} *</label>
+                                {{ form.nombre_echeances }}{{ form.nombre_echeances.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.periodicite.label }} *</label>
+                                {{ form.periodicite }}{{ form.periodicite.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.date_deblocage.label }} *</label>
+                                {{ form.date_deblocage }}{{ form.date_deblocage.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.date_premiere_echeance.label }} *</label>
+                                {{ form.date_premiere_echeance }}{{ form.date_premiere_echeance.errors }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.statut.label }}</label>
+                                {{ form.statut }}{{ form.statut.errors }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ form.observation.label }}</label>
+                                {{ form.observation }}{{ form.observation.errors }}
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'comptabilite:emprunt_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

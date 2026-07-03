@@ -1,0 +1,100 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}{{ titre }} - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-calendar-event me-2"></i>{{ titre }}</h1>
+            <p class="text-muted mb-0">Factures non soldées classées par échéance — au {{ aujourd_hui|date:"d/m/Y" }}</p>
+        </div>
+        <div>
+            <a href="{% url 'comptabilite:echeancier_tiers' 'clients' %}" class="btn btn-sm {% if categorie == 'clients' %}btn-primary{% else %}btn-outline-primary{% endif %}">Clients</a>
+            <a href="{% url 'comptabilite:echeancier_tiers' 'fournisseurs' %}" class="btn btn-sm {% if categorie == 'fournisseurs' %}btn-primary{% else %}btn-outline-primary{% endif %}">Fournisseurs</a>
+            <button class="btn btn-outline-primary btn-sm" onclick="window.print()"><i class="bi bi-printer"></i></button>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=excel" class="btn btn-success btn-export-xl"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=pdf" class="btn btn-danger btn-export-xl"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card text-white bg-danger"><div class="card-body">
+                <h6 class="mb-1">Échu (à {% if categorie == 'clients' %}encaisser{% else %}payer{% endif %} immédiatement)</h6>
+                <h4 class="mb-0">{{ total_echu|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-white bg-primary"><div class="card-body">
+                <h6 class="mb-1">À échoir</h6>
+                <h4 class="mb-0">{{ total_a_venir|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white"><strong>Factures échues</strong></div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr><th>Tiers</th><th>Facture</th><th>Échéance</th><th class="text-end">Retard (j)</th><th class="text-end">Reste dû (GNF)</th><th class="d-print-none"></th></tr>
+                </thead>
+                <tbody>
+                    {% for e in echues %}
+                    <tr>
+                        <td>{{ e.facture.tiers.raison_sociale }}</td>
+                        <td>{{ e.facture.numero }}</td>
+                        <td>{{ e.facture.date_echeance|date:"d/m/Y" }}</td>
+                        <td class="text-end text-danger fw-bold">{{ e.retard }}</td>
+                        <td class="text-end fw-bold">{{ e.reste|floatformat:0|intcomma }}</td>
+                        <td class="d-print-none">
+                            {% if categorie == 'clients' %}
+                            <a href="{% url 'comptabilite:lettre_relance' e.facture.tiers.pk %}" class="btn btn-sm btn-outline-warning" title="Lettre de relance"><i class="bi bi-envelope-exclamation"></i></a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-3">Aucune facture échue. 👍</td></tr>
+                    {% endfor %}
+                    {% for e in sans_echeance %}
+                    <tr>
+                        <td>{{ e.facture.tiers.raison_sociale }}</td>
+                        <td>{{ e.facture.numero }}</td>
+                        <td class="text-muted">Sans échéance</td>
+                        <td class="text-end">—</td>
+                        <td class="text-end fw-bold">{{ e.reste|floatformat:0|intcomma }}</td>
+                        <td class="d-print-none"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-primary text-white"><strong>Factures à échoir</strong></div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr><th>Tiers</th><th>Facture</th><th>Échéance</th><th class="text-end">Dans (j)</th><th class="text-end">Reste dû (GNF)</th></tr>
+                </thead>
+                <tbody>
+                    {% for e in a_venir %}
+                    <tr>
+                        <td>{{ e.facture.tiers.raison_sociale }}</td>
+                        <td>{{ e.facture.numero }}</td>
+                        <td>{{ e.facture.date_echeance|date:"d/m/Y" }}</td>
+                        <td class="text-end">{{ e.dans }}</td>
+                        <td class="text-end fw-bold">{{ e.reste|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-3">Aucune facture à échoir.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

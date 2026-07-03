@@ -1,0 +1,100 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Lettre de relance — {{ tiers.raison_sociale }}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 40px; color: #222; line-height: 1.55; }
+  .page { max-width: 720px; margin: auto; }
+  .entete { display: flex; justify-content: space-between; margin-bottom: 36px; }
+  .destinataire { margin: 24px 0 24px 55%; }
+  h2 { color: #1a5276; font-size: 1.2rem; margin-bottom: 4px; }
+  .objet { font-weight: bold; margin: 24px 0 16px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { border: 1px solid #888; padding: 7px 10px; }
+  th { background: #eef2f7; text-align: left; }
+  td.montant, th.montant { text-align: right; }
+  tfoot td { font-weight: bold; background: #eef2f7; }
+  .signature { margin-top: 48px; text-align: right; }
+  .no-print { text-align: center; margin: 18px; }
+  @media print { .no-print { display: none; } body { margin: 12px; } }
+</style>
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()" style="padding:8px 24px;">🖨 Imprimer</button>
+    <a href="{% url 'comptabilite:releve_tiers' tiers.pk %}">Retour au relevé</a>
+</div>
+<div class="page">
+    <div class="entete">
+        <div>
+            <strong>{{ entreprise.nom_entreprise }}</strong><br>
+            {% if entreprise.adresse %}{{ entreprise.adresse }}<br>{% endif %}
+            {% if entreprise.telephone %}Tél : {{ entreprise.telephone }}<br>{% endif %}
+            {% if entreprise.nif %}NIF : {{ entreprise.nif }}{% endif %}
+        </div>
+        <div style="text-align:right;">{{ entreprise.ville|default:"Conakry" }}, le {{ aujourd_hui|date:"d/m/Y" }}</div>
+    </div>
+
+    <div class="destinataire">
+        <strong>{{ tiers.raison_sociale }}</strong><br>
+        {% if tiers.adresse %}{{ tiers.adresse }}<br>{% endif %}
+        {% if tiers.nif %}NIF : {{ tiers.nif }}{% endif %}
+    </div>
+
+    <p class="objet">Objet : Relance pour factures impayées</p>
+
+    <p>Madame, Monsieur,</p>
+
+    {% if factures %}
+    <p>
+        Sauf erreur ou omission de notre part, nous constatons que les factures suivantes,
+        arrivées à échéance, demeurent impayées à ce jour :
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Facture</th>
+                <th>Date facture</th>
+                <th>Échéance</th>
+                <th class="montant">Retard (jours)</th>
+                <th class="montant">Reste dû (GNF)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in factures %}
+            <tr>
+                <td>{{ f.facture.numero }}</td>
+                <td>{{ f.facture.date_facture|date:"d/m/Y" }}</td>
+                <td>{{ f.facture.date_echeance|date:"d/m/Y" }}</td>
+                <td class="montant">{{ f.retard }}</td>
+                <td class="montant">{{ f.reste|floatformat:0|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr><td colspan="4" style="text-align:right;">TOTAL DÛ</td><td class="montant">{{ total_du|floatformat:0|intcomma }}</td></tr>
+        </tfoot>
+    </table>
+
+    <p>
+        Nous vous remercions de bien vouloir procéder au règlement de la somme de
+        <strong>{{ total_du|floatformat:0|intcomma }} GNF</strong> dans les meilleurs délais.
+        Si votre règlement a été effectué entre-temps, nous vous prions de ne pas tenir compte
+        de la présente.
+    </p>
+    <p>
+        Nous restons à votre disposition pour tout renseignement complémentaire et vous prions
+        d'agréer, Madame, Monsieur, l'expression de nos salutations distinguées.
+    </p>
+    {% else %}
+    <p><em>Aucune facture échue impayée pour ce client à ce jour : la lettre de relance n'est pas nécessaire.</em></p>
+    {% endif %}
+
+    <div class="signature">
+        <p>Pour {{ entreprise.nom_entreprise }}<br><br><br>________________________</p>
+    </div>
+</div>
+</body>
+</html>

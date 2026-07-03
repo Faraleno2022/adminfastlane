@@ -1,0 +1,143 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Notes annexes - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-journal-richtext me-2"></i>Notes annexes aux états financiers</h1>
+            <p class="text-muted mb-0">{{ entreprise.nom_entreprise }} — Exercice {{ annee }}</p>
+        </div>
+        <div>
+            <form method="get" class="d-inline-flex align-items-center gap-2 d-print-none">
+                <input type="number" name="annee" value="{{ annee }}" class="form-control" style="width:110px">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-repeat"></i></button>
+            </form>
+            <button class="btn btn-outline-primary" onclick="window.print()"><i class="bi bi-printer"></i></button>
+        </div>
+    </div>
+
+    <!-- Note 1 : Immobilisations -->
+    <div class="card mb-4">
+        <div class="card-header"><strong>Note 1 — Immobilisations et amortissements</strong></div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>Catégorie</th>
+                        <th class="text-center">Nombre</th>
+                        <th class="text-end">Valeur brute</th>
+                        <th class="text-end">Amortissements cumulés</th>
+                        <th class="text-end">Valeur nette comptable</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for n in note_immos %}
+                    <tr>
+                        <td>{{ n.categorie }}</td>
+                        <td class="text-center">{{ n.nombre }}</td>
+                        <td class="text-end">{{ n.brut|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ n.amortissements|floatformat:0|intcomma }}</td>
+                        <td class="text-end fw-bold">{{ n.vnc|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-muted text-center">Aucune immobilisation.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <a href="{% url 'comptabilite:registre_immobilisations' %}" class="small d-print-none">Voir le registre détaillé →</a>
+        </div>
+    </div>
+
+    <!-- Notes 2 et 3 : Créances / Dettes -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header"><strong>Note 2 — Créances clients</strong></div>
+                <div class="card-body">
+                    <h4>{{ note_creances|floatformat:0|intcomma }} GNF</h4>
+                    <p class="text-muted small mb-0">Factures de vente validées non intégralement réglées.</p>
+                    <a href="{% url 'comptabilite:balance_auxiliaire' 'clients' %}" class="small d-print-none">Balance auxiliaire clients →</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header"><strong>Note 3 — Dettes fournisseurs</strong></div>
+                <div class="card-body">
+                    <h4>{{ note_dettes|floatformat:0|intcomma }} GNF</h4>
+                    <p class="text-muted small mb-0">Factures d'achat validées non intégralement réglées.</p>
+                    <a href="{% url 'comptabilite:balance_auxiliaire' 'fournisseurs' %}" class="small d-print-none">Balance auxiliaire fournisseurs →</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note 4 : Emprunts -->
+    <div class="card mb-4">
+        <div class="card-header"><strong>Note 4 — Emprunts et dettes financières</strong></div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm">
+                <thead class="table-light">
+                    <tr><th>Emprunt</th><th>Prêteur</th><th class="text-end">Capital initial</th><th class="text-end">Capital restant dû au 31/12/{{ annee }}</th></tr>
+                </thead>
+                <tbody>
+                    {% for n in note_emprunts %}
+                    <tr>
+                        <td>{{ n.emprunt.libelle }}</td>
+                        <td>{{ n.emprunt.preteur }}</td>
+                        <td class="text-end">{{ n.emprunt.capital_emprunte|floatformat:0|intcomma }}</td>
+                        <td class="text-end fw-bold">{{ n.crd|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-muted text-center">Aucun emprunt en cours.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Notes 5-7 -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header"><strong>Note 5 — Trésorerie</strong></div>
+                <div class="card-body">
+                    <p class="mb-1">Trésorerie comptable (classe 5) : <strong>{{ treso_comptable|floatformat:0|intcomma }} GNF</strong></p>
+                    <p class="mb-0">Solde de caisse (pièces) : <strong>{{ solde_caisse|floatformat:0|intcomma }} GNF</strong></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header"><strong>Note 6 — Capitaux propres</strong></div>
+                <div class="card-body">
+                    <h4>{{ capitaux|floatformat:0|intcomma }} GNF</h4>
+                    <p class="text-muted small mb-0">Capital, réserves, report à nouveau et subventions (classes 10-13).</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header"><strong>Note 7 — Effectifs</strong></div>
+                <div class="card-body">
+                    {% if effectif is not None %}
+                    <h4>{{ effectif }} salarié{{ effectif|pluralize }}</h4>
+                    <p class="text-muted small mb-0">Employés actifs au moment de l'édition.</p>
+                    {% else %}
+                    <p class="text-muted mb-0">Module RH non disponible.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="text-muted small">
+        <i class="bi bi-info-circle me-1"></i>Notes générées automatiquement à partir des données saisies.
+        À compléter, le cas échéant, des informations qualitatives requises par le SYSCOHADA
+        (règles et méthodes comptables, engagements hors bilan, événements postérieurs à la clôture…).
+    </p>
+</div>
+{% endblock %}

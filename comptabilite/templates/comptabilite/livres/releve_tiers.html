@@ -1,0 +1,75 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Relevé {{ tiers.raison_sociale }} - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-file-earmark-person me-2"></i>Relevé de compte — {{ tiers.raison_sociale }}</h1>
+            <p class="text-muted mb-0">{{ tiers.code }} · {{ tiers.get_type_tiers_display }}{% if date_debut or date_fin %} — période {{ date_debut|default:"…" }} au {{ date_fin|default:"…" }}{% endif %}</p>
+        </div>
+        <div>
+            <a href="{% url 'comptabilite:tiers_detail' tiers.pk %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Fiche tiers</a>
+            {% if tiers.type_tiers != 'fournisseur' %}
+            <a href="{% url 'comptabilite:lettre_relance' tiers.pk %}" class="btn btn-warning"><i class="bi bi-envelope-exclamation me-1"></i>Lettre de relance</a>
+            {% endif %}
+            <button class="btn btn-outline-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimer</button>
+        </div>
+    </div>
+
+    <div class="card mb-4 d-print-none">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Date début</label>
+                    <input type="date" name="date_debut" value="{{ date_debut }}" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date fin</label>
+                    <input type="date" name="date_fin" value="{{ date_fin }}" class="form-control">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Filtrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Libellé</th>
+                        <th class="text-end">Débit (facturé)</th>
+                        <th class="text-end">Crédit (réglé/avoir)</th>
+                        <th class="text-end">Solde</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in mouvements %}
+                    <tr>
+                        <td>{{ m.date|date:"d/m/Y" }}</td>
+                        <td>{{ m.libelle }}</td>
+                        <td class="text-end">{% if m.debit %}{{ m.debit|floatformat:0|intcomma }}{% endif %}</td>
+                        <td class="text-end">{% if m.credit %}{{ m.credit|floatformat:0|intcomma }}{% endif %}</td>
+                        <td class="text-end fw-bold">{{ m.solde|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Aucun mouvement.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="4" class="text-end">SOLDE {% if solde > 0 %}(dû par le tiers){% elif solde < 0 %}(en faveur du tiers){% endif %}</td>
+                        <td class="text-end">{{ solde|floatformat:0|intcomma }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

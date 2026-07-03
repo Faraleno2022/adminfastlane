@@ -1,0 +1,89 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Emprunt {{ emprunt.libelle }} - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-bank me-2"></i>{{ emprunt.libelle }}</h1>
+            <p class="text-muted mb-0">{{ emprunt.preteur }}{% if emprunt.reference_contrat %} — Contrat {{ emprunt.reference_contrat }}{% endif %}</p>
+        </div>
+        <div>
+            <a href="{% url 'comptabilite:emprunt_list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Situation</a>
+            <button class="btn btn-outline-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimer</button>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=excel" class="btn btn-success btn-export-xl"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=pdf" class="btn btn-danger btn-export-xl"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card"><div class="card-body">
+                <h6 class="text-muted mb-1">Capital emprunté</h6>
+                <h5 class="mb-0">{{ emprunt.capital_emprunte|floatformat:0|intcomma }} GNF</h5>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card"><div class="card-body">
+                <h6 class="text-muted mb-1">Taux / Périodicité</h6>
+                <h5 class="mb-0">{{ emprunt.taux_annuel }} % — {{ emprunt.get_periodicite_display }}</h5>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card"><div class="card-body">
+                <h6 class="text-muted mb-1">Coût total (intérêts)</h6>
+                <h5 class="mb-0">{{ total_interets|floatformat:0|intcomma }} GNF</h5>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger"><div class="card-body">
+                <h6 class="text-muted mb-1">Capital restant dû</h6>
+                <h5 class="mb-0 text-danger">{{ crd_actuel|floatformat:0|intcomma }} GNF</h5>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><strong>Tableau d'amortissement</strong> — annuités constantes</div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center">#</th>
+                        <th>Date échéance</th>
+                        <th class="text-end">Capital début</th>
+                        <th class="text-end">Intérêts</th>
+                        <th class="text-end">Amortissement</th>
+                        <th class="text-end">Annuité</th>
+                        <th class="text-end">Capital fin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in echeancier %}
+                    <tr>
+                        <td class="text-center">{{ l.numero }}</td>
+                        <td>{{ l.date|date:"d/m/Y" }}</td>
+                        <td class="text-end">{{ l.crd_debut|floatformat:0|intcomma }}</td>
+                        <td class="text-end text-danger">{{ l.interets|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ l.amortissement|floatformat:0|intcomma }}</td>
+                        <td class="text-end fw-bold">{{ l.annuite|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ l.crd_fin|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="3" class="text-end">TOTAUX</td>
+                        <td class="text-end">{{ total_interets|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ emprunt.capital_emprunte|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ total_annuites|floatformat:0|intcomma }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

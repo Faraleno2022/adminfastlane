@@ -1,0 +1,76 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Chèque {{ cheque.numero_cheque }}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 30px; color: #1b2a41; }
+  .cheque { position: relative; border: 2px solid #1b2a41; border-radius: 10px;
+            width: 175mm; height: 80mm; margin: auto; padding: 8mm 10mm;
+            background: linear-gradient(135deg, #fdfefe 0%, #eaf2f8 100%); box-sizing: border-box; }
+  .barrement { position: absolute; top: -6px; left: 30mm; width: 34mm; height: 20mm;
+               border-left: 2px solid #1b2a41; border-right: 2px solid #1b2a41;
+               transform: skewX(-30deg); }
+  .banque { font-weight: bold; font-size: 1.05rem; }
+  .ligne { margin-top: 5mm; font-size: 0.95rem; }
+  .ligne .lib { color: #566573; font-size: 0.75rem; }
+  .valeur { border-bottom: 1px dotted #566573; display: inline-block; min-width: 90mm; padding: 0 2mm; }
+  .montant-box { position: absolute; top: 8mm; right: 10mm; border: 1.5px solid #1b2a41;
+                 border-radius: 6px; padding: 3mm 5mm; font-weight: bold; font-size: 1.15rem;
+                 background: #fff; }
+  .pied { position: absolute; bottom: 6mm; left: 10mm; right: 10mm;
+          display: flex; justify-content: space-between; font-size: 0.85rem; }
+  .signature { text-align: center; font-size: 0.75rem; color: #566573; }
+  .signature .trait { border-top: 1px solid #1b2a41; width: 45mm; margin-top: 12mm; }
+  .infos { max-width: 175mm; margin: 16px auto 0; font-size: 0.85rem; color: #566573; }
+  .no-print { text-align: center; margin: 18px; }
+  @media print { .no-print, .infos { display: none; } body { margin: 4mm; } }
+</style>
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()" style="padding:8px 24px;">🖨 Imprimer</button>
+    <a href="{% url 'comptabilite:cheque_list' %}">Retour au registre</a>
+</div>
+
+<div class="cheque">
+    {% if cheque.barre %}<div class="barrement"></div>{% endif %}
+    <div class="banque">{{ cheque.compte_bancaire.banque }}</div>
+    <div style="font-size:0.8rem; color:#566573;">
+        Compte : {{ cheque.compte_bancaire.code }}{% if cheque.compte_bancaire.iban %} — {{ cheque.compte_bancaire.iban }}{% endif %}
+    </div>
+
+    <div class="montant-box">{{ cheque.montant|floatformat:0|intcomma }} GNF</div>
+
+    <div class="ligne">
+        <div class="lib">Payez contre ce chèque {% if cheque.barre %}(barré, non endossable){% endif %} la somme de :</div>
+        <span class="valeur"><strong>{{ montant_lettres }}</strong></span>
+    </div>
+
+    <div class="ligne">
+        <div class="lib">À l'ordre de :</div>
+        <span class="valeur"><strong>{{ cheque.beneficiaire }}</strong></span>
+    </div>
+
+    <div class="pied">
+        <div>
+            Chèque n° <strong>{{ cheque.numero_cheque }}</strong><br>
+            {% if cheque.motif %}Motif : {{ cheque.motif }}{% endif %}
+        </div>
+        <div>
+            Fait à <strong>{{ cheque.lieu_emission }}</strong>,
+            le <strong>{{ cheque.date_emission|date:"d/m/Y" }}</strong>
+        </div>
+        <div class="signature">
+            <div class="trait"></div>
+            Signature du tireur<br>{{ entreprise.nom_entreprise }}
+        </div>
+    </div>
+</div>
+
+<div class="infos">
+    <i>Fac-similé destiné au report manuel sur le chéquier bancaire ou à l'archivage interne.
+    Montant en lettres généré automatiquement : « {{ montant_lettres }} ».</i>
+</div>
+</body>
+</html>

@@ -117,6 +117,11 @@
                             <h6 class="sidebar-heading px-3 text-muted"><span>SAISIE</span></h6>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link fw-bold {% if 'nouvelle_operation' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:nouvelle_operation' %}">
+                                <i class="bi bi-magic"></i> Nouvelle opération
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if 'ecriture' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:ecriture_list' %}">
                                 <i class="bi bi-journal-text"></i> Écritures
                             </a>
@@ -131,7 +136,51 @@
                                 <i class="bi bi-cash-stack"></i> Règlements
                             </a>
                         </li>
-                        
+
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading px-3 text-muted"><span>CAISSE & BANQUE</span></h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'piece_caisse' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:piece_caisse_list' %}">
+                                <i class="bi bi-cash-coin"></i> Pièces de caisse
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'livre_caisse' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:livre_caisse' %}">
+                                <i class="bi bi-book-half"></i> Livre de caisse
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'situation_caisse' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:situation_caisse' %}">
+                                <i class="bi bi-clipboard-data"></i> Situation de caisse
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'arrete_caisse' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:arrete_caisse_list' %}">
+                                <i class="bi bi-calculator"></i> Arrêtés de caisse
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'bordereau' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:bordereau_list' %}">
+                                <i class="bi bi-card-checklist"></i> Bordereaux (versement/chèques)
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'cheque' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:cheque_list' %}">
+                                <i class="bi bi-wallet2"></i> Chèques émis
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'situation_bancaire' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:situation_bancaire' %}">
+                                <i class="bi bi-bank2"></i> Situation bancaire
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'emprunt' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:emprunt_list' %}">
+                                <i class="bi bi-bank"></i> Emprunts
+                            </a>
+                        </li>
+
                         <li class="nav-item mt-3">
                             <h6 class="sidebar-heading px-3 text-muted"><span>PARAMÈTRES</span></h6>
                         </li>
@@ -169,6 +218,11 @@
                                 <i class="bi bi-building"></i> Comptes Fournisseurs
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'echeancier_tiers' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:echeancier_tiers' 'clients' %}">
+                                <i class="bi bi-calendar-event"></i> Échéanciers
+                            </a>
+                        </li>
                         
                         <li class="nav-item mt-3">
                             <h6 class="sidebar-heading px-3 text-muted"><span>ÉTATS</span></h6>
@@ -189,6 +243,46 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if 'journal_par_type' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:journal_par_type' 'AC' %}">
+                                <i class="bi bi-journals"></i> Journaux (achats, ventes…)
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'balance_auxiliaire' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:balance_auxiliaire' 'clients' %}">
+                                <i class="bi bi-list-columns-reverse"></i> Balance auxiliaire
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'journal_tva' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:journal_tva' %}">
+                                <i class="bi bi-percent"></i> Journal de TVA
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'patente' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:patente_list' %}">
+                                <i class="bi bi-award"></i> Déclaration de patente
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'journal_immobilisations' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:journal_immobilisations' %}">
+                                <i class="bi bi-building-add"></i> Journal des immobilisations
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'livre_amortissements' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:livre_amortissements' %}">
+                                <i class="bi bi-graph-down"></i> Livre des amortissements
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'analyse_charges_produits' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:analyse_charges_produits' %}">
+                                <i class="bi bi-bar-chart-line"></i> Analyse charges/produits
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'variation_capitaux' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:variation_capitaux' %}">
+                                <i class="bi bi-diagram-2"></i> Variation des capitaux
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if 'bilan' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:bilan' %}">
                                 <i class="bi bi-pie-chart"></i> Bilan
                             </a>
@@ -196,6 +290,21 @@
                         <li class="nav-item">
                             <a class="nav-link {% if 'compte_resultat' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:compte_resultat' %}">
                                 <i class="bi bi-graph-up"></i> Compte de résultat
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'flux_tresorerie' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:flux_tresorerie' %}">
+                                <i class="bi bi-arrow-left-right"></i> Flux de trésorerie (TFT)
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'notes_annexes' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:notes_annexes' %}">
+                                <i class="bi bi-journal-richtext"></i> Notes annexes
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'registre_immobilisations' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:registre_immobilisations' %}">
+                                <i class="bi bi-building-gear"></i> Registre immobilisations
                             </a>
                         </li>
                         

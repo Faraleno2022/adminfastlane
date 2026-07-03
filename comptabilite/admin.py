@@ -1,7 +1,9 @@
 from django.contrib import admin
 from .models import (
     PlanComptable, Journal, ExerciceComptable, EcritureComptable,
-    LigneEcriture, Tiers, Facture, LigneFacture, Reglement, TauxTVA, PieceComptable
+    LigneEcriture, Tiers, Facture, LigneFacture, Reglement, TauxTVA, PieceComptable,
+    PieceCaisse, BordereauRemise, LigneBordereau, Emprunt, ArreteCaisse,
+    ChequeEmis, DeclarationPatente
 )
 
 
@@ -82,3 +84,55 @@ class PieceComptableAdmin(admin.ModelAdmin):
     list_filter = ['type_piece', 'entreprise']
     search_fields = ['numero', 'libelle']
     date_hierarchy = 'date_piece'
+
+
+@admin.register(PieceCaisse)
+class PieceCaisseAdmin(admin.ModelAdmin):
+    list_display = ['numero', 'type_piece', 'date_operation', 'libelle', 'montant', 'entreprise']
+    list_filter = ['type_piece', 'entreprise']
+    search_fields = ['numero', 'libelle', 'beneficiaire']
+    date_hierarchy = 'date_operation'
+
+
+class LigneBordereauInline(admin.TabularInline):
+    model = LigneBordereau
+    extra = 0
+
+
+@admin.register(BordereauRemise)
+class BordereauRemiseAdmin(admin.ModelAdmin):
+    list_display = ['numero', 'type_bordereau', 'date_remise', 'compte_bancaire', 'entreprise']
+    list_filter = ['type_bordereau', 'entreprise']
+    search_fields = ['numero', 'deposant']
+    date_hierarchy = 'date_remise'
+    inlines = [LigneBordereauInline]
+
+
+@admin.register(Emprunt)
+class EmpruntAdmin(admin.ModelAdmin):
+    list_display = ['libelle', 'preteur', 'capital_emprunte', 'taux_annuel', 'nombre_echeances', 'periodicite', 'statut', 'entreprise']
+    list_filter = ['statut', 'periodicite', 'entreprise']
+    search_fields = ['libelle', 'preteur', 'reference_contrat']
+
+
+@admin.register(ArreteCaisse)
+class ArreteCaisseAdmin(admin.ModelAdmin):
+    list_display = ['numero', 'date_arrete', 'caissier', 'solde_theorique', 'entreprise']
+    list_filter = ['entreprise']
+    search_fields = ['numero', 'caissier']
+    date_hierarchy = 'date_arrete'
+
+
+@admin.register(ChequeEmis)
+class ChequeEmisAdmin(admin.ModelAdmin):
+    list_display = ['numero_cheque', 'date_emission', 'beneficiaire', 'montant', 'statut', 'entreprise']
+    list_filter = ['statut', 'entreprise']
+    search_fields = ['numero_cheque', 'beneficiaire']
+    date_hierarchy = 'date_emission'
+
+
+@admin.register(DeclarationPatente)
+class DeclarationPatenteAdmin(admin.ModelAdmin):
+    list_display = ['annee', 'activite', 'droit_fixe', 'droit_proportionnel', 'statut', 'entreprise']
+    list_filter = ['statut', 'annee', 'entreprise']
+    search_fields = ['activite']

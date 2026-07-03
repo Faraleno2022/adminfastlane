@@ -1,0 +1,75 @@
+{% extends "comptabilite/base_compta.html" %}
+
+{% block title %}Nouvelle pièce de caisse - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-cash-coin me-2"></i>Nouvelle pièce de caisse</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.type_piece.label }} *</label>
+                                {{ form.type_piece }}
+                                {{ form.type_piece.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.date_operation.label }} *</label>
+                                {{ form.date_operation }}
+                                {{ form.date_operation.errors }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ form.libelle.label }} *</label>
+                                {{ form.libelle }}
+                                {{ form.libelle.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.tiers.label }}</label>
+                                {{ form.tiers }}
+                                {{ form.tiers.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.beneficiaire.label }}</label>
+                                {{ form.beneficiaire }}
+                                {{ form.beneficiaire.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.montant.label }} *</label>
+                                {{ form.montant }}
+                                {{ form.montant.errors }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.reference.label }}</label>
+                                {{ form.reference }}
+                                {{ form.reference.errors }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ form.observation.label }}</label>
+                                {{ form.observation }}
+                                {{ form.observation.errors }}
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'comptabilite:piece_caisse_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Enregistrer et imprimer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Chèques émis - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-wallet2 me-2"></i>Registre des chèques émis</h1>
+            <p class="text-muted mb-0">Suivi et impression des chèques</p>
+        </div>
+        <div>
+            <a href="{% url 'comptabilite:cheque_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Émettre un chèque
+            </a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=excel" class="btn btn-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&amp;{% endif %}export=pdf" class="btn btn-danger"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        </div>
+    </div>
+
+    <div class="mb-3 d-print-none">
+        <a href="?" class="btn btn-sm {% if not statut %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Tous</a>
+        <a href="?statut=emis" class="btn btn-sm {% if statut == 'emis' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Émis</a>
+        <a href="?statut=encaisse" class="btn btn-sm {% if statut == 'encaisse' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Encaissés</a>
+        <a href="?statut=annule" class="btn btn-sm {% if statut == 'annule' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Annulés</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>N° Chèque</th>
+                        <th>Date</th>
+                        <th>Compte / Banque</th>
+                        <th>Bénéficiaire</th>
+                        <th>Motif</th>
+                        <th class="text-end">Montant (GNF)</th>
+                        <th>Statut</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ch in cheques %}
+                    <tr>
+                        <td>{{ ch.numero_cheque }}</td>
+                        <td>{{ ch.date_emission|date:"d/m/Y" }}</td>
+                        <td>{{ ch.compte_bancaire.code }} — {{ ch.compte_bancaire.banque }}</td>
+                        <td>{{ ch.beneficiaire }}</td>
+                        <td>{{ ch.motif|default:"—" }}</td>
+                        <td class="text-end fw-bold">{{ ch.montant|floatformat:0|intcomma }}</td>
+                        <td>
+                            {% if ch.statut == 'emis' %}<span class="badge bg-primary">Émis</span>
+                            {% elif ch.statut == 'encaisse' %}<span class="badge bg-success">Encaissé</span>
+                            {% elif ch.statut == 'oppose' %}<span class="badge bg-warning text-dark">Opposition</span>
+                            {% else %}<span class="badge bg-danger">Annulé</span>{% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{% url 'comptabilite:cheque_print' ch.pk %}" class="btn btn-sm btn-outline-secondary" title="Imprimer">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">Aucun chèque enregistré.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="5" class="text-end">TOTAL</td>
+                        <td class="text-end">{{ total|floatformat:0|intcomma }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
