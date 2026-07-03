@@ -100,6 +100,22 @@
                                 Formation
                             </div>
                             <div class="col-6 col-md-4 mb-2">
+                                {% if abonnement.plan.module_comptabilite %}
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                {% else %}
+                                    <i class="bi bi-x-circle text-danger"></i>
+                                {% endif %}
+                                Comptabilité
+                            </div>
+                            <div class="col-6 col-md-4 mb-2">
+                                {% if abonnement.plan.module_portail %}
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                {% else %}
+                                    <i class="bi bi-x-circle text-danger"></i>
+                                {% endif %}
+                                Portail Employé
+                            </div>
+                            <div class="col-6 col-md-4 mb-2">
                                 {% if abonnement.plan.support_prioritaire %}
                                     <i class="bi bi-check-circle-fill text-success"></i>
                                 {% else %}

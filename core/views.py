@@ -331,10 +331,11 @@ def manage_users(request):
         messages.error(request, "Vous n'avez pas les permissions pour gérer les utilisateurs.")
         return redirect('dashboard:index')
     
-    # Vérifier le quota d'utilisateurs
+    # Vérifier le quota d'utilisateurs (aucun quota avec une licence offline valide)
+    from .licence_utils import licence_offline_valide
     entreprise = request.user.entreprise
     current_users = entreprise.utilisateurs.filter(actif=True).count()
-    quota_reached = current_users >= entreprise.max_utilisateurs
+    quota_reached = current_users >= entreprise.max_utilisateurs and not licence_offline_valide()
     quota_percentage = int((current_users / entreprise.max_utilisateurs) * 100) if entreprise.max_utilisateurs > 0 else 0
     
     if request.method == 'POST':
@@ -394,10 +395,11 @@ def send_invitation(request):
         last_name = request.POST.get('last_name')
         profil_id = request.POST.get('profil')
         
-        # Vérifier le quota
+        # Vérifier le quota (aucun quota avec une licence offline valide)
+        from .licence_utils import licence_offline_valide
         entreprise = request.user.entreprise
         current_users = entreprise.utilisateurs.filter(actif=True).count()
-        if current_users >= entreprise.max_utilisateurs:
+        if current_users >= entreprise.max_utilisateurs and not licence_offline_valide():
             messages.error(request, "Quota d'utilisateurs atteint.")
             return redirect('core:manage_users')
         

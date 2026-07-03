@@ -295,6 +295,11 @@ class EntrepriseQuotaMiddleware:
             messages.error(request, "Votre entreprise est désactivée. Contactez le support.")
             return redirect('core:login')
 
+        # ── Licence offline valide → accès complet, aucune restriction de plan ──
+        from core.licence_utils import licence_offline_valide
+        if licence_offline_valide():
+            return self.get_response(request)
+
         # ── 2. Abonnement expiré ──
         if entreprise.date_expiration:
             from django.utils import timezone

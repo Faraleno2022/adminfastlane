@@ -65,10 +65,16 @@ class Entreprise(models.Model):
 
     @property
     def has_rh(self):
+        from core.licence_utils import licence_offline_valide
+        if licence_offline_valide():
+            return True
         return self.type_module in ['rh', 'both', 'all']
 
     @property
     def has_compta(self):
+        from core.licence_utils import licence_offline_valide
+        if licence_offline_valide():
+            return True
         return self.type_module in ['compta', 'both', 'all']
 
     @property
@@ -82,7 +88,11 @@ class Entreprise(models.Model):
         return True
 
     def has_module(self, module_name):
-        """Vérifie si l'entreprise a accès à un module donné"""
+        """Vérifie si l'entreprise a accès à un module donné.
+        Une licence offline valide débloque tous les modules."""
+        from core.licence_utils import licence_offline_valide
+        if licence_offline_valide():
+            return True
         module_map = {
             'paie': self.module_paie,
             'conges': self.module_conges,
@@ -197,6 +207,7 @@ class DroitAcces(models.Model):
         ('conges', 'Congés'),
         ('formation', 'Formation'),
         ('recrutement', 'Recrutement'),
+        ('comptabilite', 'Comptabilité'),
         ('dashboard', 'Tableau de bord'),
         ('rapports', 'Rapports'),
         ('parametres', 'Paramètres'),
