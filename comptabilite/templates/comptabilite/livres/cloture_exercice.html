@@ -1,0 +1,109 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Clôture d'exercice - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-archive me-2"></i>Clôture d'exercice</h1>
+            <p class="text-muted mb-0">Contrôles → affectation du résultat → à-nouveaux → ouverture du nouvel exercice</p>
+        </div>
+        <form method="get">
+            <select name="exercice" class="form-select" style="width:240px" onchange="this.form.submit()">
+                {% for ex in exercices %}
+                <option value="{{ ex.pk }}" {% if exercice and ex.pk == exercice.pk %}selected{% endif %}>
+                    {{ ex.libelle }} ({{ ex.get_statut_display }})
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    {% if exercice.statut != 'ouvert' %}
+    <div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>
+        L'exercice {{ exercice.libelle }} est déjà {{ exercice.get_statut_display|lower }}.</div>
+    {% endif %}
+
+    <!-- Contrôles pré-clôture -->
+    <div class="card mb-4">
+        <div class="card-header"><strong><i class="bi bi-shield-check me-1"></i>Contrôles avant clôture</strong></div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0 align-middle">
+                <tbody>
+                    {% for c in controles %}
+                    <tr>
+                        <td style="width:40px" class="text-center">
+                            {% if c.ok %}
+                                <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                            {% elif c.bloquant %}
+                                <i class="bi bi-x-circle-fill text-danger fs-5"></i>
+                            {% else %}
+                                <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ c.libelle }}</strong>
+                            {% if not c.ok %}<br><small class="text-muted">{{ c.detail }}</small>{% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if c.ok %}<span class="badge bg-success">OK</span>
+                            {% else %}<span class="badge {% if c.bloquant %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ c.valeur }}</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Résultat -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-success"><div class="card-body">
+                <h6 class="mb-1">Produits (classe 7)</h6>
+                <h4 class="mb-0">{{ produits|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-danger"><div class="card-body">
+                <h6 class="mb-1">Charges (classe 6)</h6>
+                <h4 class="mb-0">{{ charges|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white {% if resultat >= 0 %}bg-primary{% else %}bg-dark{% endif %}"><div class="card-body">
+                <h6 class="mb-1">Résultat de l'exercice ({% if resultat >= 0 %}bénéfice → 131{% else %}perte → 139{% endif %})</h6>
+                <h4 class="mb-0">{{ resultat|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+    </div>
+
+    {% if exercice.statut == 'ouvert' %}
+    <div class="card border-primary">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+                <strong>La clôture va :</strong>
+                <ol class="small text-muted mb-0">
+                    <li>Solder les comptes de charges et produits et affecter le résultat (131/139) au {{ exercice.date_fin|date:"d/m/Y" }} ;</li>
+                    <li>Ouvrir l'exercice {{ exercice.date_fin.year|add:"1" }} et y reprendre les soldes de bilan (à-nouveaux, journal AN) ;</li>
+                    <li>Clôturer définitivement l'exercice {{ exercice.libelle }} (plus aucune écriture possible).</li>
+                </ol>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="exercice" value="{{ exercice.pk }}">
+                <button type="submit" class="btn btn-primary btn-lg" {% if bloquants %}disabled{% endif %}
+                        onclick="return confirm('Clôturer définitivement l\'exercice {{ exercice.libelle }} ? Cette action est irréversible.');">
+                    <i class="bi bi-archive me-2"></i>Clôturer l'exercice {{ exercice.libelle }}
+                </button>
+                {% if bloquants %}
+                <div class="text-danger small mt-1 text-end">Corrigez les contrôles bloquants.</div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

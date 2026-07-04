@@ -1230,3 +1230,44 @@ def telecharger_document_partenariat(request, pk, type_doc):
         response = HttpResponse(f.read(), content_type=content_type or 'application/octet-stream')
         response['Content-Disposition'] = f'attachment; filename="{file_field.name.split("/")[-1]}"'
         return response
+
+
+@login_required
+def changer_societe(request):
+    """Multi-sociétés : basculer vers une autre entreprise autorisée.
+    Superuser : toutes les entreprises actives ; sinon celles accordées
+    via AccesEntreprise (+ l'entreprise d'origine)."""
+    from .models import Entreprise, AccesEntreprise
+
+    if request.user.is_superuser:
+        entreprises = Entreprise.objects.filter(actif=True).order_by('nom_entreprise')
+    else:
+        ids = set(AccesEntreprise.objects.filter(
+            utilisateur=request.user).values_list('entreprise_id', flat=True))
+        if request.user.entreprise_id:
+            ids.add(request.user.entreprise_id)
+        entreprises = Entreprise.objects.filter(pk__in=ids, actif=True).order_by('nom_entreprise')
+
+    if request.method == 'POST':
+        cible = entreprises.filter(pk=request.POST.get('entreprise')).first()
+        if cible is None:
+            messages.error(request, "Vous n'avez pas accès à cette société.")
+            return redirect('core:changer_societe')
+        if cible.pk == request.user.entreprise_id:
+            messages.info(request, f"Vous êtes déjà sur {cible.nom_entreprise}.")
+            return redirect('dashboard:index')
+        # Mémoriser la société quittée pour pouvoir y revenir
+        if request.user.entreprise_id and not request.user.is_superuser:
+            AccesEntreprise.objects.get_or_create(
+                utilisateur=request.user, entreprise_id=request.user.entreprise_id,
+                defaults={'accorde_par': request.user})
+        request.user.entreprise = cible
+        request.user.save(update_fields=['entreprise'])
+        log_activity(request, f'Bascule vers la société {cible.nom_entreprise}', 'core')
+        messages.success(request, f"Vous travaillez maintenant sur : {cible.nom_entreprise}.")
+        return redirect('dashboard:index')
+
+    return render(request, 'core/changer_societe.html', {
+        'entreprises': entreprises,
+        'entreprise_courante': request.user.entreprise,
+    })

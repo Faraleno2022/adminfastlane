@@ -1,0 +1,125 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Approbations - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-person-check me-2"></i>Approbations</h1>
+            <p class="text-muted mb-0">Documents dépassant les seuils de validation — votre niveau d'accès : <span class="badge bg-secondary">{{ niveau }}</span></p>
+        </div>
+    </div>
+
+    <!-- Demandes en attente -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between">
+            <strong><i class="bi bi-hourglass-split me-1"></i>En attente de décision</strong>
+            <span class="badge bg-dark">{{ en_attente|length }}</span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Document</th>
+                        <th class="text-end">Montant</th>
+                        <th>Règle</th>
+                        <th>Demandeur</th>
+                        <th class="text-center">Approbations</th>
+                        <th style="width:320px">Décision</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in en_attente %}
+                    <tr>
+                        <td>
+                            <strong>{{ d.libelle }}</strong><br>
+                            <small class="text-muted">{{ d.date_creation|date:"d/m/Y H:i" }}</small>
+                        </td>
+                        <td class="text-end fw-bold">{{ d.montant|floatformat:0|intcomma }}</td>
+                        <td><small>{{ d.regle|default:"—" }}</small></td>
+                        <td>{{ d.demandeur.get_full_name|default:d.demandeur }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-primary">{{ d.nb_approbations_recues }}/{{ d.nb_approbations_requises }}</span>
+                        </td>
+                        <td>
+                            <form method="post" class="d-flex gap-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="demande" value="{{ d.pk }}">
+                                <input type="text" name="commentaire" class="form-control form-control-sm" placeholder="Commentaire…">
+                                <button type="submit" name="decision" value="approuve" class="btn btn-sm btn-success"
+                                        onclick="return confirm('Approuver « {{ d.libelle }} » ?');">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                                <button type="submit" name="decision" value="rejete" class="btn btn-sm btn-danger"
+                                        onclick="return confirm('Rejeter « {{ d.libelle }} » ?');">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">Aucune demande en attente. 🎉</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Historique -->
+        <div class="col-lg-7 mb-4">
+            <div class="card h-100">
+                <div class="card-header"><strong><i class="bi bi-clock-history me-1"></i>Décisions récentes</strong></div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            {% for d in historique %}
+                            <tr>
+                                <td>
+                                    {% if d.statut == 'approuvee' %}<i class="bi bi-check-circle-fill text-success"></i>
+                                    {% else %}<i class="bi bi-x-circle-fill text-danger"></i>{% endif %}
+                                </td>
+                                <td>{{ d.libelle }}</td>
+                                <td class="text-end">{{ d.montant|floatformat:0|intcomma }}</td>
+                                <td><small class="text-muted">{{ d.date_decision|date:"d/m/Y H:i" }}</small></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td class="text-center text-muted py-3">Aucune décision enregistrée.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Règles actives -->
+        <div class="col-lg-5 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong><i class="bi bi-sliders me-1"></i>Règles de validation actives</strong>
+                    <a href="/admin/comptabilite/reglevalidation/" class="small">Configurer →</a>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            {% for r in regles %}
+                            <tr>
+                                <td>{{ r.get_type_document_display }}</td>
+                                <td class="text-end">≥ {{ r.seuil_montant|floatformat:0|intcomma }}</td>
+                                <td class="text-end"><span class="badge bg-secondary">{{ r.nb_approbations }} × niv. {{ r.niveau_acces_min }}+</span></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td class="text-center text-muted py-3">
+                                Aucune règle configurée : les documents se valident sans approbation.<br>
+                                <small>Créez des règles via « Configurer » (ex. : facture ≥ 100 000 000 GNF → 1 validation niveau 4).</small>
+                            </td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

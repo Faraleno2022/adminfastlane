@@ -200,3 +200,31 @@ class PosteAdmin(admin.ModelAdmin):
         if not request.user.is_superuser and db_field.name == 'service':
             kwargs['queryset'] = Service.objects.filter(etablissement__societe__entreprise=request.user.entreprise)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+from .models import AccesEntreprise
+
+
+@admin.register(AccesEntreprise)
+class AccesEntrepriseAdmin(admin.ModelAdmin):
+    list_display = ['utilisateur', 'entreprise', 'role', 'date_debut', 'date_fin', 'actif', 'accorde_par']
+    list_filter = ['role', 'actif', 'entreprise']
+    search_fields = ['utilisateur__username', 'utilisateur__email', 'entreprise__nom_entreprise']
+    autocomplete_fields = []
+
+
+from .models import PermissionRole, Delegation
+
+
+@admin.register(PermissionRole)
+class PermissionRoleAdmin(admin.ModelAdmin):
+    list_display = ['role', 'permission']
+    list_filter = ['role']
+    search_fields = ['permission']
+
+
+@admin.register(Delegation)
+class DelegationAdmin(admin.ModelAdmin):
+    list_display = ['delegant', 'delegataire', 'entreprise', 'date_debut', 'date_fin', 'motif', 'actif']
+    list_filter = ['actif', 'entreprise']
+    search_fields = ['delegant__username', 'delegataire__username', 'motif']

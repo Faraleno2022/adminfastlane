@@ -25,6 +25,7 @@ urlpatterns = [
     path('parametres/', views.profile_view, name='parametres'),
     
     # Multi-entreprise
+    path('changer-societe/', views.changer_societe, name='changer_societe'),
     path('register-entreprise/', views.register_entreprise, name='register_entreprise'),
     path('reauth/', views.reauth_view, name='reauth'),
     path('manage-users/', views.manage_users, name='manage_users'),

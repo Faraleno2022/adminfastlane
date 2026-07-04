@@ -44,6 +44,7 @@
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="{% url 'core:profile' %}"><i class="fas fa-user"></i> Mon profil</a></li>
+                        <li><a class="dropdown-item" href="{% url 'core:changer_societe' %}"><i class="fas fa-exchange-alt"></i> Changer de société</a></li>
                         {% if user.est_admin_entreprise %}
                         <li><a class="dropdown-item" href="{% url 'core:admin_dashboard' %}"><i class="fas fa-tachometer-alt"></i> Tableau de bord admin</a></li>
                         <li><a class="dropdown-item" href="{% url 'core:manage_users' %}"><i class="fas fa-users"></i> Gérer utilisateurs</a></li>

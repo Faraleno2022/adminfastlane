@@ -7,7 +7,7 @@ notes annexes, registre des immobilisations.
 """
 from collections import OrderedDict
 from decimal import Decimal
-from datetime import date
+from datetime import date, timedelta
 
 from django import forms
 from django.contrib import messages
@@ -1649,6 +1649,46 @@ def tableau_bord_compta(request):
                         'texte': 'Plan comptable vide : initialisez le plan SYSCOHADA',
                         'url': 'comptabilite:plan_comptable_list', 'arg': None})
 
+    # Résultat du mois courant
+    debut_mois = date(annee, aujourd_hui.month, 1)
+    produits_mois = -_soldes_par_prefixe(entreprise, ['7'], debut_mois, aujourd_hui)
+    charges_mois = _soldes_par_prefixe(entreprise, ['6'], debut_mois, aujourd_hui)
+    resultat_mois = produits_mois - charges_mois
+
+    # Comparaison N-1 (même période : 1er janvier → même jour)
+    n1 = annee - 1
+    fin_n1 = date(n1, aujourd_hui.month, min(aujourd_hui.day, 28))
+    ca_n1 = -_soldes_par_prefixe(entreprise, ['70'], date(n1, 1, 1), fin_n1)
+    produits_n1 = -_soldes_par_prefixe(entreprise, ['7'], date(n1, 1, 1), fin_n1)
+    charges_n1 = _soldes_par_prefixe(entreprise, ['6'], date(n1, 1, 1), fin_n1)
+    resultat_n1 = produits_n1 - charges_n1
+    evolution_ca = ((ca - ca_n1) / ca_n1 * 100) if ca_n1 else None
+
+    # Top 5 clients / fournisseurs de l'année (factures hors brouillon/annulée)
+    def _top(type_facture):
+        return (Facture.objects
+                .filter(entreprise=entreprise, type_facture=type_facture,
+                        date_facture__gte=d1)
+                .exclude(statut__in=['brouillon', 'annulee'])
+                .values('tiers__raison_sociale')
+                .annotate(total=Sum('montant_ttc'))
+                .order_by('-total')[:5])
+    top_clients = _top('vente')
+    top_fournisseurs = _top('achat')
+
+    # Charges par nature (préfixes classe 6)
+    natures = [('60', 'Achats et variations de stocks'), ('61', 'Transports'),
+               ('62', 'Services extérieurs A'), ('63', 'Services extérieurs B'),
+               ('64', 'Impôts et taxes'), ('65', 'Autres charges'),
+               ('66', 'Charges de personnel'), ('67', 'Frais financiers'),
+               ('68', 'Dotations')]
+    charges_nature = []
+    for prefixe, libelle in natures:
+        montant = _soldes_par_prefixe(entreprise, [prefixe], d1, aujourd_hui)
+        if montant:
+            charges_nature.append({'libelle': libelle, 'montant': montant,
+                                   'pct': (montant / charges * 100) if charges else ZERO})
+
     # Dernières écritures générées
     dernieres_ecritures = (EcritureComptable.objects
                            .filter(entreprise=entreprise, est_validee=True)
@@ -1659,6 +1699,13 @@ def tableau_bord_compta(request):
         'annee': annee,
         'ca': ca,
         'resultat': resultat,
+        'resultat_mois': resultat_mois,
+        'ca_n1': ca_n1,
+        'resultat_n1': resultat_n1,
+        'evolution_ca': evolution_ca,
+        'top_clients': top_clients,
+        'top_fournisseurs': top_fournisseurs,
+        'charges_nature': charges_nature,
         'banque': banque,
         'caisse': caisse_comptable if caisse_comptable else caisse_pieces,
         'caisse_pieces': caisse_pieces,
@@ -1690,6 +1737,471 @@ def initialiser_plan_syscohada(request):
         else:
             messages.info(request, "Le plan SYSCOHADA est déjà en place : aucun compte à créer.")
     return redirect('comptabilite:plan_comptable_list')
+
+
+@reauth_required
+@login_required
+@compta_required
+def importer_plan_excel(request):
+    """Importe un plan comptable depuis Excel (colonnes : numéro, intitulé).
+    Les comptes existants ne sont pas modifiés."""
+    if request.method == 'POST' and request.FILES.get('fichier'):
+        entreprise = request.user.entreprise
+        try:
+            from openpyxl import load_workbook
+            wb = load_workbook(request.FILES['fichier'], read_only=True, data_only=True)
+            ws = wb.active
+            crees = ignores = erreurs = 0
+            for ligne in ws.iter_rows(min_row=1, values_only=True):
+                if not ligne or ligne[0] is None:
+                    continue
+                numero = str(ligne[0]).strip().replace('.0', '')
+                if not numero or not numero[0].isdigit():
+                    continue  # en-tête ou ligne invalide
+                intitule = str(ligne[1]).strip() if len(ligne) > 1 and ligne[1] else f'Compte {numero}'
+                if len(numero) > 20:
+                    erreurs += 1
+                    continue
+                _, cree = PlanComptable.objects.get_or_create(
+                    entreprise=entreprise, numero_compte=numero,
+                    defaults={'intitule': intitule[:200], 'classe': numero[0], 'est_actif': True})
+                crees += cree
+                ignores += (not cree)
+            messages.success(request,
+                             f"Import terminé : {crees} compte(s) créé(s), "
+                             f"{ignores} déjà existant(s)"
+                             f"{f', {erreurs} ligne(s) invalide(s)' if erreurs else ''}.")
+        except Exception as exc:
+            messages.error(request, f"Import impossible : {exc}")
+    else:
+        messages.error(request, "Sélectionnez un fichier Excel (.xlsx).")
+    return redirect('comptabilite:plan_comptable_list')
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 18. CLÔTURE DE PÉRIODE — DOTATIONS D'AMORTISSEMENT AUTOMATIQUES
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _dotations_a_generer(entreprise, exercice):
+    """Dotations linéaires de l'exercice par immobilisation active :
+    dotation = valeur / durée, plafonnée à la VNC restante.
+    Ignore les immobilisations déjà dotées pour cet exercice."""
+    propositions = []
+    immobilisations = Immobilisation.objects.filter(
+        entreprise=entreprise, est_actif=True,
+        date_acquisition__lte=exercice.date_fin)
+    for immo in immobilisations:
+        if Amortissement.objects.filter(immobilisation=immo, exercice=exercice).exists():
+            continue
+        if not immo.duree_vie_ans:
+            continue
+        cumul = Amortissement.objects.filter(immobilisation=immo).aggregate(
+            t=Sum('montant_amortissement'))['t'] or ZERO
+        vnc = immo.valeur_acquisition - cumul
+        if vnc <= 0:
+            continue
+        dotation_annuelle = (immo.valeur_acquisition / Decimal(immo.duree_vie_ans)).quantize(Decimal('1'))
+        dotation = min(dotation_annuelle, vnc)
+        taux = (Decimal('100') / Decimal(immo.duree_vie_ans)).quantize(Decimal('0.01'))
+        propositions.append({'immo': immo, 'dotation': dotation, 'cumul': cumul,
+                             'vnc': vnc, 'taux': taux})
+    return propositions
+
+
+@reauth_required
+@login_required
+@compta_required
+def cloture_periode(request):
+    """Écritures automatiques de fin de période : calcule et comptabilise
+    les dotations aux amortissements de l'exercice (linéaire)."""
+    from .moteur_comptable import generer_ecriture, obtenir_compte, ErreurComptabilisation
+    entreprise = request.user.entreprise
+    exercices = ExerciceComptable.objects.filter(entreprise=entreprise).order_by('-date_debut')
+    exercice_id = request.GET.get('exercice') or request.POST.get('exercice')
+    exercice = (exercices.filter(pk=exercice_id).first() if exercice_id
+                else exercices.filter(statut='ouvert').first())
+
+    propositions = _dotations_a_generer(entreprise, exercice) if exercice else []
+
+    if request.method == 'POST' and exercice and propositions:
+        if exercice.statut != 'ouvert':
+            messages.error(request, f"L'exercice {exercice.libelle} est clôturé.")
+            return redirect('comptabilite:cloture_periode')
+        compte_dotation = obtenir_compte(entreprise, '6811',
+                                         'Dotations aux amortissements d\'exploitation')
+        nb = 0
+        total = ZERO
+        for p in propositions:
+            immo = p['immo']
+            compte_amort = immo.compte_amortissement or obtenir_compte(
+                entreprise, '2841', 'Amortissements du matériel')
+            lib = f"Dotation {exercice.libelle} - {immo.numero} {immo.designation}"
+            try:
+                ecriture = generer_ecriture(
+                    entreprise, request.user, 'OD', exercice.date_fin, lib,
+                    [(compte_dotation, lib, p['dotation'], ZERO),
+                     (compte_amort, lib, ZERO, p['dotation'])],
+                    verifier_doublon=False)
+            except ErreurComptabilisation as exc:
+                messages.warning(request, f"{immo.numero} : {exc}")
+                continue
+            Amortissement.objects.create(
+                immobilisation=immo, exercice=exercice,
+                taux_amortissement=p['taux'], montant_amortissement=p['dotation'],
+                montant_cumule=p['cumul'] + p['dotation'], ecriture=ecriture)
+            nb += 1
+            total += p['dotation']
+        messages.success(request,
+                         f"Clôture : {nb} dotation(s) comptabilisée(s) pour "
+                         f"{total:,.0f} GNF (exercice {exercice.libelle}).")
+        return redirect('comptabilite:livre_amortissements')
+
+    return render(request, 'comptabilite/livres/cloture_periode.html', {
+        'exercices': exercices,
+        'exercice': exercice,
+        'propositions': propositions,
+        'total_dotations': sum((p['dotation'] for p in propositions), ZERO),
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 19. CLÔTURE D'EXERCICE ASSISTÉE (contrôles → résultat → à-nouveaux → ouverture)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _controles_pre_cloture(entreprise, exercice):
+    """Contrôles bloquants et avertissements avant clôture d'exercice."""
+    controles = []
+    # 1. Écritures non validées sur l'exercice
+    brouillons = EcritureComptable.objects.filter(
+        entreprise=entreprise, exercice=exercice, est_validee=False).count()
+    controles.append({
+        'libelle': 'Écritures non validées', 'valeur': brouillons,
+        'ok': brouillons == 0, 'bloquant': True,
+        'detail': "Validez ou supprimez les brouillons avant de clôturer."})
+    # 2. Journaux déséquilibrés (somme débits ≠ somme crédits par journal)
+    desequilibres = []
+    lignes = LigneEcriture.objects.filter(
+        ecriture__entreprise=entreprise, ecriture__exercice=exercice,
+        ecriture__est_validee=True)
+    par_journal = (lignes.values('ecriture__journal__code')
+                   .annotate(d=Sum('montant_debit'), c=Sum('montant_credit')))
+    for j in par_journal:
+        if (j['d'] or ZERO) != (j['c'] or ZERO):
+            desequilibres.append(j['ecriture__journal__code'])
+    controles.append({
+        'libelle': 'Journaux déséquilibrés', 'valeur': ', '.join(desequilibres) or 0,
+        'ok': not desequilibres, 'bloquant': True,
+        'detail': "Chaque journal doit être équilibré (débit = crédit)."})
+    # 3. Comptes d'attente (47x) non soldés
+    attente = lignes.filter(compte__numero_compte__startswith='47').aggregate(
+        d=Sum('montant_debit'), c=Sum('montant_credit'))
+    solde_attente = (attente['d'] or ZERO) - (attente['c'] or ZERO)
+    controles.append({
+        'libelle': "Comptes d'attente (47x) non soldés",
+        'valeur': f"{solde_attente:,.0f} GNF" if solde_attente else 0,
+        'ok': solde_attente == 0, 'bloquant': False,
+        'detail': "Reclassez les montants en attente vers leurs comptes définitifs."})
+    # 4. Dotations d'amortissement de l'exercice
+    dotations_restantes = len(_dotations_a_generer(entreprise, exercice))
+    controles.append({
+        'libelle': 'Dotations aux amortissements non comptabilisées',
+        'valeur': dotations_restantes,
+        'ok': dotations_restantes == 0, 'bloquant': False,
+        'detail': "Passez par « Clôture de période » pour générer les dotations."})
+    return controles
+
+
+def _resultat_exercice(entreprise, exercice):
+    """(produits, charges, résultat) de l'exercice sur écritures validées."""
+    produits = -_soldes_par_prefixe(entreprise, ['7'], exercice.date_debut, exercice.date_fin)
+    charges = _soldes_par_prefixe(entreprise, ['6'], exercice.date_debut, exercice.date_fin)
+    return produits, charges, produits - charges
+
+
+@reauth_required
+@login_required
+@compta_required
+def cloture_exercice(request):
+    """Clôture d'exercice assistée : contrôles, affectation du résultat,
+    à-nouveaux et ouverture automatique de l'exercice suivant."""
+    from .moteur_comptable import (generer_ecriture, obtenir_compte, obtenir_journal,
+                                   ErreurComptabilisation)
+    entreprise = request.user.entreprise
+    exercices = ExerciceComptable.objects.filter(entreprise=entreprise).order_by('-date_debut')
+    exercice_id = request.GET.get('exercice') or request.POST.get('exercice')
+    exercice = (exercices.filter(pk=exercice_id).first() if exercice_id
+                else exercices.filter(statut='ouvert').order_by('date_debut').first())
+
+    if exercice is None:
+        messages.warning(request, "Aucun exercice à clôturer.")
+        return redirect('comptabilite:exercice_list')
+
+    controles = _controles_pre_cloture(entreprise, exercice)
+    bloquants = [c for c in controles if c['bloquant'] and not c['ok']]
+    produits, charges, resultat = _resultat_exercice(entreprise, exercice)
+
+    if request.method == 'POST' and exercice.statut == 'ouvert':
+        if bloquants:
+            messages.error(request, "Clôture impossible : corrigez d'abord les contrôles bloquants.")
+            return redirect(f"{request.path}?exercice={exercice.pk}")
+        try:
+            with transaction.atomic():
+                # ── 1. Écriture d'affectation du résultat : solder les classes 6 et 7 ──
+                lignes_soldes = (LigneEcriture.objects
+                                 .filter(ecriture__entreprise=entreprise, ecriture__exercice=exercice,
+                                         ecriture__est_validee=True)
+                                 .filter(Q(compte__numero_compte__startswith='6') |
+                                         Q(compte__numero_compte__startswith='7'))
+                                 .values('compte').annotate(d=Sum('montant_debit'), c=Sum('montant_credit')))
+                lignes_affectation = []
+                for l in lignes_soldes:
+                    solde = (l['d'] or ZERO) - (l['c'] or ZERO)
+                    if solde == 0:
+                        continue
+                    compte = PlanComptable.objects.get(pk=l['compte'])
+                    if solde > 0:   # solde débiteur → on crédite pour solder
+                        lignes_affectation.append((compte, 'Solde pour affectation du résultat', ZERO, solde))
+                    else:           # solde créditeur → on débite pour solder
+                        lignes_affectation.append((compte, 'Solde pour affectation du résultat', -solde, ZERO))
+                compte_resultat = obtenir_compte(entreprise, '131' if resultat >= 0 else '139',
+                                                 'Résultat net : bénéfice' if resultat >= 0 else 'Résultat net : perte')
+                if resultat >= 0:
+                    lignes_affectation.append((compte_resultat, f'Résultat {exercice.libelle} (bénéfice)', ZERO, resultat))
+                else:
+                    lignes_affectation.append((compte_resultat, f'Résultat {exercice.libelle} (perte)', -resultat, ZERO))
+                ecriture_resultat = None
+                if lignes_affectation and (produits or charges):
+                    ecriture_resultat = generer_ecriture(
+                        entreprise, request.user, 'OD', exercice.date_fin,
+                        f"Affectation du résultat {exercice.libelle}",
+                        lignes_affectation, verifier_doublon=False)
+
+                # ── 2. Exercice suivant (créé/ouvert automatiquement) ──
+                an_suivant = exercice.date_fin.year + 1
+                exercice_suivant, _ = ExerciceComptable.objects.get_or_create(
+                    entreprise=entreprise,
+                    date_debut=date(an_suivant, 1, 1), date_fin=date(an_suivant, 12, 31),
+                    defaults={'libelle': f'Exercice {an_suivant}', 'statut': 'ouvert'})
+                if exercice_suivant.statut != 'ouvert':
+                    exercice_suivant.statut = 'ouvert'
+                    exercice_suivant.save(update_fields=['statut'])
+
+                # ── 3. À-nouveaux : reprise des soldes de bilan (classes 1-5) au 1er jour ──
+                soldes_bilan = (LigneEcriture.objects
+                                .filter(ecriture__entreprise=entreprise, ecriture__est_validee=True,
+                                        ecriture__date_ecriture__lte=exercice.date_fin)
+                                .exclude(Q(compte__numero_compte__startswith='6') |
+                                         Q(compte__numero_compte__startswith='7') |
+                                         Q(compte__numero_compte__startswith='8'))
+                                .values('compte').annotate(d=Sum('montant_debit'), c=Sum('montant_credit')))
+                lignes_an = []
+                for l in soldes_bilan:
+                    solde = (l['d'] or ZERO) - (l['c'] or ZERO)
+                    if solde == 0:
+                        continue
+                    compte = PlanComptable.objects.get(pk=l['compte'])
+                    if solde > 0:
+                        lignes_an.append((compte, 'À-nouveaux', solde, ZERO))
+                    else:
+                        lignes_an.append((compte, 'À-nouveaux', ZERO, -solde))
+                ecriture_an = None
+                if lignes_an:
+                    deja_an = EcritureComptable.objects.filter(
+                        entreprise=entreprise, exercice=exercice_suivant,
+                        journal__type_journal='AN').exists()
+                    if not deja_an:
+                        ecriture_an = generer_ecriture(
+                            entreprise, request.user, 'AN', exercice_suivant.date_debut,
+                            f"À-nouveaux {exercice_suivant.libelle} (reprise {exercice.libelle})",
+                            lignes_an, verifier_doublon=False)
+
+                # ── 4. Clôturer l'exercice ──
+                exercice.statut = 'cloture'
+                exercice.est_courant = False
+                exercice.save(update_fields=['statut', 'est_courant'])
+                exercice_suivant.est_courant = True
+                exercice_suivant.save(update_fields=['est_courant'])
+
+            resume = [f"Exercice {exercice.libelle} clôturé."]
+            if ecriture_resultat:
+                resume.append(f"Affectation du résultat : {ecriture_resultat.numero_ecriture} "
+                              f"({'bénéfice' if resultat >= 0 else 'perte'} de {abs(resultat):,.0f} GNF).")
+            if ecriture_an:
+                resume.append(f"À-nouveaux : {ecriture_an.numero_ecriture} "
+                              f"({len(lignes_an)} compte(s) repris).")
+            resume.append(f"Exercice {exercice_suivant.libelle} ouvert.")
+            messages.success(request, ' '.join(resume))
+            return redirect('comptabilite:exercice_list')
+        except ErreurComptabilisation as exc:
+            messages.error(request, f"Clôture interrompue : {exc}")
+        except Exception as exc:
+            messages.error(request, f"Erreur lors de la clôture : {exc}")
+
+    return render(request, 'comptabilite/livres/cloture_exercice.html', {
+        'exercices': exercices,
+        'exercice': exercice,
+        'controles': controles,
+        'bloquants': bloquants,
+        'produits': produits,
+        'charges': charges,
+        'resultat': resultat,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 20. TABLEAU DE BORD FISCAL AUTOMATIQUE
+# ═══════════════════════════════════════════════════════════════════════════
+
+@reauth_required
+@login_required
+@compta_required
+def situation_fiscale(request):
+    """Situation fiscale automatique : TVA par mois, retenues, charges
+    sociales, estimation d'acompte IS — calculée depuis les écritures."""
+    entreprise = request.user.entreprise
+    annee = int(request.GET.get('annee', timezone.now().year))
+
+    tva_mensuelle = []
+    total_collectee = total_deductible = ZERO
+    for mois in range(1, 13):
+        debut = date(annee, mois, 1)
+        fin = date(annee, mois + 1, 1) - timedelta(days=1) if mois < 12 else date(annee, 12, 31)
+        collectee = _soldes_par_prefixe(entreprise, ['443'], debut, fin, sens='credit')
+        deductible = _soldes_par_prefixe(entreprise, ['445'], debut, fin, sens='debit')
+        if collectee or deductible:
+            tva_mensuelle.append({'mois': debut, 'collectee': collectee,
+                                  'deductible': deductible, 'nette': collectee - deductible})
+        total_collectee += collectee
+        total_deductible += deductible
+
+    d1, d2 = date(annee, 1, 1), date(annee, 12, 31)
+    retenues = -_soldes_par_prefixe(entreprise, ['447'], d1, d2)
+    charges_sociales = -_soldes_par_prefixe(entreprise, ['43'], d1, d2)
+    produits, charges, resultat = (
+        -_soldes_par_prefixe(entreprise, ['7'], d1, d2),
+        _soldes_par_prefixe(entreprise, ['6'], d1, d2), None)
+    resultat = produits - charges
+    # IS Guinée : 25 % du bénéfice imposable (estimation sur résultat comptable)
+    is_estime = (resultat * Decimal('0.25')).quantize(Decimal('1')) if resultat > 0 else ZERO
+
+    return render(request, 'comptabilite/livres/situation_fiscale.html', {
+        'annee': annee,
+        'tva_mensuelle': tva_mensuelle,
+        'total_collectee': total_collectee,
+        'total_deductible': total_deductible,
+        'tva_nette': total_collectee - total_deductible,
+        'retenues': retenues,
+        'charges_sociales': charges_sociales,
+        'resultat': resultat,
+        'is_estime': is_estime,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 21. APPROBATIONS (moteur de validation configurable)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _niveau_acces(user):
+    if user.is_superuser or getattr(user, 'est_admin_entreprise', False):
+        return 5
+    return getattr(getattr(user, 'profil', None), 'niveau_acces', 0) or 0
+
+
+def _peut_approuver(user, demande):
+    """Moteur d'autorisations : permission '<type>.approuver' (rôle ou
+    délégation active) ; à défaut, niveau d'accès (compatibilité)."""
+    if user.has_permission(f"{demande.type_document}.approuver", demande.entreprise):
+        return True
+    regle = demande.regle
+    return regle is not None and _niveau_acces(user) >= regle.niveau_acces_min
+
+
+def _finaliser_approbation_facture(demande, utilisateur, request):
+    """Quorum atteint sur une facture : validation + comptabilisation auto."""
+    from .moteur_comptable import comptabiliser_facture
+    facture = Facture.objects.filter(pk=demande.objet_id,
+                                     entreprise=demande.entreprise).first()
+    if facture is None or facture.statut != 'brouillon':
+        return
+    facture.statut = 'validee'
+    facture.save()
+    try:
+        ecriture = comptabiliser_facture(facture, utilisateur)
+        messages.success(request,
+                         f"Facture {facture.numero} validée et comptabilisée "
+                         f"({ecriture.numero_ecriture}).")
+    except Exception as exc:
+        messages.warning(request, f"Facture validée, écriture non générée : {exc}")
+
+
+@reauth_required
+@login_required
+@compta_required
+def approbations(request):
+    """File d'approbation : demandes en attente à traiter + historique."""
+    from .models import DemandeApprobation, DecisionApprobation
+    entreprise = request.user.entreprise
+    niveau = _niveau_acces(request.user)
+
+    if request.method == 'POST':
+        demande = get_object_or_404(DemandeApprobation, pk=request.POST.get('demande'),
+                                    entreprise=entreprise, statut='en_attente')
+        decision = request.POST.get('decision')
+        if decision not in ('approuve', 'rejete'):
+            return redirect('comptabilite:approbations')
+        if not _peut_approuver(request.user, demande):
+            messages.error(request,
+                           f"Autorisation insuffisante : cette demande requiert la permission "
+                           f"« {demande.type_document}.approuver » (rôle chef comptable, DAF, "
+                           f"DG ou administrateur) ou le niveau "
+                           f"{demande.regle.niveau_acces_min if demande.regle else 4}+.")
+            return redirect('comptabilite:approbations')
+        if demande.demandeur_id == request.user.id and not request.user.is_superuser:
+            messages.error(request, "Vous ne pouvez pas approuver votre propre demande.")
+            return redirect('comptabilite:approbations')
+        if demande.decisions.filter(approbateur=request.user).exists():
+            messages.warning(request, "Vous avez déjà donné votre décision sur cette demande.")
+            return redirect('comptabilite:approbations')
+
+        DecisionApprobation.objects.create(
+            demande=demande, approbateur=request.user, decision=decision,
+            commentaire=request.POST.get('commentaire', '').strip())
+
+        if decision == 'rejete':
+            demande.statut = 'rejetee'
+            demande.date_decision = timezone.now()
+            demande.save(update_fields=['statut', 'date_decision'])
+            messages.info(request, f"Demande rejetée : {demande.libelle}.")
+        elif demande.nb_approbations_recues >= demande.nb_approbations_requises:
+            demande.statut = 'approuvee'
+            demande.date_decision = timezone.now()
+            demande.save(update_fields=['statut', 'date_decision'])
+            if demande.type_document == 'facture':
+                _finaliser_approbation_facture(demande, request.user, request)
+            else:
+                messages.success(request, f"Demande approuvée : {demande.libelle}.")
+        else:
+            messages.success(request,
+                             f"Approbation enregistrée "
+                             f"({demande.nb_approbations_recues}/{demande.nb_approbations_requises}).")
+        return redirect('comptabilite:approbations')
+
+    en_attente = (DemandeApprobation.objects
+                  .filter(entreprise=entreprise, statut='en_attente')
+                  .select_related('regle', 'demandeur').prefetch_related('decisions'))
+    historique = (DemandeApprobation.objects
+                  .filter(entreprise=entreprise)
+                  .exclude(statut='en_attente')
+                  .select_related('regle', 'demandeur')[:15])
+    from .models import RegleValidation
+    regles = RegleValidation.objects.filter(
+        Q(entreprise=entreprise) | Q(entreprise__isnull=True), est_active=True)
+    return render(request, 'comptabilite/livres/approbations.html', {
+        'en_attente': en_attente,
+        'historique': historique,
+        'regles': regles,
+        'niveau': niveau,
+    })
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1734,12 +2246,24 @@ class OperationForm(forms.Form):
     mode_paiement = forms.ChoiceField(
         label='Règlement par', choices=[('banque', 'Banque'), ('especes', 'Caisse (espèces)')],
         widget=forms.Select(attrs={'class': 'form-select'}))
+    centre_analyse = forms.ModelChoiceField(
+        label='Dimension analytique (projet, agence, centre de coût…)',
+        queryset=None, required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}))
+    piece_jointe = forms.FileField(
+        label='Pièce justificative (PDF, scan, photo…)', required=False,
+        widget=forms.ClearableFileInput(attrs={'class': 'form-control'}))
 
     def __init__(self, *args, entreprise=None, **kwargs):
         super().__init__(*args, **kwargs)
+        from .models import CentreAnalyse
         if entreprise:
             self.fields['tiers'].queryset = Tiers.objects.filter(
                 entreprise=entreprise, est_actif=True)
+            self.fields['centre_analyse'].queryset = CentreAnalyse.objects.filter(
+                entreprise=entreprise, est_actif=True)
+        else:
+            self.fields['centre_analyse'].queryset = CentreAnalyse.objects.none()
 
 
 @reauth_required
@@ -1751,14 +2275,15 @@ def nouvelle_operation(request):
     from .moteur_comptable import operation_simple, ErreurComptabilisation
     entreprise = request.user.entreprise
     if request.method == 'POST':
-        form = OperationForm(request.POST, entreprise=entreprise)
+        form = OperationForm(request.POST, request.FILES, entreprise=entreprise)
         if form.is_valid():
             d = form.cleaned_data
             try:
                 ecriture = operation_simple(
                     entreprise, request.user, d['type_operation'], d['date_operation'],
                     d['libelle'], d['montant_ht'], d['taux_tva'] or ZERO,
-                    tiers=d['tiers'], mode_paiement=d['mode_paiement'])
+                    tiers=d['tiers'], mode_paiement=d['mode_paiement'],
+                    centre_analyse=d['centre_analyse'], piece_jointe=d['piece_jointe'])
             except ErreurComptabilisation as exc:
                 messages.error(request, str(exc))
             else:

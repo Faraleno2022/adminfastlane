@@ -865,7 +865,35 @@ def facture_valider(request, pk):
     if facture.statut != 'brouillon':
         messages.error(request, "Cette facture ne peut pas être validée.")
         return redirect('comptabilite:facture_detail', pk=pk)
-    
+
+    # Moteur de validation : approbation requise au-delà du seuil configuré
+    from .models import RegleValidation, DemandeApprobation
+    regle = RegleValidation.regle_applicable(request.user.entreprise, 'facture', facture.montant_ttc)
+    if regle:
+        demande = (DemandeApprobation.objects
+                   .filter(entreprise=request.user.entreprise,
+                           type_document='facture', objet_id=str(facture.pk))
+                   .order_by('-date_creation').first())
+        if demande is None or demande.statut == 'rejetee':
+            DemandeApprobation.objects.create(
+                entreprise=request.user.entreprise, regle=regle,
+                type_document='facture', objet_id=str(facture.pk),
+                libelle=f"Facture {facture.numero} - {facture.tiers.raison_sociale}",
+                montant=facture.montant_ttc, demandeur=request.user)
+            messages.warning(
+                request,
+                f"Cette facture dépasse le seuil de {regle.seuil_montant:,.0f} GNF : "
+                f"elle a été envoyée en approbation ({regle.nb_approbations} validation(s) "
+                f"de niveau {regle.niveau_acces_min}+ requise(s)).")
+            return redirect('comptabilite:facture_detail', pk=pk)
+        if demande.statut == 'en_attente':
+            messages.info(
+                request,
+                f"Facture en attente d'approbation "
+                f"({demande.nb_approbations_recues}/{demande.nb_approbations_requises} validation(s) reçue(s)).")
+            return redirect('comptabilite:facture_detail', pk=pk)
+        # demande approuvée → la validation peut se poursuivre
+
     facture.statut = 'validee'
     facture.save()
 

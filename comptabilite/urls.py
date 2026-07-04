@@ -1893,6 +1893,12 @@ livres_patterns = [
     path('operations/nouvelle/', views_livres.nouvelle_operation, name='nouvelle_operation'),
     path('plan-comptable/initialiser-syscohada/', views_livres.initialiser_plan_syscohada,
          name='initialiser_plan_syscohada'),
+    path('plan-comptable/importer-excel/', views_livres.importer_plan_excel,
+         name='importer_plan_excel'),
+    path('cloture-periode/', views_livres.cloture_periode, name='cloture_periode'),
+    path('cloture-exercice/', views_livres.cloture_exercice, name='cloture_exercice'),
+    path('fiscal/situation/', views_livres.situation_fiscale, name='situation_fiscale'),
+    path('approbations/', views_livres.approbations, name='approbations'),
     # Déclarations de patente
     path('fiscal/patente/', views_livres.patente_list, name='patente_list'),
     path('fiscal/patente/nouvelle/', views_livres.patente_create, name='patente_create'),

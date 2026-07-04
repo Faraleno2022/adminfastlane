@@ -82,6 +82,88 @@
         </div>
     </div>
 
+    <!-- Résultat du mois, comparaison N/N-1, tops -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card h-100"><div class="card-body">
+                <h6 class="text-muted mb-1">Résultat du mois en cours</h6>
+                <h4 class="{% if resultat_mois >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">{{ resultat_mois|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card h-100"><div class="card-body">
+                <h6 class="text-muted mb-1">CA {{ annee|add:"-1" }} (même période)</h6>
+                <h4 class="mb-0">{{ ca_n1|floatformat:0|intcomma }} GNF</h4>
+                {% if evolution_ca is not None %}
+                <span class="badge {% if evolution_ca >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                    {{ evolution_ca|floatformat:1 }} % vs N-1
+                </span>
+                {% endif %}
+            </div></div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card h-100"><div class="card-body">
+                <h6 class="text-muted mb-1">Résultat {{ annee|add:"-1" }} (même période)</h6>
+                <h4 class="mb-0">{{ resultat_n1|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card h-100"><div class="card-body">
+                <h6 class="text-muted mb-1">Charges par nature</h6>
+                {% for c in charges_nature|slice:":4" %}
+                <div class="d-flex justify-content-between small">
+                    <span class="text-truncate me-2">{{ c.libelle }}</span>
+                    <span class="fw-bold">{{ c.pct|floatformat:0 }} %</span>
+                </div>
+                {% empty %}
+                <span class="text-muted small">Aucune charge saisie.</span>
+                {% endfor %}
+                <a href="{% url 'comptabilite:analyse_charges_produits' %}" class="small">Analyse détaillée →</a>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white"><strong><i class="bi bi-trophy me-1"></i>Top 5 clients {{ annee }}</strong></div>
+                <div class="card-body table-responsive">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            {% for t in top_clients %}
+                            <tr>
+                                <td>{{ forloop.counter }}. {{ t.tiers__raison_sociale }}</td>
+                                <td class="text-end fw-bold">{{ t.total|floatformat:0|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td class="text-muted text-center py-2">Aucune facture de vente.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark"><strong><i class="bi bi-truck me-1"></i>Top 5 fournisseurs {{ annee }}</strong></div>
+                <div class="card-body table-responsive">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            {% for t in top_fournisseurs %}
+                            <tr>
+                                <td>{{ forloop.counter }}. {{ t.tiers__raison_sociale }}</td>
+                                <td class="text-end fw-bold">{{ t.total|floatformat:0|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td class="text-muted text-center py-2">Aucune facture d'achat.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-lg-7 mb-4">
             <div class="card h-100">

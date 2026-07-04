@@ -1,0 +1,92 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Clôture de période - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-calendar-check me-2"></i>Clôture de période</h1>
+            <p class="text-muted mb-0">Écritures automatiques de fin d'exercice : dotations aux amortissements (linéaire)</p>
+        </div>
+        <form method="get" class="d-inline-flex align-items-center gap-2">
+            <select name="exercice" class="form-select" style="width:220px" onchange="this.form.submit()">
+                {% for ex in exercices %}
+                <option value="{{ ex.pk }}" {% if exercice and ex.pk == exercice.pk %}selected{% endif %}>
+                    {{ ex.libelle }} ({{ ex.get_statut_display }})
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    {% if not exercice %}
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Aucun exercice comptable. Créez-en un d'abord.</div>
+    {% else %}
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>Dotations à comptabiliser — exercice {{ exercice.libelle }}</strong>
+            <span class="badge bg-primary">{{ propositions|length }} immobilisation(s)</span>
+        </div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>N° Immo</th>
+                        <th>Désignation</th>
+                        <th class="text-end">Valeur brute</th>
+                        <th class="text-end">Taux (%)</th>
+                        <th class="text-end">Déjà amorti</th>
+                        <th class="text-end">VNC avant</th>
+                        <th class="text-end">Dotation proposée</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in propositions %}
+                    <tr>
+                        <td>{{ p.immo.numero }}</td>
+                        <td>{{ p.immo.designation }}</td>
+                        <td class="text-end">{{ p.immo.valeur_acquisition|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ p.taux }}</td>
+                        <td class="text-end">{{ p.cumul|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ p.vnc|floatformat:0|intcomma }}</td>
+                        <td class="text-end fw-bold">{{ p.dotation|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">
+                        Aucune dotation à générer : toutes les immobilisations sont déjà dotées
+                        pour cet exercice ou totalement amorties.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+                {% if propositions %}
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="6" class="text-end">TOTAL DES DOTATIONS</td>
+                        <td class="text-end">{{ total_dotations|floatformat:0|intcomma }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+
+            {% if propositions %}
+            <form method="post" class="text-end">
+                {% csrf_token %}
+                <input type="hidden" name="exercice" value="{{ exercice.pk }}">
+                <button type="submit" class="btn btn-primary btn-lg"
+                        onclick="return confirm('Comptabiliser {{ propositions|length }} dotation(s) pour {{ total_dotations|floatformat:0 }} GNF au journal OD ?');">
+                    <i class="bi bi-check-circle me-2"></i>Comptabiliser les dotations
+                </button>
+            </form>
+            <p class="text-muted small mb-0 mt-2 text-start">
+                <i class="bi bi-info-circle me-1"></i>Chaque dotation génère une écriture validée au journal OD
+                (débit 6811 Dotations / crédit compte d'amortissement de l'immobilisation) datée du
+                {{ exercice.date_fin|date:"d/m/Y" }}, et alimente le livre des amortissements.
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

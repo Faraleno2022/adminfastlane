@@ -1,0 +1,103 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load humanize %}
+
+{% block title %}Situation fiscale - Gestionnaire RH{% endblock %}
+
+{% block compta_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-bank me-2"></i>Situation fiscale {{ annee }}</h1>
+            <p class="text-muted mb-0">Calculée automatiquement depuis les écritures validées</p>
+        </div>
+        <div>
+            <form method="get" class="d-inline">
+                <select name="annee" class="form-select d-inline-block" style="width:110px" onchange="this.form.submit()">
+                    {% for a in "xxxxx" %}
+                    <option value="{{ annee|add:forloop.counter0|add:"-2" }}" {% if forloop.counter0 == 2 %}selected{% endif %}>{{ annee|add:forloop.counter0|add:"-2" }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            <button class="btn btn-outline-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimer</button>
+        </div>
+    </div>
+
+    <!-- Synthèse -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-primary h-100"><div class="card-body">
+                <h6 class="mb-1">TVA nette à payer ({{ annee }})</h6>
+                <h4 class="mb-0">{{ tva_nette|floatformat:0|intcomma }} GNF</h4>
+                <small>Collectée − déductible</small>
+            </div></div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-secondary h-100"><div class="card-body">
+                <h6 class="mb-1">Retenues à la source (447)</h6>
+                <h4 class="mb-0">{{ retenues|floatformat:0|intcomma }} GNF</h4>
+            </div></div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-warning h-100"><div class="card-body">
+                <h6 class="mb-1">Charges sociales (43x)</h6>
+                <h4 class="mb-0">{{ charges_sociales|floatformat:0|intcomma }} GNF</h4>
+                <small>CNSS et organismes sociaux</small>
+            </div></div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-dark h-100"><div class="card-body">
+                <h6 class="mb-1">IS estimé (25 % du résultat)</h6>
+                <h4 class="mb-0">{{ is_estime|floatformat:0|intcomma }} GNF</h4>
+                <small>Résultat provisoire : {{ resultat|floatformat:0|intcomma }} GNF</small>
+            </div></div>
+        </div>
+    </div>
+
+    <!-- TVA mensuelle -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong><i class="bi bi-calendar3 me-1"></i>TVA par mois</strong>
+            <a href="{% url 'comptabilite:journal_tva' %}" class="small">Journal de TVA →</a>
+        </div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mois</th>
+                        <th class="text-end">TVA collectée (443)</th>
+                        <th class="text-end">TVA déductible (445)</th>
+                        <th class="text-end">TVA nette</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in tva_mensuelle %}
+                    <tr>
+                        <td>{{ m.mois|date:"F Y" }}</td>
+                        <td class="text-end">{{ m.collectee|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ m.deductible|floatformat:0|intcomma }}</td>
+                        <td class="text-end fw-bold {% if m.nette > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ m.nette|floatformat:0|intcomma }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">Aucun mouvement de TVA sur {{ annee }}.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td class="text-end">TOTAUX {{ annee }}</td>
+                        <td class="text-end">{{ total_collectee|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ total_deductible|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{{ tva_nette|floatformat:0|intcomma }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <p class="text-muted small mb-0">
+                <i class="bi bi-info-circle me-1"></i>La TVA nette positive est à reverser à la DGI ;
+                négative, elle constitue un crédit de TVA reportable. L'IS estimé est indicatif
+                (taux normal 25 % sur le résultat comptable provisoire, avant retraitements fiscaux).
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

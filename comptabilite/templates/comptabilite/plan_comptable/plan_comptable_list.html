@@ -19,6 +19,14 @@
                     <i class="bi bi-stars me-2"></i>Initialiser le plan SYSCOHADA
                 </button>
             </form>
+            <form method="post" action="{% url 'comptabilite:importer_plan_excel' %}"
+                  enctype="multipart/form-data" class="d-inline-flex align-items-center gap-1">
+                {% csrf_token %}
+                <input type="file" name="fichier" accept=".xlsx" class="form-control form-control-sm" style="width:220px" required>
+                <button type="submit" class="btn btn-outline-success">
+                    <i class="bi bi-file-earmark-excel me-1"></i>Importer Excel
+                </button>
+            </form>
             <a href="{% url 'comptabilite:plan_comptable_create' %}" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-2"></i>Nouveau Compte
             </a>

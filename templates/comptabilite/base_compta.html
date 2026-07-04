@@ -200,6 +200,26 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if 'cloture_periode' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:cloture_periode' %}">
+                                <i class="bi bi-calendar-check"></i> Clôture de période
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'cloture_exercice' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:cloture_exercice' %}">
+                                <i class="bi bi-archive"></i> Clôture d'exercice
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'situation_fiscale' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:situation_fiscale' %}">
+                                <i class="bi bi-bank"></i> Situation fiscale
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'approbations' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:approbations' %}">
+                                <i class="bi bi-person-check"></i> Approbations
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if 'tiers' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'comptabilite:tiers_list' %}">
                                 <i class="bi bi-people"></i> Tiers
                             </a>

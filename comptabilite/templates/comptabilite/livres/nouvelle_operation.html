@@ -17,7 +17,7 @@
                             <h6 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Saisie de l'opération</h6>
                         </div>
                         <div class="card-body">
-                            <form method="post">
+                            <form method="post" enctype="multipart/form-data">
                                 {% csrf_token %}
                                 {% if form.non_field_errors %}
                                 <div class="alert alert-danger">{{ form.non_field_errors }}</div>
@@ -50,6 +50,14 @@
                                     <div class="col-md-4" id="champ-mode">
                                         <label class="form-label">{{ form.mode_paiement.label }}</label>
                                         {{ form.mode_paiement }}{{ form.mode_paiement.errors }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">{{ form.centre_analyse.label }}</label>
+                                        {{ form.centre_analyse }}{{ form.centre_analyse.errors }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">{{ form.piece_jointe.label }}</label>
+                                        {{ form.piece_jointe }}{{ form.piece_jointe.errors }}
                                     </div>
                                 </div>
                                 <div class="d-grid mt-4">

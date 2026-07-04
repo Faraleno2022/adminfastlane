@@ -155,7 +155,10 @@ class Utilisateur(AbstractUser):
     """Modèle utilisateur personnalisé avec support multi-entreprise"""
     email = models.EmailField(unique=True)
     telephone = models.CharField(max_length=20, blank=True, null=True)
-    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='utilisateurs', null=True)
+    # SET_NULL : supprimer une entreprise ne doit JAMAIS supprimer ses
+    # utilisateurs (ils gardent leur compte et leur historique)
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.SET_NULL,
+                                   related_name='utilisateurs', null=True, blank=True)
     profil = models.ForeignKey(ProfilUtilisateur, on_delete=models.SET_NULL, null=True, related_name='utilisateurs')
     est_admin_entreprise = models.BooleanField(default=False, help_text='Administrateur de l\'entreprise')
     actif = models.BooleanField(default=True)
@@ -196,6 +199,170 @@ class Utilisateur(AbstractUser):
         self.date_derniere_connexion = timezone.now()
         self.tentatives_connexion = 0
         self.save(update_fields=['date_derniere_connexion', 'tentatives_connexion'])
+
+    def role_dans(self, entreprise=None):
+        """Rôle métier de l'utilisateur dans une entreprise (défaut : la sienne).
+        L'admin d'entreprise et le superuser sont administrateurs implicites."""
+        entreprise = entreprise or self.entreprise
+        if self.is_superuser or self.est_admin_entreprise:
+            return 'administrateur'
+        if entreprise is None:
+            return None
+        acces = self.acces_entreprises.filter(entreprise=entreprise).first()
+        if acces and acces.est_valide():
+            return acces.role
+        return None
+
+    def has_permission(self, code, entreprise=None, _sans_delegation=False):
+        """Moteur d'autorisations : True si le rôle de l'utilisateur possède
+        la permission (ex. 'facture.approuver'), ou si une délégation valide
+        lui transmet celle d'un délégant. Superuser : tout."""
+        if self.is_superuser:
+            return True
+        entreprise = entreprise or self.entreprise
+        role = self.role_dans(entreprise)
+        if role and PermissionRole.objects.filter(role=role, permission=code).exists():
+            return True
+        # Délégation de pouvoir active
+        if not _sans_delegation and entreprise is not None:
+            aujourd_hui = timezone.now().date()
+            delegations = Delegation.objects.filter(
+                delegataire=self, entreprise=entreprise, actif=True,
+                date_debut__lte=aujourd_hui, date_fin__gte=aujourd_hui
+            ).select_related('delegant')
+            for d in delegations:
+                if d.delegant.has_permission(code, entreprise, _sans_delegation=True):
+                    return True
+        return False
+
+
+class AccesEntreprise(models.Model):
+    """Table d'association Utilisateur ↔ Entreprise (multi-sociétés) :
+    rôle métier, période de validité, activation. Supprimer une entreprise
+    ne supprime que les accès, jamais les utilisateurs."""
+    ROLES = (
+        ('comptable', 'Comptable (saisie)'),
+        ('chef_comptable', 'Chef comptable (validation comptable)'),
+        ('daf', 'DAF (validation financière)'),
+        ('dg', 'Directeur général (validation exceptionnelle)'),
+        ('auditeur', 'Auditeur (lecture seule)'),
+        ('administrateur', 'Administrateur (paramétrage)'),
+    )
+
+    utilisateur = models.ForeignKey('Utilisateur', on_delete=models.CASCADE,
+                                    related_name='acces_entreprises')
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE,
+                                   related_name='acces_utilisateurs')
+    role = models.CharField(max_length=20, choices=ROLES, default='comptable',
+                            verbose_name='Rôle dans cette entreprise')
+    date_debut = models.DateField(null=True, blank=True,
+                                  verbose_name='Début de validité (vide = immédiat)')
+    date_fin = models.DateField(null=True, blank=True,
+                                verbose_name='Fin de validité (vide = illimité)')
+    actif = models.BooleanField(default=True)
+    accorde_par = models.ForeignKey('Utilisateur', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='acces_accordes')
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'acces_entreprises'
+        verbose_name = 'Accès entreprise (multi-sociétés)'
+        verbose_name_plural = 'Accès entreprises (multi-sociétés)'
+        unique_together = ['utilisateur', 'entreprise']
+
+    def __str__(self):
+        return f"{self.utilisateur} → {self.entreprise} ({self.get_role_display()})"
+
+    def est_valide(self, a_date=None):
+        from django.utils import timezone as tz
+        a_date = a_date or tz.now().date()
+        if not self.actif:
+            return False
+        if self.date_debut and a_date < self.date_debut:
+            return False
+        if self.date_fin and a_date > self.date_fin:
+            return False
+        return True
+
+
+class PermissionRole(models.Model):
+    """Moteur d'autorisations : quelles permissions chaque rôle possède.
+    Configurable via l'admin — ex. ('daf', 'facture.approuver').
+    Codes : <domaine>.<action> — facture.saisir, facture.approuver,
+    ecriture.saisir, ecriture.valider, reglement.approuver,
+    cloture.periode, cloture.exercice, parametrage.gerer, lecture.etats…"""
+    role = models.CharField(max_length=20, choices=AccesEntreprise.ROLES)
+    permission = models.CharField(max_length=60, verbose_name='Code permission')
+
+    class Meta:
+        db_table = 'permissions_roles'
+        verbose_name = 'Permission de rôle'
+        verbose_name_plural = 'Permissions des rôles'
+        unique_together = ['role', 'permission']
+        ordering = ['role', 'permission']
+
+    def __str__(self):
+        return f"{self.get_role_display()} : {self.permission}"
+
+    # Jeu de permissions par défaut (seed idempotent)
+    DEFAUTS = {
+        'comptable': ['lecture.etats', 'ecriture.saisir', 'facture.saisir',
+                      'piece_caisse.saisir', 'operation.saisir'],
+        'chef_comptable': ['lecture.etats', 'ecriture.saisir', 'ecriture.valider',
+                           'facture.saisir', 'facture.valider', 'facture.approuver',
+                           'piece_caisse.saisir', 'piece_caisse.approuver',
+                           'operation.saisir', 'cloture.periode'],
+        'daf': ['lecture.etats', 'facture.valider', 'facture.approuver',
+                'reglement.approuver', 'operation.approuver',
+                'cloture.periode', 'cloture.exercice'],
+        'dg': ['lecture.etats', 'facture.approuver', 'reglement.approuver',
+               'piece_caisse.approuver', 'operation.approuver', 'cloture.exercice'],
+        'auditeur': ['lecture.etats'],
+        'administrateur': ['lecture.etats', 'ecriture.saisir', 'ecriture.valider',
+                           'facture.saisir', 'facture.valider', 'facture.approuver',
+                           'reglement.approuver', 'piece_caisse.saisir',
+                           'piece_caisse.approuver', 'operation.saisir',
+                           'operation.approuver', 'cloture.periode',
+                           'cloture.exercice', 'parametrage.gerer'],
+    }
+
+    @classmethod
+    def initialiser_defauts(cls):
+        crees = 0
+        for role, permissions in cls.DEFAUTS.items():
+            for permission in permissions:
+                _, cree = cls.objects.get_or_create(role=role, permission=permission)
+                crees += cree
+        return crees
+
+
+class Delegation(models.Model):
+    """Délégation de pouvoir temporaire : pendant la période, le délégataire
+    exerce les permissions du délégant (ex. DAF en congé)."""
+    delegant = models.ForeignKey('Utilisateur', on_delete=models.CASCADE,
+                                 related_name='delegations_accordees')
+    delegataire = models.ForeignKey('Utilisateur', on_delete=models.CASCADE,
+                                    related_name='delegations_obtenues')
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE,
+                                   related_name='delegations')
+    date_debut = models.DateField(verbose_name='Début')
+    date_fin = models.DateField(verbose_name='Fin')
+    motif = models.CharField(max_length=200, blank=True, verbose_name='Motif (congé, mission…)')
+    actif = models.BooleanField(default=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'delegations'
+        verbose_name = 'Délégation'
+        verbose_name_plural = 'Délégations'
+
+    def __str__(self):
+        return f"{self.delegant} → {self.delegataire} ({self.date_debut} au {self.date_fin})"
+
+    def est_valide(self, a_date=None):
+        from django.utils import timezone as tz
+        a_date = a_date or tz.now().date()
+        return self.actif and self.date_debut <= a_date <= self.date_fin
 
 
 class DroitAcces(models.Model):

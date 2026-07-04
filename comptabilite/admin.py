@@ -3,7 +3,7 @@ from .models import (
     PlanComptable, Journal, ExerciceComptable, EcritureComptable,
     LigneEcriture, Tiers, Facture, LigneFacture, Reglement, TauxTVA, PieceComptable,
     PieceCaisse, BordereauRemise, LigneBordereau, Emprunt, ArreteCaisse,
-    ChequeEmis, DeclarationPatente
+    ChequeEmis, DeclarationPatente, RegleEcriture
 )
 
 
@@ -136,3 +136,38 @@ class DeclarationPatenteAdmin(admin.ModelAdmin):
     list_display = ['annee', 'activite', 'droit_fixe', 'droit_proportionnel', 'statut', 'entreprise']
     list_filter = ['statut', 'annee', 'entreprise']
     search_fields = ['activite']
+
+
+@admin.register(RegleEcriture)
+class RegleEcritureAdmin(admin.ModelAdmin):
+    list_display = ['operation', 'ordre', 'sens', 'role_compte', 'compte_numero',
+                    'base_montant', 'journal_type', 'entreprise', 'est_active']
+    list_filter = ['operation', 'sens', 'est_active', 'entreprise']
+    search_fields = ['operation', 'compte_numero', 'compte_intitule']
+    list_editable = ['ordre', 'est_active']
+    ordering = ['operation', 'ordre']
+
+
+from .models_livres import RegleValidation, DemandeApprobation, DecisionApprobation
+
+
+@admin.register(RegleValidation)
+class RegleValidationAdmin(admin.ModelAdmin):
+    list_display = ['type_document', 'seuil_montant', 'nb_approbations',
+                    'niveau_acces_min', 'description', 'entreprise', 'est_active']
+    list_filter = ['type_document', 'est_active', 'entreprise']
+    list_editable = ['seuil_montant', 'nb_approbations', 'niveau_acces_min', 'est_active']
+
+
+class DecisionApprobationInline(admin.TabularInline):
+    model = DecisionApprobation
+    extra = 0
+    readonly_fields = ['approbateur', 'decision', 'commentaire', 'date_decision']
+
+
+@admin.register(DemandeApprobation)
+class DemandeApprobationAdmin(admin.ModelAdmin):
+    list_display = ['libelle', 'type_document', 'montant', 'statut', 'demandeur', 'date_creation']
+    list_filter = ['statut', 'type_document', 'entreprise']
+    search_fields = ['libelle', 'objet_id']
+    inlines = [DecisionApprobationInline]

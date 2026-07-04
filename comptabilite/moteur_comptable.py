@@ -21,6 +21,7 @@ from django.utils import timezone
 
 from .models import (
     PlanComptable, Journal, ExerciceComptable, EcritureComptable, LigneEcriture,
+    RegleEcriture,
 )
 
 ZERO = Decimal('0')
@@ -143,11 +144,13 @@ def _prochain_numero_ecriture(entreprise, date_operation):
 # GÉNÉRATION D'ÉCRITURE (cœur du moteur)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def generer_ecriture(entreprise, utilisateur, type_journal, date_operation, libelle, lignes):
+def generer_ecriture(entreprise, utilisateur, type_journal, date_operation, libelle, lignes,
+                     centre_analyse=None, piece_jointe=None, verifier_doublon=True):
     """Crée une écriture validée à partir de lignes [(compte, libellé, débit, crédit)].
 
     Contrôles automatiques : montants positifs, au moins 2 lignes,
-    équilibre débit = crédit, exercice ouvert.
+    équilibre débit = crédit, exercice ouvert, détection de doublon.
+    Journalise l'opération dans la piste d'audit.
     """
     lignes = [(c, l, d or ZERO, cr or ZERO) for c, l, d, cr in lignes if (d or ZERO) > 0 or (cr or ZERO) > 0]
     if len(lignes) < 2:
@@ -163,23 +166,127 @@ def generer_ecriture(entreprise, utilisateur, type_journal, date_operation, libe
     exercice = obtenir_exercice(entreprise, date_operation)
     journal = obtenir_journal(entreprise, type_journal)
 
+    # Contrôle anti-doublon : même journal, même date, même libellé, même total
+    if verifier_doublon:
+        doublon = (EcritureComptable.objects
+                   .filter(entreprise=entreprise, journal=journal,
+                           date_ecriture=date_operation, libelle=libelle[:200])
+                   .filter(lignes__montant_debit=lignes[0][2] or lignes[0][3])
+                   .first())
+        if doublon:
+            raise ErreurComptabilisation(
+                f"Doublon probable : l'écriture {doublon.numero_ecriture} du "
+                f"{date_operation} porte déjà le même libellé et le même montant. "
+                f"Modifiez le libellé pour confirmer qu'il s'agit d'une opération distincte.")
+
     with transaction.atomic():
         ecriture = EcritureComptable.objects.create(
             entreprise=entreprise, exercice=exercice, journal=journal,
             numero_ecriture=_prochain_numero_ecriture(entreprise, date_operation),
             date_ecriture=date_operation, libelle=libelle[:200],
+            piece_jointe=piece_jointe,
             est_validee=True, date_validation=timezone.now(), validee_par=utilisateur)
         for compte, lib_ligne, debit, credit in lignes:
             LigneEcriture.objects.create(
                 ecriture=ecriture, compte=compte, libelle=(lib_ligne or libelle)[:200],
-                montant_debit=debit, montant_credit=credit)
+                montant_debit=debit, montant_credit=credit,
+                centre_analyse=centre_analyse)
+        _piste_audit(entreprise, utilisateur, ecriture, total_debit)
     return ecriture
 
 
-def _compte_tiers(entreprise, tiers, cle_defaut):
-    """Compte du tiers s'il est paramétré, sinon compte collectif par défaut."""
-    if tiers is not None and tiers.compte_comptable_id:
+def _piste_audit(entreprise, utilisateur, ecriture, montant):
+    """Trace la génération d'écriture dans la piste d'audit (non bloquant)."""
+    try:
+        from .models import PisteAudit
+        PisteAudit.objects.create(
+            entreprise=entreprise, utilisateur=utilisateur,
+            action='GENERATION_AUTO', module='MOTEUR_COMPTABLE',
+            type_objet='EcritureComptable', id_objet=str(ecriture.pk),
+            donnees_nouvelles=f"{ecriture.numero_ecriture} | {ecriture.journal.code} | "
+                              f"{ecriture.date_ecriture} | {ecriture.libelle} | "
+                              f"{montant:,.0f} GNF")
+    except Exception:
+        pass
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# COMPTES AUXILIAIRES DE TIERS (411001 Orange, 401002 SONAP…)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def obtenir_compte_auxiliaire(entreprise, tiers, categorie):
+    """Retourne (et crée au besoin) le compte auxiliaire individuel du tiers :
+    clients → 411xxx, fournisseurs → 401xxx. Mémorisé sur le tiers."""
+    if tiers is None:
+        return obtenir_compte(entreprise, categorie)
+    if tiers.compte_comptable_id:
         return tiers.compte_comptable
+    racine = '411' if categorie == 'clients' else '401'
+    dernier = (PlanComptable.objects
+               .filter(entreprise=entreprise, numero_compte__startswith=racine)
+               .exclude(numero_compte__in=[racine + '1'])
+               .order_by('-numero_compte').first())
+    seq = 1
+    if dernier and len(dernier.numero_compte) >= 6:
+        try:
+            seq = int(dernier.numero_compte[3:]) + 1
+        except ValueError:
+            seq = 1
+    numero = f"{racine}{seq:03d}"
+    compte, _ = PlanComptable.objects.get_or_create(
+        entreprise=entreprise, numero_compte=numero,
+        defaults={'intitule': tiers.raison_sociale[:200], 'classe': '4', 'est_actif': True})
+    tiers.compte_comptable = compte
+    tiers.save(update_fields=['compte_comptable'])
+    return compte
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RÈGLES CONFIGURABLES (table de correspondance en base)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _regles_pour(entreprise, type_operation):
+    """Règles actives : celles de l'entreprise en priorité, sinon les globales."""
+    regles = list(RegleEcriture.objects.filter(
+        entreprise=entreprise, operation=type_operation, est_active=True).order_by('ordre'))
+    if not regles:
+        regles = list(RegleEcriture.objects.filter(
+            entreprise__isnull=True, operation=type_operation, est_active=True).order_by('ordre'))
+    return regles
+
+
+def _appliquer_regles(entreprise, regles, montants, tiers, tresorerie, lib, categorie_tiers):
+    """Construit les lignes d'écriture depuis les règles configurées.
+    montants = {'ht': …, 'tva': …, 'ttc': …}."""
+    lignes = []
+    journal = None
+    for regle in regles:
+        montant = montants.get(regle.base_montant, ZERO)
+        if montant <= 0 and regle.ignorer_si_nul:
+            continue
+        if regle.role_compte == 'tiers':
+            compte = obtenir_compte_auxiliaire(entreprise, tiers, categorie_tiers)
+        elif regle.role_compte == 'tresorerie':
+            compte = tresorerie
+        else:
+            if not regle.compte_numero:
+                raise ErreurComptabilisation(
+                    f"Règle {regle} : aucun numéro de compte configuré.")
+            compte = obtenir_compte(entreprise, regle.compte_numero,
+                                    regle.compte_intitule or None)
+        debit = montant if regle.sens == 'debit' else ZERO
+        credit = montant if regle.sens == 'credit' else ZERO
+        lignes.append((compte, lib, debit, credit))
+        if regle.journal_type:
+            journal = regle.journal_type
+    return lignes, journal
+
+
+def _compte_tiers(entreprise, tiers, cle_defaut):
+    """Compte auxiliaire individuel du tiers (créé automatiquement : 411xxx
+    clients / 401xxx fournisseurs), sinon compte collectif par défaut."""
+    if tiers is not None:
+        return obtenir_compte_auxiliaire(entreprise, tiers, cle_defaut)
     return obtenir_compte(entreprise, cle_defaut)
 
 
@@ -300,20 +407,40 @@ def comptabiliser_piece_caisse(piece, utilisateur):
 
 
 def operation_simple(entreprise, utilisateur, type_operation, date_operation, libelle,
-                     montant_ht, taux_tva=ZERO, tiers=None, mode_paiement='banque'):
-    """Assistant : traduit une opération métier en écriture via la table de
-    correspondance. Retourne l'écriture générée."""
-    if type_operation not in OPERATIONS:
-        raise ErreurComptabilisation(f"Opération inconnue : {type_operation}.")
+                     montant_ht, taux_tva=ZERO, tiers=None, mode_paiement='banque',
+                     centre_analyse=None, piece_jointe=None):
+    """Assistant : traduit une opération métier en écriture. Les règles
+    configurées en base (RegleEcriture) priment ; sinon le schéma SYSCOHADA
+    intégré s'applique. Retourne l'écriture générée."""
     montant_ht = Decimal(montant_ht or 0)
     if montant_ht <= 0:
         raise ErreurComptabilisation("Le montant doit être supérieur à zéro.")
     tva = (montant_ht * Decimal(taux_tva or 0) / Decimal('100')).quantize(Decimal('1'))
     ttc = montant_ht + tva
     e = entreprise
+    tresorerie = _compte_tresorerie(e, mode_paiement)
+
+    # 1) Règles configurables en base (table de correspondance modifiable)
+    regles = _regles_pour(e, type_operation)
+    if regles:
+        journal_defaut = OPERATIONS.get(type_operation, ('OD', type_operation))[0]
+        lib_defaut = OPERATIONS.get(type_operation, ('OD', type_operation.title()))[1]
+        lib = libelle or (f"{lib_defaut}" + (f" - {tiers.raison_sociale}" if tiers else ''))
+        categorie_tiers = 'clients' if 'client' in type_operation or type_operation == 'vente' else 'fournisseurs'
+        lignes, journal_regle = _appliquer_regles(
+            e, regles, {'ht': montant_ht, 'tva': tva, 'ttc': ttc},
+            tiers, tresorerie, lib, categorie_tiers)
+        return generer_ecriture(e, utilisateur, journal_regle or journal_defaut,
+                                date_operation, lib, lignes,
+                                centre_analyse=centre_analyse, piece_jointe=piece_jointe)
+
+    # 2) Schémas SYSCOHADA intégrés
+    if type_operation not in OPERATIONS:
+        raise ErreurComptabilisation(
+            f"Opération inconnue : {type_operation}. Créez des règles d'écriture "
+            f"pour cette opération dans la configuration du moteur comptable.")
     journal, lib_defaut = OPERATIONS[type_operation]
     lib = libelle or (f"{lib_defaut}" + (f" - {tiers.raison_sociale}" if tiers else ''))
-    tresorerie = _compte_tresorerie(e, mode_paiement)
     if type_operation in ('encaissement_client', 'paiement_fournisseur', 'salaire',
                           'entree_caisse', 'sortie_caisse'):
         journal = 'CA' if tresorerie.numero_compte.startswith('57') else journal

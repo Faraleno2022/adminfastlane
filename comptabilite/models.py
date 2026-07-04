@@ -142,6 +142,8 @@ class EcritureComptable(models.Model):
     numero_ecriture = models.CharField(max_length=20, verbose_name='N° Écriture')
     date_ecriture = models.DateField(verbose_name='Date écriture')
     libelle = models.CharField(max_length=200, verbose_name='Libellé')
+    piece_jointe = models.FileField(upload_to='ecritures/pieces/', blank=True, null=True,
+                                    verbose_name='Pièce justificative (PDF, scan, photo…)')
     est_validee = models.BooleanField(default=False, verbose_name='Validée')
     date_validation = models.DateTimeField(null=True, blank=True)
     validee_par = models.ForeignKey('core.Utilisateur', on_delete=models.SET_NULL, null=True, blank=True)
@@ -181,6 +183,9 @@ class LigneEcriture(models.Model):
     libelle = models.CharField(max_length=200, blank=True)
     montant_debit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     montant_credit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    centre_analyse = models.ForeignKey('CentreAnalyse', on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='lignes_ecritures',
+                                       verbose_name='Dimension analytique (projet, agence, centre de coût…)')
     
     class Meta:
         db_table = 'lignes_ecritures'
@@ -2086,5 +2091,6 @@ from .models_archivage import (
 # Import des modèles livres et documents SYSCOHADA (caisse, bordereaux, emprunts)
 from .models_livres import (
     PieceCaisse, BordereauRemise, LigneBordereau, Emprunt, ArreteCaisse,
-    ChequeEmis, DeclarationPatente
+    ChequeEmis, DeclarationPatente, RegleEcriture,
+    RegleValidation, DemandeApprobation, DecisionApprobation
 )

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Changer de société - Gestionnaire RH{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-buildings me-2"></i>Changer de société</h1>
+            <p class="text-muted mb-0">
+                Société courante : <strong>{{ entreprise_courante.nom_entreprise }}</strong>
+            </p>
+        </div>
+    </div>
+
+    {% if entreprises|length <= 1 %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        Vous n'avez accès qu'à une seule société. Pour gérer plusieurs sociétés
+        (cabinet comptable, groupe), demandez à l'administrateur de vous accorder
+        des accès dans <em>Administration → Accès entreprises (multi-sociétés)</em>.
+    </div>
+    {% endif %}
+
+    <div class="row">
+        {% for e in entreprises %}
+        <div class="col-md-4 col-lg-3 mb-3">
+            <div class="card h-100 {% if e.pk == entreprise_courante.pk %}border-primary border-2{% endif %}">
+                <div class="card-body text-center">
+                    {% if e.logo %}
+                    <img src="{{ e.logo.url }}" alt="" style="height:48px;object-fit:contain;" class="mb-2">
+                    {% else %}
+                    <i class="bi bi-building fs-1 text-secondary"></i>
+                    {% endif %}
+                    <h6 class="mt-2 mb-1">{{ e.nom_entreprise }}</h6>
+                    <small class="text-muted d-block mb-2">
+                        {{ e.get_type_module_display }}{% if e.ville %} · {{ e.ville }}{% endif %}
+                    </small>
+                    {% if e.pk == entreprise_courante.pk %}
+                    <span class="badge bg-primary"><i class="bi bi-check-lg"></i> Société courante</span>
+                    {% else %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="entreprise" value="{{ e.pk }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Basculer
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -11,6 +11,169 @@ from django.db import models
 from django.utils import timezone
 
 
+class RegleEcriture(models.Model):
+    """Règle de comptabilisation configurable — table de correspondance du
+    moteur comptable. Une opération = plusieurs lignes ordonnées.
+    Si aucune règle n'existe pour une opération, le moteur applique son
+    schéma SYSCOHADA intégré. entreprise vide = règle globale."""
+    SENS = (('debit', 'Débit'), ('credit', 'Crédit'))
+    BASES = (
+        ('ht', 'Montant HT'),
+        ('tva', 'Montant TVA'),
+        ('ttc', 'Montant TTC'),
+    )
+    ROLES_COMPTE = (
+        ('fixe', 'Compte fixe (numéro ci-dessous)'),
+        ('tiers', 'Compte auxiliaire du tiers'),
+        ('tresorerie', 'Banque ou Caisse selon le mode de paiement'),
+    )
+
+    entreprise = models.ForeignKey('core.Entreprise', on_delete=models.CASCADE,
+                                   null=True, blank=True, related_name='regles_ecriture',
+                                   help_text='Vide = règle globale (toutes les entreprises)')
+    operation = models.CharField(max_length=30, verbose_name='Code opération',
+                                 help_text='vente, achat, encaissement_client, paiement_fournisseur, '
+                                           'entree_caisse, sortie_caisse, salaire, achat_immobilisation…')
+    ordre = models.PositiveIntegerField(default=1, verbose_name='Ordre de la ligne')
+    sens = models.CharField(max_length=6, choices=SENS)
+    role_compte = models.CharField(max_length=12, choices=ROLES_COMPTE, default='fixe')
+    compte_numero = models.CharField(max_length=20, blank=True,
+                                     verbose_name='N° de compte (si compte fixe)')
+    compte_intitule = models.CharField(max_length=200, blank=True,
+                                       verbose_name='Intitulé (création auto du compte)')
+    base_montant = models.CharField(max_length=5, choices=BASES, default='ttc',
+                                    verbose_name='Montant appliqué')
+    ignorer_si_nul = models.BooleanField(default=True,
+                                         verbose_name='Ignorer la ligne si le montant est nul')
+    journal_type = models.CharField(max_length=2, blank=True,
+                                    verbose_name='Journal (vide = journal du schéma)')
+    est_active = models.BooleanField(default=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'regles_ecriture'
+        verbose_name = 'Règle d\'écriture'
+        verbose_name_plural = 'Règles d\'écriture'
+        ordering = ['operation', 'ordre']
+
+    def __str__(self):
+        cible = self.compte_numero if self.role_compte == 'fixe' else self.get_role_compte_display()
+        return f"{self.operation} #{self.ordre} : {self.get_sens_display()} {cible} ({self.base_montant})"
+
+
+class RegleValidation(models.Model):
+    """Moteur de validation configurable : au-delà d'un seuil, un document
+    doit être approuvé par N personnes d'un niveau d'accès suffisant avant
+    validation/comptabilisation. entreprise vide = règle globale.
+
+    Exemples : facture > 100 000 000 GNF → 1 validation niveau 4 ;
+    paiement > 500 000 000 GNF → 2 validations niveau 5."""
+    TYPES_DOCUMENT = (
+        ('facture', 'Facture'),
+        ('reglement', 'Règlement / Paiement'),
+        ('piece_caisse', 'Pièce de caisse'),
+        ('operation', 'Opération de l\'assistant'),
+    )
+
+    entreprise = models.ForeignKey('core.Entreprise', on_delete=models.CASCADE,
+                                   null=True, blank=True, related_name='regles_validation',
+                                   help_text='Vide = règle globale (toutes les entreprises)')
+    type_document = models.CharField(max_length=15, choices=TYPES_DOCUMENT)
+    seuil_montant = models.DecimalField(max_digits=18, decimal_places=2,
+                                        verbose_name='Seuil de déclenchement (GNF)')
+    nb_approbations = models.PositiveIntegerField(default=1,
+                                                  verbose_name='Nombre d\'approbations requises')
+    niveau_acces_min = models.PositiveIntegerField(default=4,
+                                                   verbose_name='Niveau d\'accès minimum de l\'approbateur (1-5)')
+    description = models.CharField(max_length=200, blank=True,
+                                   verbose_name='Description (ex. : validation Directeur financier)')
+    est_active = models.BooleanField(default=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'regles_validation'
+        verbose_name = 'Règle de validation'
+        verbose_name_plural = 'Règles de validation'
+        ordering = ['type_document', 'seuil_montant']
+
+    def __str__(self):
+        return (f"{self.get_type_document_display()} ≥ {self.seuil_montant:,.0f} GNF → "
+                f"{self.nb_approbations} validation(s) niveau {self.niveau_acces_min}+")
+
+    @staticmethod
+    def regle_applicable(entreprise, type_document, montant):
+        """Règle au seuil le plus exigeant atteint par le montant ;
+        celles de l'entreprise priment sur les globales."""
+        for filtre in ({'entreprise': entreprise}, {'entreprise__isnull': True}):
+            regle = (RegleValidation.objects
+                     .filter(type_document=type_document, est_active=True,
+                             seuil_montant__lte=montant, **filtre)
+                     .order_by('-seuil_montant').first())
+            if regle:
+                return regle
+        return None
+
+
+class DemandeApprobation(models.Model):
+    """Demande d'approbation d'un document ayant déclenché une règle."""
+    STATUTS = (
+        ('en_attente', 'En attente'),
+        ('approuvee', 'Approuvée'),
+        ('rejetee', 'Rejetée'),
+    )
+
+    entreprise = models.ForeignKey('core.Entreprise', on_delete=models.CASCADE,
+                                   related_name='demandes_approbation')
+    regle = models.ForeignKey(RegleValidation, on_delete=models.SET_NULL, null=True)
+    type_document = models.CharField(max_length=15, choices=RegleValidation.TYPES_DOCUMENT)
+    objet_id = models.CharField(max_length=100, verbose_name='Identifiant du document')
+    libelle = models.CharField(max_length=255)
+    montant = models.DecimalField(max_digits=18, decimal_places=2)
+    demandeur = models.ForeignKey('core.Utilisateur', on_delete=models.SET_NULL, null=True,
+                                  related_name='demandes_approbation_emises')
+    statut = models.CharField(max_length=12, choices=STATUTS, default='en_attente')
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_decision = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'demandes_approbation'
+        verbose_name = 'Demande d\'approbation'
+        verbose_name_plural = 'Demandes d\'approbation'
+        ordering = ['-date_creation']
+
+    def __str__(self):
+        return f"{self.libelle} ({self.montant:,.0f} GNF) - {self.get_statut_display()}"
+
+    @property
+    def nb_approbations_recues(self):
+        return self.decisions.filter(decision='approuve').count()
+
+    @property
+    def nb_approbations_requises(self):
+        return self.regle.nb_approbations if self.regle else 1
+
+
+class DecisionApprobation(models.Model):
+    """Décision individuelle d'un approbateur sur une demande."""
+    DECISIONS = (('approuve', 'Approuvé'), ('rejete', 'Rejeté'))
+
+    demande = models.ForeignKey(DemandeApprobation, on_delete=models.CASCADE, related_name='decisions')
+    approbateur = models.ForeignKey('core.Utilisateur', on_delete=models.CASCADE,
+                                    related_name='decisions_approbation')
+    decision = models.CharField(max_length=10, choices=DECISIONS)
+    commentaire = models.TextField(blank=True)
+    date_decision = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'decisions_approbation'
+        verbose_name = 'Décision d\'approbation'
+        verbose_name_plural = 'Décisions d\'approbation'
+        unique_together = ['demande', 'approbateur']
+
+    def __str__(self):
+        return f"{self.approbateur} : {self.get_decision_display()}"
+
+
 class PieceCaisse(models.Model):
     """Pièce de caisse : justificatif d'une entrée ou sortie d'espèces."""
     TYPES = (
