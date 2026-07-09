@@ -37,6 +37,23 @@ def compta_required(view_func):
     return wrapper
 
 
+def _exercice_reference(entreprise):
+    """Retourne l'exercice a utiliser pour les etats financiers."""
+    return (
+        ExerciceComptable.objects.filter(entreprise=entreprise, est_courant=True).first()
+        or ExerciceComptable.objects.filter(entreprise=entreprise, statut='ouvert').order_by('-date_debut').first()
+        or ExerciceComptable.objects.filter(entreprise=entreprise).order_by('-date_debut').first()
+    )
+
+
+def _filtre_lignes_etat(exercice):
+    """Filtre commun: seules les lignes validees de l'exercice de reference."""
+    filtre = Q(lignes_ecritures__ecriture__est_validee=True)
+    if exercice:
+        filtre &= Q(lignes_ecritures__ecriture__exercice=exercice)
+    return filtre
+
+
 def generer_numero_unique(entreprise, prefixe, modele, champ='numero'):
     """Génère un numéro unique avec gestion des doublons"""
     annee = datetime.now().year
@@ -1377,11 +1394,14 @@ def balance(request):
     """Balance générale"""
     entreprise = request.user.entreprise
     
+    exercice = _exercice_reference(entreprise)
+    filtre_lignes = _filtre_lignes_etat(exercice)
+
     comptes = PlanComptable.objects.filter(
         entreprise=entreprise, est_actif=True
     ).annotate(
-        total_debit=Sum('lignes_ecritures__montant_debit'),
-        total_credit=Sum('lignes_ecritures__montant_credit')
+        total_debit=Sum('lignes_ecritures__montant_debit', filter=filtre_lignes),
+        total_credit=Sum('lignes_ecritures__montant_credit', filter=filtre_lignes)
     ).order_by('numero_compte')
     
     # Calculer les totaux
@@ -1406,6 +1426,7 @@ def balance(request):
         'total_credit': total_credit,
         'total_solde_debit': total_solde_debit,
         'total_solde_credit': total_solde_credit,
+        'exercice': exercice,
         'today': timezone.now().date(),
     }
     return render(request, 'comptabilite/etats/balance.html', context)
@@ -1415,11 +1436,14 @@ def _get_balance_data(request):
     """Helper pour récupérer les données de la balance"""
     entreprise = request.user.entreprise
     
+    exercice = _exercice_reference(entreprise)
+    filtre_lignes = _filtre_lignes_etat(exercice)
+
     comptes = PlanComptable.objects.filter(
         entreprise=entreprise, est_actif=True
     ).annotate(
-        total_debit=Sum('lignes_ecritures__montant_debit'),
-        total_credit=Sum('lignes_ecritures__montant_credit')
+        total_debit=Sum('lignes_ecritures__montant_debit', filter=filtre_lignes),
+        total_credit=Sum('lignes_ecritures__montant_credit', filter=filtre_lignes)
     ).order_by('numero_compte')
     
     total_debit = Decimal('0')
@@ -1647,36 +1671,37 @@ def bilan(request):
     """Bilan comptable"""
     entreprise = request.user.entreprise
     
-    exercice = ExerciceComptable.objects.filter(entreprise=entreprise, est_courant=True).first()
+    exercice = _exercice_reference(entreprise)
+    filtre_lignes = _filtre_lignes_etat(exercice)
     
-    def get_comptes_avec_solde(classes):
+    def get_comptes_avec_solde(classes, sens):
         comptes = PlanComptable.objects.filter(
             entreprise=entreprise,
             classe__in=classes,
             est_actif=True
         ).annotate(
-            total_debit=Sum('lignes_ecritures__montant_debit'),
-            total_credit=Sum('lignes_ecritures__montant_credit')
+            total_debit=Sum('lignes_ecritures__montant_debit', filter=filtre_lignes),
+            total_credit=Sum('lignes_ecritures__montant_credit', filter=filtre_lignes)
         ).order_by('numero_compte')
         
         result = []
         for c in comptes:
             d = c.total_debit or Decimal('0')
             cr = c.total_credit or Decimal('0')
-            solde = d - cr if d > cr else cr - d
+            solde = (d - cr) if sens == 'debit' else (cr - d)
             if solde > 0:
-                result.append({'numero_compte': c.numero_compte, 'intitule': c.intitule, 'solde': solde, 'debiteur': d > cr})
+                result.append({'numero_compte': c.numero_compte, 'intitule': c.intitule, 'solde': solde, 'debiteur': sens == 'debit'})
         return result
     
     # Actif immobilisé (classe 2)
-    actif_immobilise = get_comptes_avec_solde(['2'])
+    actif_immobilise = get_comptes_avec_solde(['2'], 'debit')
     
     # Actif circulant (classes 3, 4 débiteur, 5)
-    actif_circulant = get_comptes_avec_solde(['3', '5'])
+    actif_circulant = get_comptes_avec_solde(['3', '5'], 'debit')
     # Ajouter comptes classe 4 débiteurs
     comptes_4 = PlanComptable.objects.filter(entreprise=entreprise, classe='4', est_actif=True).annotate(
-        total_debit=Sum('lignes_ecritures__montant_debit'),
-        total_credit=Sum('lignes_ecritures__montant_credit')
+        total_debit=Sum('lignes_ecritures__montant_debit', filter=filtre_lignes),
+        total_credit=Sum('lignes_ecritures__montant_credit', filter=filtre_lignes)
     )
     for c in comptes_4:
         d = c.total_debit or Decimal('0')
@@ -1685,7 +1710,7 @@ def bilan(request):
             actif_circulant.append({'numero_compte': c.numero_compte, 'intitule': c.intitule, 'solde': d - cr, 'debiteur': True})
     
     # Capitaux propres (classe 1)
-    capitaux_propres = get_comptes_avec_solde(['1'])
+    capitaux_propres = get_comptes_avec_solde(['1'], 'credit')
     
     # Dettes (classe 4 créditeur)
     dettes = []
@@ -1720,38 +1745,39 @@ def bilan(request):
 def compte_resultat(request):
     """Compte de résultat"""
     entreprise = request.user.entreprise
-    exercice = ExerciceComptable.objects.filter(entreprise=entreprise, est_courant=True).first()
+    exercice = _exercice_reference(entreprise)
+    filtre_lignes = _filtre_lignes_etat(exercice)
     
-    def get_comptes_classe(classe_prefix):
+    def get_comptes_classe(classe_prefix, sens):
         comptes = PlanComptable.objects.filter(
             entreprise=entreprise,
             numero_compte__startswith=classe_prefix,
             est_actif=True
         ).annotate(
-            total_debit=Sum('lignes_ecritures__montant_debit'),
-            total_credit=Sum('lignes_ecritures__montant_credit')
+            total_debit=Sum('lignes_ecritures__montant_debit', filter=filtre_lignes),
+            total_credit=Sum('lignes_ecritures__montant_credit', filter=filtre_lignes)
         ).order_by('numero_compte')
         
         result = []
         for c in comptes:
             d = c.total_debit or Decimal('0')
             cr = c.total_credit or Decimal('0')
-            solde = d - cr if d > cr else cr - d
+            solde = (d - cr) if sens == 'debit' else (cr - d)
             if solde > 0:
                 result.append({'numero_compte': c.numero_compte, 'intitule': c.intitule, 'solde': solde})
         return result
     
     # Charges d'exploitation (60-65)
-    charges_exploitation = get_comptes_classe('60') + get_comptes_classe('61') + get_comptes_classe('62') + get_comptes_classe('63') + get_comptes_classe('64') + get_comptes_classe('65')
+    charges_exploitation = get_comptes_classe('60', 'debit') + get_comptes_classe('61', 'debit') + get_comptes_classe('62', 'debit') + get_comptes_classe('63', 'debit') + get_comptes_classe('64', 'debit') + get_comptes_classe('65', 'debit')
     
     # Charges financières (66-67)
-    charges_financieres = get_comptes_classe('66') + get_comptes_classe('67')
+    charges_financieres = get_comptes_classe('66', 'debit') + get_comptes_classe('67', 'debit') + get_comptes_classe('68', 'debit') + get_comptes_classe('69', 'debit')
     
     # Produits d'exploitation (70-75)
-    produits_exploitation = get_comptes_classe('70') + get_comptes_classe('71') + get_comptes_classe('72') + get_comptes_classe('73') + get_comptes_classe('74') + get_comptes_classe('75')
+    produits_exploitation = get_comptes_classe('70', 'credit') + get_comptes_classe('71', 'credit') + get_comptes_classe('72', 'credit') + get_comptes_classe('73', 'credit') + get_comptes_classe('74', 'credit') + get_comptes_classe('75', 'credit')
     
     # Produits financiers (76-77)
-    produits_financiers = get_comptes_classe('76') + get_comptes_classe('77')
+    produits_financiers = get_comptes_classe('76', 'credit') + get_comptes_classe('77', 'credit') + get_comptes_classe('78', 'credit') + get_comptes_classe('79', 'credit')
     
     # Totaux
     total_charges = sum(c['solde'] for c in charges_exploitation) + sum(c['solde'] for c in charges_financieres)
@@ -1926,31 +1952,32 @@ def journal_general_pdf(request):
 def _get_bilan_data(request):
     """Helper pour récupérer les données du bilan"""
     entreprise = request.user.entreprise
-    exercice = ExerciceComptable.objects.filter(entreprise=entreprise, est_courant=True).first()
+    exercice = _exercice_reference(entreprise)
+    filtre_lignes = _filtre_lignes_etat(exercice)
     
-    def get_comptes_avec_solde(classes):
+    def get_comptes_avec_solde(classes, sens):
         comptes = PlanComptable.objects.filter(
             entreprise=entreprise, classe__in=classes, est_actif=True
         ).annotate(
-            total_debit=Sum('lignes_ecritures__montant_debit'),
-            total_credit=Sum('lignes_ecritures__montant_credit')
+            total_debit=Sum('lignes_ecritures__montant_debit', filter=filtre_lignes),
+            total_credit=Sum('lignes_ecritures__montant_credit', filter=filtre_lignes)
         ).order_by('numero_compte')
         
         result = []
         for c in comptes:
             d = c.total_debit or Decimal('0')
             cr = c.total_credit or Decimal('0')
-            solde = d - cr if d > cr else cr - d
+            solde = (d - cr) if sens == 'debit' else (cr - d)
             if solde > 0:
-                result.append({'numero_compte': c.numero_compte, 'intitule': c.intitule, 'solde': solde, 'debiteur': d > cr})
+                result.append({'numero_compte': c.numero_compte, 'intitule': c.intitule, 'solde': solde, 'debiteur': sens == 'debit'})
         return result
     
-    actif_immobilise = get_comptes_avec_solde(['2'])
-    actif_circulant = get_comptes_avec_solde(['3', '5'])
+    actif_immobilise = get_comptes_avec_solde(['2'], 'debit')
+    actif_circulant = get_comptes_avec_solde(['3', '5'], 'debit')
     
     comptes_4 = PlanComptable.objects.filter(entreprise=entreprise, classe='4', est_actif=True).annotate(
-        total_debit=Sum('lignes_ecritures__montant_debit'),
-        total_credit=Sum('lignes_ecritures__montant_credit')
+        total_debit=Sum('lignes_ecritures__montant_debit', filter=filtre_lignes),
+        total_credit=Sum('lignes_ecritures__montant_credit', filter=filtre_lignes)
     )
     for c in comptes_4:
         d = c.total_debit or Decimal('0')
@@ -1958,7 +1985,7 @@ def _get_bilan_data(request):
         if d > cr:
             actif_circulant.append({'numero_compte': c.numero_compte, 'intitule': c.intitule, 'solde': d - cr, 'debiteur': True})
     
-    capitaux_propres = get_comptes_avec_solde(['1'])
+    capitaux_propres = get_comptes_avec_solde(['1'], 'credit')
     dettes = []
     for c in comptes_4:
         d = c.total_debit or Decimal('0')
@@ -2174,29 +2201,30 @@ def bilan_pdf(request):
 def _get_compte_resultat_data(request):
     """Helper pour récupérer les données du compte de résultat"""
     entreprise = request.user.entreprise
-    exercice = ExerciceComptable.objects.filter(entreprise=entreprise, est_courant=True).first()
+    exercice = _exercice_reference(entreprise)
+    filtre_lignes = _filtre_lignes_etat(exercice)
     
-    def get_comptes_classe(classe_prefix):
+    def get_comptes_classe(classe_prefix, sens):
         comptes = PlanComptable.objects.filter(
             entreprise=entreprise, numero_compte__startswith=classe_prefix, est_actif=True
         ).annotate(
-            total_debit=Sum('lignes_ecritures__montant_debit'),
-            total_credit=Sum('lignes_ecritures__montant_credit')
+            total_debit=Sum('lignes_ecritures__montant_debit', filter=filtre_lignes),
+            total_credit=Sum('lignes_ecritures__montant_credit', filter=filtre_lignes)
         ).order_by('numero_compte')
         
         result = []
         for c in comptes:
             d = c.total_debit or Decimal('0')
             cr = c.total_credit or Decimal('0')
-            solde = d - cr if d > cr else cr - d
+            solde = (d - cr) if sens == 'debit' else (cr - d)
             if solde > 0:
                 result.append({'numero_compte': c.numero_compte, 'intitule': c.intitule, 'solde': solde})
         return result
     
-    charges_exploitation = get_comptes_classe('60') + get_comptes_classe('61') + get_comptes_classe('62') + get_comptes_classe('63') + get_comptes_classe('64') + get_comptes_classe('65')
-    charges_financieres = get_comptes_classe('66') + get_comptes_classe('67')
-    produits_exploitation = get_comptes_classe('70') + get_comptes_classe('71') + get_comptes_classe('72') + get_comptes_classe('73') + get_comptes_classe('74') + get_comptes_classe('75')
-    produits_financiers = get_comptes_classe('76') + get_comptes_classe('77')
+    charges_exploitation = get_comptes_classe('60', 'debit') + get_comptes_classe('61', 'debit') + get_comptes_classe('62', 'debit') + get_comptes_classe('63', 'debit') + get_comptes_classe('64', 'debit') + get_comptes_classe('65', 'debit')
+    charges_financieres = get_comptes_classe('66', 'debit') + get_comptes_classe('67', 'debit') + get_comptes_classe('68', 'debit') + get_comptes_classe('69', 'debit')
+    produits_exploitation = get_comptes_classe('70', 'credit') + get_comptes_classe('71', 'credit') + get_comptes_classe('72', 'credit') + get_comptes_classe('73', 'credit') + get_comptes_classe('74', 'credit') + get_comptes_classe('75', 'credit')
+    produits_financiers = get_comptes_classe('76', 'credit') + get_comptes_classe('77', 'credit') + get_comptes_classe('78', 'credit') + get_comptes_classe('79', 'credit')
     
     total_charges = sum(c['solde'] for c in charges_exploitation) + sum(c['solde'] for c in charges_financieres)
     total_produits = sum(c['solde'] for c in produits_exploitation) + sum(c['solde'] for c in produits_financiers)

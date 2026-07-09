@@ -101,10 +101,16 @@ try:
 
     # États financiers
     grand_livre_view = comptabilite_views.grand_livre
+    grand_livre_pdf_view = comptabilite_views.grand_livre_pdf
+    grand_livre_excel_view = comptabilite_views.grand_livre_excel
     balance_view = comptabilite_views.balance
+    balance_pdf_view = comptabilite_views.balance_pdf
+    balance_excel_view = comptabilite_views.balance_excel
     journal_general_view = comptabilite_views.journal_general
     bilan_view = comptabilite_views.bilan
+    bilan_pdf_view = comptabilite_views.bilan_pdf
     compte_resultat_view = comptabilite_views.compte_resultat
+    compte_resultat_pdf_view = comptabilite_views.compte_resultat_pdf
     compte_fournisseur_list_view = comptabilite_views.compte_fournisseur_list
     compte_fournisseur_detail_view = comptabilite_views.compte_fournisseur_detail
     compte_client_list_view = comptabilite_views.compte_client_list
@@ -1712,18 +1718,25 @@ compte_fournisseur_patterns = [
 ]
 
 # États Financiers URLs
+grand_livre_pdf_view = globals().get('grand_livre_pdf_view', grand_livre_view)
+grand_livre_excel_view = globals().get('grand_livre_excel_view', grand_livre_view)
+balance_pdf_view = globals().get('balance_pdf_view', balance_view)
+balance_excel_view = globals().get('balance_excel_view', balance_view)
+bilan_pdf_view = globals().get('bilan_pdf_view', bilan_view)
+compte_resultat_pdf_view = globals().get('compte_resultat_pdf_view', compte_resultat_view)
+
 etats_patterns = [
     path('grand-livre/', grand_livre_view, name='grand_livre'),
-    path('grand-livre/pdf/', grand_livre_view, name='grand_livre_pdf'),
-    path('grand-livre/excel/', grand_livre_view, name='grand_livre_excel'),
+    path('grand-livre/pdf/', grand_livre_pdf_view, name='grand_livre_pdf'),
+    path('grand-livre/excel/', grand_livre_excel_view, name='grand_livre_excel'),
     path('balance/', balance_view, name='balance'),
-    path('balance/pdf/', balance_view, name='balance_pdf'),
-    path('balance/excel/', balance_view, name='balance_excel'),
+    path('balance/pdf/', balance_pdf_view, name='balance_pdf'),
+    path('balance/excel/', balance_excel_view, name='balance_excel'),
     path('journal-general/', journal_general_view, name='journal_general'),
     path('bilan/', bilan_view, name='bilan'),
-    path('bilan/pdf/', bilan_view, name='bilan_pdf'),
+    path('bilan/pdf/', bilan_pdf_view, name='bilan_pdf'),
     path('compte-resultat/', compte_resultat_view, name='compte_resultat'),
-    path('compte-resultat/pdf/', compte_resultat_view, name='compte_resultat_pdf'),
+    path('compte-resultat/pdf/', compte_resultat_pdf_view, name='compte_resultat_pdf'),
 ]
 
 # ============================================================================
