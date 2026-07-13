@@ -481,22 +481,18 @@ class LigneDeclarationTVACreateView(
         form.instance.declaration = self.declaration
         response = super().form_valid(form)
         
-        # Recalculer les montants de la déclaration
+        # Recalculer et enregistrer les totaux (champs réels du modèle DeclarationTVA)
         service = CalculTVAService(self.request.user)
         try:
-            montants = service.calculer_montants_declaration(self.declaration)
-            self.declaration.montant_total_ht = montants['montant_ht']
-            self.declaration.montant_total_tva = montants['montant_tva']
-            self.declaration.montant_total_ttc = montants['montant_ttc']
-            self.declaration.save()
+            service.appliquer_montants_declaration(self.declaration)
         except Exception as e:
             logger.error(f"Erreur recalcul montants: {e}")
-        
+
         return response
-    
+
     def get_success_url(self):
         return self.declaration.get_absolute_url()
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['declaration'] = self.declaration
@@ -536,19 +532,13 @@ class LigneDeclarationTVAUpdateView(
     def form_valid(self, form):
         response = super().form_valid(form)
         
-        # Recalculer les montants de la déclaration
+        # Recalculer et enregistrer les totaux (champs réels du modèle DeclarationTVA)
         service = CalculTVAService(self.request.user)
         try:
-            montants = service.calculer_montants_declaration(
-                self.object.declaration
-            )
-            self.object.declaration.montant_total_ht = montants['montant_ht']
-            self.object.declaration.montant_total_tva = montants['montant_tva']
-            self.object.declaration.montant_total_ttc = montants['montant_ttc']
-            self.object.declaration.save()
+            service.appliquer_montants_declaration(self.object.declaration)
         except Exception as e:
             logger.error(f"Erreur recalcul montants: {e}")
-        
+
         return response
     
     def get_success_url(self):
@@ -590,14 +580,10 @@ class LigneDeclarationTVADeleteView(
         declaration = self.object.declaration
         response = super().delete(request, *args, **kwargs)
         
-        # Recalculer les montants de la déclaration
+        # Recalculer et enregistrer les totaux (champs réels du modèle DeclarationTVA)
         service = CalculTVAService(request.user)
         try:
-            montants = service.calculer_montants_declaration(declaration)
-            declaration.montant_total_ht = montants['montant_ht']
-            declaration.montant_total_tva = montants['montant_tva']
-            declaration.montant_total_ttc = montants['montant_ttc']
-            declaration.save()
+            service.appliquer_montants_declaration(declaration)
         except Exception as e:
             logger.error(f"Erreur recalcul montants: {e}")
         

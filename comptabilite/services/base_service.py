@@ -41,27 +41,34 @@ class BaseComptaService:
         self.errors = []
         self.warnings = []
     
+    @property
+    def erreurs(self):
+        """Alias français de self.errors (utilisé par plusieurs services)."""
+        return self.errors
+
     def valider(self, conditions):
         """
         Valide une condition métier.
-        
+
+        La liste d'erreurs est réinitialisée à chaque appel : un échec de
+        validation antérieur ne doit pas faire rejeter un calcul valide
+        effectué ensuite avec la même instance de service.
+
         Args:
             conditions: Dict de {message: booléen}
-        
+
         Raises:
             ValidationError si une condition est fausse
         """
-        for message, condition in conditions.items():
-            if not condition:
-                self.errors.append(message)
-        
+        self.errors = [message for message, condition in conditions.items() if not condition]
         if self.errors:
             raise ValidationError('; '.join(self.errors))
-    
+
     def avertissement(self, message):
         """Enregistre un avertissement."""
         self.warnings.append(message)
-        logger.warning(f"[{self.entreprise.nom_entreprise}] {message}")
+        nom = getattr(self.entreprise, 'nom_entreprise', self.entreprise)
+        logger.warning(f"[{nom}] {message}")
     
     def enregistrer_audit(self, action, module, type_objet, id_objet, details=None):
         """

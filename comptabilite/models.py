@@ -173,7 +173,12 @@ class EcritureComptable(models.Model):
     
     @property
     def est_equilibree(self):
-        return self.total_debit == self.total_credit
+        """Équilibrée = au moins une ligne ET total débit = total crédit.
+
+        Une écriture sans aucune ligne ne doit jamais être considérée comme
+        équilibrée (0 == 0), sinon elle pourrait être validée vide.
+        """
+        return self.lignes.exists() and self.total_debit == self.total_credit
 
 
 class LigneEcriture(models.Model):
@@ -186,14 +191,36 @@ class LigneEcriture(models.Model):
     centre_analyse = models.ForeignKey('CentreAnalyse', on_delete=models.SET_NULL, null=True, blank=True,
                                        related_name='lignes_ecritures',
                                        verbose_name='Dimension analytique (projet, agence, centre de coût…)')
-    
+
     class Meta:
         db_table = 'lignes_ecritures'
         verbose_name = 'Ligne d\'écriture'
         verbose_name_plural = 'Lignes d\'écritures'
-    
+
     def __str__(self):
         return f"{self.compte.numero_compte} - D:{self.montant_debit} C:{self.montant_credit}"
+
+    def _valider_montants(self):
+        """Règles comptables de base sur les montants d'une ligne."""
+        from django.core.exceptions import ValidationError
+        debit = self.montant_debit or Decimal('0.00')
+        credit = self.montant_credit or Decimal('0.00')
+        if debit < 0 or credit < 0:
+            raise ValidationError("Les montants d'une ligne d'écriture ne peuvent pas être négatifs.")
+        if debit > 0 and credit > 0:
+            raise ValidationError("Une ligne d'écriture ne peut pas porter à la fois un débit et un crédit.")
+        if debit == 0 and credit == 0:
+            raise ValidationError("Une ligne d'écriture doit porter un débit ou un crédit non nul.")
+
+    def clean(self):
+        super().clean()
+        self._valider_montants()
+
+    def save(self, *args, **kwargs):
+        # Les lignes sont souvent créées via objects.create() (sans formulaire) :
+        # on applique les règles de montants à chaque enregistrement.
+        self._valider_montants()
+        super().save(*args, **kwargs)
 
 
 class Tiers(models.Model):
@@ -1749,27 +1776,34 @@ class DeclarationTVA(models.Model):
 
 class LigneDeclarationTVA(models.Model):
     """Lignes de détail dans une déclaration TVA"""
-    
+
     TYPES = [
         ('OPERATIONS', 'Opérations'),
         ('AJUSTEMENT', 'Ajustement'),
         ('CORRECTION', 'Correction'),
         ('OPTION', 'Option'),
     ]
-    
+    SENS = [
+        ('COLLECTEE', 'TVA collectée (ventes)'),
+        ('DEDUCTIBLE', 'TVA déductible (achats)'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     declaration = models.ForeignKey(DeclarationTVA, on_delete=models.CASCADE, related_name='lignes')
-    
+
     # Contenu
     numero_ligne = models.PositiveIntegerField(help_text='Numéro de ligne dans déclaration')
     description = models.CharField(max_length=200)
     taux = models.ForeignKey(TauxTVA, on_delete=models.PROTECT)
-    
+
     # Montants
     montant_ht = models.DecimalField(max_digits=15, decimal_places=2)
     montant_tva = models.DecimalField(max_digits=15, decimal_places=2)
-    
+
     type_ligne = models.CharField(max_length=20, choices=TYPES, default='OPERATIONS')
+    sens = models.CharField(max_length=12, choices=SENS, default='COLLECTEE',
+                            verbose_name='Sens de la TVA',
+                            help_text='Collectée sur les ventes ou déductible sur les achats')
     
     # Références
     compte_comptable = models.ForeignKey(PlanComptable, on_delete=models.PROTECT, null=True, blank=True)

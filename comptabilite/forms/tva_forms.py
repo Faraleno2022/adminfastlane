@@ -231,7 +231,7 @@ class LigneDeclarationTVAForm(ComptaBaseForm):
     
     class Meta:
         model = LigneDeclarationTVA
-        fields = ['numero_ligne', 'description', 'taux', 'montant_ht', 'montant_tva', 'type_ligne', 'compte_comptable']
+        fields = ['numero_ligne', 'description', 'taux', 'sens', 'montant_ht', 'montant_tva', 'type_ligne', 'compte_comptable']
         widgets = {
             'numero_ligne': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -242,6 +242,9 @@ class LigneDeclarationTVAForm(ComptaBaseForm):
                 'class': 'form-control',
             }),
             'taux': forms.Select(attrs={
+                'class': 'form-control',
+            }),
+            'sens': forms.Select(attrs={
                 'class': 'form-control',
             }),
             'montant_ht': forms.NumberInput(attrs={

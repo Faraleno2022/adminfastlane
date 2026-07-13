@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from core.decorators import reauth_required
 from django.contrib import messages
 from django.db.models import Sum, Q, F, Count
@@ -499,32 +500,36 @@ def ecriture_create(request):
     if request.method == 'POST':
         form = EcritureForm(request.POST, entreprise=entreprise)
         if form.is_valid():
-            ecriture = form.save(commit=False)
-            ecriture.entreprise = entreprise
-            ecriture.save()
-            
-            # Traiter les lignes d'écriture
-            comptes_ids = request.POST.getlist('compte[]')
-            libelles = request.POST.getlist('libelle_ligne[]')
-            debits = request.POST.getlist('debit[]')
-            credits = request.POST.getlist('credit[]')
-            
-            for i, compte_id in enumerate(comptes_ids):
-                if compte_id:
-                    debit = Decimal(debits[i]) if debits[i] else Decimal('0')
-                    credit = Decimal(credits[i]) if credits[i] else Decimal('0')
-                    
-                    if debit > 0 or credit > 0:
-                        LigneEcriture.objects.create(
-                            ecriture=ecriture,
-                            compte_id=compte_id,
-                            libelle=libelles[i] if i < len(libelles) else '',
-                            montant_debit=debit,
-                            montant_credit=credit
-                        )
-            
-            messages.success(request, f"Écriture {ecriture.numero_ecriture} créée avec {ecriture.lignes.count()} lignes.")
-            return redirect('comptabilite:ecriture_detail', pk=ecriture.pk)
+            try:
+                with transaction.atomic():
+                    ecriture = form.save(commit=False)
+                    ecriture.entreprise = entreprise
+                    ecriture.save()
+
+                    # Traiter les lignes d'écriture
+                    comptes_ids = request.POST.getlist('compte[]')
+                    libelles = request.POST.getlist('libelle_ligne[]')
+                    debits = request.POST.getlist('debit[]')
+                    credits = request.POST.getlist('credit[]')
+
+                    for i, compte_id in enumerate(comptes_ids):
+                        if compte_id:
+                            debit = Decimal(debits[i]) if debits[i] else Decimal('0')
+                            credit = Decimal(credits[i]) if credits[i] else Decimal('0')
+
+                            if debit != 0 or credit != 0:
+                                LigneEcriture.objects.create(
+                                    ecriture=ecriture,
+                                    compte_id=compte_id,
+                                    libelle=libelles[i] if i < len(libelles) else '',
+                                    montant_debit=debit,
+                                    montant_credit=credit
+                                )
+
+                messages.success(request, f"Écriture {ecriture.numero_ecriture} créée avec {ecriture.lignes.count()} lignes.")
+                return redirect('comptabilite:ecriture_detail', pk=ecriture.pk)
+            except ValidationError as e:
+                messages.error(request, "Ligne d'écriture invalide : " + '; '.join(e.messages))
     else:
         form = EcritureForm(entreprise=entreprise)
     
@@ -563,32 +568,36 @@ def ecriture_update(request, pk):
     if request.method == 'POST':
         form = EcritureForm(request.POST, instance=ecriture, entreprise=request.user.entreprise)
         if form.is_valid():
-            form.save()
-            
-            # Supprimer les anciennes lignes et recréer
-            ecriture.lignes.all().delete()
-            
-            comptes_ids = request.POST.getlist('compte[]')
-            libelles = request.POST.getlist('libelle_ligne[]')
-            debits = request.POST.getlist('debit[]')
-            credits = request.POST.getlist('credit[]')
-            
-            for i, compte_id in enumerate(comptes_ids):
-                if compte_id:
-                    debit = Decimal(debits[i]) if debits[i] else Decimal('0')
-                    credit = Decimal(credits[i]) if credits[i] else Decimal('0')
-                    
-                    if debit > 0 or credit > 0:
-                        LigneEcriture.objects.create(
-                            ecriture=ecriture,
-                            compte_id=compte_id,
-                            libelle=libelles[i] if i < len(libelles) else '',
-                            montant_debit=debit,
-                            montant_credit=credit
-                        )
-            
-            messages.success(request, "Écriture modifiée avec succès.")
-            return redirect('comptabilite:ecriture_detail', pk=pk)
+            try:
+                with transaction.atomic():
+                    form.save()
+
+                    # Supprimer les anciennes lignes et recréer
+                    ecriture.lignes.all().delete()
+
+                    comptes_ids = request.POST.getlist('compte[]')
+                    libelles = request.POST.getlist('libelle_ligne[]')
+                    debits = request.POST.getlist('debit[]')
+                    credits = request.POST.getlist('credit[]')
+
+                    for i, compte_id in enumerate(comptes_ids):
+                        if compte_id:
+                            debit = Decimal(debits[i]) if debits[i] else Decimal('0')
+                            credit = Decimal(credits[i]) if credits[i] else Decimal('0')
+
+                            if debit != 0 or credit != 0:
+                                LigneEcriture.objects.create(
+                                    ecriture=ecriture,
+                                    compte_id=compte_id,
+                                    libelle=libelles[i] if i < len(libelles) else '',
+                                    montant_debit=debit,
+                                    montant_credit=credit
+                                )
+
+                messages.success(request, "Écriture modifiée avec succès.")
+                return redirect('comptabilite:ecriture_detail', pk=pk)
+            except ValidationError as e:
+                messages.error(request, "Ligne d'écriture invalide : " + '; '.join(e.messages))
     else:
         form = EcritureForm(instance=ecriture, entreprise=request.user.entreprise)
     

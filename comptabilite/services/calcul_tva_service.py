@@ -17,8 +17,10 @@ class CalculTVAService(BaseComptaService):
     - Application taux spécifiques
     """
     
-    def __init__(self, utilisateur: User):
-        super().__init__(utilisateur)
+    def __init__(self, utilisateur=None):
+        # BaseComptaService attend (entreprise, utilisateur) : passer l'utilisateur
+        # en premier argument rattachait l'utilisateur au champ entreprise.
+        super().__init__(entreprise=getattr(utilisateur, 'entreprise', None), utilisateur=utilisateur)
         self.service_name = 'CalculTVAService'
     
     def calculer_tva(self, montant_ht: Decimal, taux: Decimal) -> Decimal:
@@ -156,22 +158,82 @@ class CalculTVAService(BaseComptaService):
                                    type_taux: str = 'NORMAL') -> dict:
         """
         Calcule TVA en utilisant les taux du régime
-        
+
         Args:
             montant_ht: Montant HT
             regime_tva: Le régime TVA
             type_taux: Type de taux (NORMAL, REDUIT, SUPER_REDUIT)
-        
+
         Returns:
             dict avec les montants calculés
         """
         try:
+            # get_taux_applicable renvoie un Decimal (pas un objet TauxTVA) :
+            # calculer directement avec ce taux au lieu d'appliquer_taux().
             taux = regime_tva.get_taux_applicable(type_taux)
-            return self.appliquer_taux(montant_ht, taux)
-            
+            montant_ht = Decimal(str(montant_ht))
+            montant_tva = self.calculer_tva(montant_ht, taux)
+            return {
+                'montant_ht': montant_ht,
+                'montant_tva': montant_tva,
+                'montant_ttc': montant_ht + montant_tva,
+                'taux': Decimal(str(taux)),
+                'taux_nom': type_taux,
+            }
+
         except Exception as e:
             self.avertissement(f"Erreur calcul depuis régime: {str(e)}")
             return {}
+
+    def calculer_montants_declaration(self, declaration) -> dict:
+        """
+        Recalcule les totaux d'une déclaration TVA à partir de ses lignes,
+        en répartissant la TVA selon le sens de chaque ligne :
+        - COLLECTEE  : TVA facturée sur les ventes
+        - DEDUCTIBLE : TVA récupérable sur les achats
+        TVA due = collectée − déductible.
+
+        Les clés renvoyées correspondent aux champs du modèle DeclarationTVA.
+
+        Args:
+            declaration: Instance de DeclarationTVA
+
+        Returns:
+            dict {'montant_ht', 'montant_tva_collecte',
+                  'montant_tva_deductible', 'montant_tva_due'}
+        """
+        montant_ht = Decimal('0.00')
+        tva_collectee = Decimal('0.00')
+        tva_deductible = Decimal('0.00')
+        for ligne in declaration.lignes.all():
+            montant_ht += ligne.montant_ht or Decimal('0.00')
+            tva = ligne.montant_tva or Decimal('0.00')
+            if getattr(ligne, 'sens', 'COLLECTEE') == 'DEDUCTIBLE':
+                tva_deductible += tva
+            else:
+                tva_collectee += tva
+        return {
+            'montant_ht': montant_ht,
+            'montant_tva_collecte': tva_collectee,
+            'montant_tva_deductible': tva_deductible,
+            'montant_tva_due': tva_collectee - tva_deductible,
+        }
+
+    def appliquer_montants_declaration(self, declaration) -> dict:
+        """
+        Recalcule ET enregistre les totaux sur la déclaration (champs réels du
+        modèle), puis renvoie le dict des montants.
+        """
+        montants = self.calculer_montants_declaration(declaration)
+        declaration.montant_ht = montants['montant_ht']
+        declaration.montant_tva_collecte = montants['montant_tva_collecte']
+        declaration.montant_tva_deductible = montants['montant_tva_deductible']
+        declaration.montant_tva_due = montants['montant_tva_due']
+        declaration.save(update_fields=[
+            'montant_ht', 'montant_tva_collecte',
+            'montant_tva_deductible', 'montant_tva_due',
+        ])
+        return montants
     
     def obtenir_taux_effectif(self, montant_ht: Decimal, montant_tva: Decimal) -> Decimal:
         """
