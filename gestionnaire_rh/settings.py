@@ -33,6 +33,13 @@ else:
 # Bloquer temporairement les inscriptions (True = inscriptions bloquées)
 REGISTRATION_DISABLED = config('REGISTRATION_DISABLED', default=True, cast=bool)
 
+# Application de la licence (blocage web si licence/essai expiré).
+# Activée uniquement pour la version de bureau (exécutable PyInstaller figé).
+# Pour la version EN LIGNE (serveur, non figé), la demande de licence est
+# désactivée par défaut. Surchargeable via la variable d'environnement
+# LICENCE_ENFORCEMENT (True/False).
+LICENCE_ENFORCEMENT = config('LICENCE_ENFORCEMENT', default=PYINSTALLER_MODE, cast=bool)
+
 # Code de vérification administrateur pour créer un compte
 ADMIN_REGISTRATION_CODE = config('ADMIN_REGISTRATION_CODE', default='625196629')
 

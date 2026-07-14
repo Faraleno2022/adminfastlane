@@ -4,6 +4,8 @@ Bloque l'accès web si la licence ou l'essai sont expirés.
 Vérifié à chaque requête (avec cache 5 min pour la performance).
 """
 import time
+from django.conf import settings
+from django.core.exceptions import MiddlewareNotUsed
 from django.shortcuts import redirect
 from django.http import HttpResponse
 from django.contrib import messages
@@ -89,6 +91,11 @@ class LicenceMiddleware:
     EXEMPT_EXACT = {'/', '/login/', '/core/login/'}
 
     def __init__(self, get_response):
+        # Désactiver totalement le middleware si l'application de la licence
+        # est off (version en ligne). MiddlewareNotUsed le retire de la chaîne
+        # au démarrage : aucune vérification ni page de blocage.
+        if not getattr(settings, 'LICENCE_ENFORCEMENT', True):
+            raise MiddlewareNotUsed()
         self.get_response = get_response
 
     def __call__(self, request):
