@@ -119,20 +119,27 @@ class MouvementViewSet(mixins.CreateModelMixin, BaseStockViewSet):
         quantite = data['quantite']
         prix = data.get('prix_unitaire') or Decimal('0')
 
-        if type_mvt == 'sortie' and quantite > article.stock_dans(depot):
-            return Response(
-                {'detail': f"Stock insuffisant dans {depot.nom} ({article.stock_dans(depot)} disponible(s))."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         with transaction.atomic():
             verrou = Article.objects.select_for_update().get(pk=article.pk)
+            stock_depot = verrou.stock_dans(depot)
+            if type_mvt == 'sortie' and quantite > stock_depot:
+                return Response(
+                    {'detail': f"Stock insuffisant dans {depot.nom} ({stock_depot} disponible(s))."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             stock_avant = verrou.quantite_stock or Decimal('0')
             avant, apres = appliquer_mouvement_depot(verrou, depot, type_mvt, quantite)
             if type_mvt == 'entree':
                 maj_cmup(verrou, quantite, prix, stock_avant)
+                prix_mouvement = prix
+                quantite_mouvement = quantite
+            else:
+                prix_mouvement = verrou.cout_unitaire
+                quantite_mouvement = apres - avant if type_mvt == 'ajustement' else quantite
             mvt = MouvementStock.objects.create(
                 entreprise=entreprise, article=verrou, depot=depot, type_mouvement=type_mvt,
-                quantite=quantite, quantite_avant=avant, quantite_apres=apres, prix_unitaire=prix,
+                quantite=quantite_mouvement, quantite_avant=avant, quantite_apres=apres,
+                prix_unitaire=prix_mouvement,
                 motif=data.get('motif', ''), cree_par=request.user,
             )
         return Response(s.MouvementSerializer(mvt).data, status=status.HTTP_201_CREATED)

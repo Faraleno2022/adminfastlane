@@ -9,6 +9,7 @@ même principe que les modules RH, Comptabilité et Secrétariat.
 from decimal import Decimal
 
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils import timezone
 
 from core.models import Entreprise, Utilisateur, Service
@@ -567,7 +568,10 @@ class FactureFournisseur(models.Model):
     date_facture = models.DateField(default=timezone.now, verbose_name='Date de facture')
     date_echeance = models.DateField(null=True, blank=True, verbose_name="Date d'échéance")
     montant_ht = models.DecimalField(max_digits=16, decimal_places=2, default=0, verbose_name='Montant HT (GNF)')
-    taux_tva = models.DecimalField(max_digits=5, decimal_places=2, default=18, verbose_name='Taux TVA (%)')
+    taux_tva = models.DecimalField(
+        max_digits=5, decimal_places=2, default=18, verbose_name='Taux TVA (%)',
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
+    )
     montant_paye = models.DecimalField(max_digits=16, decimal_places=2, default=0, verbose_name='Montant payé (GNF)')
     statut = models.CharField(max_length=10, choices=STATUTS, default='impayee')
     notes = models.TextField(blank=True)
@@ -711,8 +715,10 @@ class Client(models.Model):
     email = models.EmailField(blank=True, verbose_name='Email')
     adresse = models.TextField(blank=True, verbose_name='Adresse')
     nif = models.CharField(max_length=50, blank=True, verbose_name='NIF')
-    remise_defaut = models.DecimalField(max_digits=5, decimal_places=2, default=0,
-                                        verbose_name='Remise habituelle (%)')
+    remise_defaut = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0, verbose_name='Remise habituelle (%)',
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
+    )
     actif = models.BooleanField(default=True)
     observations = models.TextField(blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -835,8 +841,14 @@ class DocumentVente(models.Model):
                               related_name='documents_vente', verbose_name='Dépôt de livraison')
     date_document = models.DateField(default=timezone.now, verbose_name='Date')
     date_echeance = models.DateField(null=True, blank=True, verbose_name="Validité / Échéance")
-    remise_globale_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='Remise globale (%)')
-    taux_tva = models.DecimalField(max_digits=5, decimal_places=2, default=18, verbose_name='Taux TVA (%)')
+    remise_globale_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0, verbose_name='Remise globale (%)',
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
+    )
+    taux_tva = models.DecimalField(
+        max_digits=5, decimal_places=2, default=18, verbose_name='Taux TVA (%)',
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
+    )
     statut = models.CharField(max_length=10, choices=STATUTS, default='brouillon')
     montant_paye = models.DecimalField(max_digits=16, decimal_places=2, default=0, verbose_name='Montant encaissé (GNF)')
     notes = models.TextField(blank=True)
@@ -905,7 +917,10 @@ class LigneVente(models.Model):
     article = models.ForeignKey(Article, on_delete=models.PROTECT, related_name='lignes_vente')
     quantite = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Quantité')
     prix_unitaire = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Prix unitaire (GNF)')
-    remise_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='Remise (%)')
+    remise_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0, verbose_name='Remise (%)',
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
+    )
     quantite_livree = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Quantité livrée')
 
     class Meta:

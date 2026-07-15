@@ -55,6 +55,8 @@ def appliquer_mouvement_depot(article, depot, type_mouvement, quantite):
     if type_mouvement == 'entree':
         apres = avant + quantite
     elif type_mouvement == 'sortie':
+        if quantite > avant:
+            raise ValueError(f"Stock insuffisant : {avant} disponible(s), {quantite} demandée(s).")
         apres = avant - quantite
     else:  # ajustement : la quantité devient le stock réel du dépôt
         apres = quantite
@@ -529,6 +531,10 @@ def mouvement_create(request):
                 # Entrée d'achat avec prix : mise à jour du CMUP.
                 if mouvement.type_mouvement == 'entree':
                     maj_cmup(article, quantite, mouvement.prix_unitaire, stock_global_avant)
+                else:
+                    mouvement.prix_unitaire = article.cout_unitaire
+                    if mouvement.type_mouvement == 'ajustement':
+                        mouvement.quantite = apres - avant
                 mouvement.entreprise = entreprise
                 mouvement.quantite_avant = avant
                 mouvement.quantite_apres = apres
@@ -670,6 +676,17 @@ def transfert_create(request):
             with transaction.atomic():
                 transfert = form.save(commit=False)
                 article = Article.objects.select_for_update().get(pk=transfert.article_id, entreprise=entreprise)
+                stock_source = article.stock_dans(transfert.depot_source)
+                if transfert.quantite > stock_source:
+                    form.add_error(
+                        'quantite',
+                        f"Stock insuffisant dans {transfert.depot_source.nom} : "
+                        f"{stock_source} disponible(s).",
+                    )
+                    return render(request, 'stock/form.html', {
+                        'form': form, 'titre': 'Nouveau transfert',
+                        'retour': 'stock:transfert_list',
+                    })
                 transfert.entreprise = entreprise
                 transfert.reference = _generer_reference(Transfert, entreprise, 'TRF')
                 transfert.cree_par = request.user
@@ -682,7 +699,7 @@ def transfert_create(request):
                 MouvementStock.objects.create(
                     entreprise=entreprise, article=article, depot=transfert.depot_source,
                     type_mouvement='transfert', quantite=transfert.quantite,
-                    quantite_avant=av_s, quantite_apres=ap_s, prix_unitaire=article.prix_achat,
+                    quantite_avant=av_s, quantite_apres=ap_s, prix_unitaire=article.cout_unitaire,
                     motif=f"Transfert vers {transfert.depot_destination.nom}", reference_document=ref,
                     date_mouvement=transfert.date_transfert, cree_par=request.user,
                 )
@@ -691,7 +708,7 @@ def transfert_create(request):
                 MouvementStock.objects.create(
                     entreprise=entreprise, article=article, depot=transfert.depot_destination,
                     type_mouvement='transfert', quantite=transfert.quantite,
-                    quantite_avant=av_d, quantite_apres=ap_d, prix_unitaire=article.prix_achat,
+                    quantite_avant=av_d, quantite_apres=ap_d, prix_unitaire=article.cout_unitaire,
                     motif=f"Transfert depuis {transfert.depot_source.nom}", reference_document=ref,
                     date_mouvement=transfert.date_transfert, cree_par=request.user,
                 )
@@ -818,10 +835,10 @@ def inventaire_valider(request, pk):
                     article=article,
                     depot=depot,
                     type_mouvement='ajustement',
-                    quantite=ligne.quantite_physique,
+                    quantite=apres - avant,
                     quantite_avant=avant,
                     quantite_apres=apres,
-                    prix_unitaire=article.prix_achat,
+                    prix_unitaire=article.cout_unitaire,
                     motif=f"Ajustement inventaire {inv.reference} ({depot.nom})",
                     reference_document=inv.reference,
                     cree_par=request.user,
@@ -1942,7 +1959,7 @@ def livraison_create(request, pk):
                     MouvementStock.objects.create(
                         entreprise=entreprise, article=article, depot=depot,
                         type_mouvement='sortie', quantite=qte, quantite_avant=avant, quantite_apres=apres,
-                        prix_unitaire=ligne.prix_unitaire, motif=f"Livraison {bl.reference} - {doc.client.nom}",
+                        prix_unitaire=article.cout_unitaire, motif=f"Livraison {bl.reference} - {doc.client.nom}",
                         reference_document=doc.reference, date_mouvement=timezone.now(), cree_par=request.user,
                     )
                     LigneLivraison.objects.create(livraison=bl, ligne_vente=ligne, quantite=qte)

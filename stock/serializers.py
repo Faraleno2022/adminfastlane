@@ -100,6 +100,7 @@ class MouvementCreateSerializer(serializers.Serializer):
     motif = serializers.CharField(required=False, allow_blank=True, default='')
 
     def validate_quantite(self, v):
-        if v is None or v < 0:
+        type_mouvement = self.initial_data.get('type_mouvement')
+        if v is None or (type_mouvement == 'ajustement' and v < 0) or (type_mouvement != 'ajustement' and v <= 0):
             raise serializers.ValidationError("Quantité invalide.")
         return v
