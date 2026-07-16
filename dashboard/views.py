@@ -111,8 +111,11 @@ def _build_repartition_service_paie(bulletins, effectif_total):
         brut = Decimal(str(bulletin.salaire_brut or 0))
         cnss_18 = Decimal(str(bulletin.cnss_employeur or attendu['cnss_18']))
         vf = Decimal(str(bulletin.versement_forfaitaire or attendu['vf']))
-        ta = attendu['ta'] if effectif_total < 30 else Decimal('0')
-        onfpp = attendu['onfpp'] if effectif_total >= 30 else Decimal('0')
+        # Les montants des bulletins sont deja arrondis individuellement.
+        # Les additionner evite les ecarts entre le total affiche et les
+        # declarations, qui reposent elles aussi sur les bulletins figes.
+        ta = Decimal(str(bulletin.taxe_apprentissage or 0))
+        onfpp = Decimal(str(bulletin.contribution_onfpp or 0))
 
         row['effectif'] += 1
         if bulletin.employe.sexe == 'M':
@@ -459,9 +462,9 @@ def index(request):
         cnss_5=Sum('cnss_employe'),
         cnss_18=Sum('cnss_employeur'),
     )
-    if context.get('total_employes', 0) >= 30:
-        totaux['ta'] = Decimal('0')
-        totaux['onfpp'] = ((totaux.get('base_vf') or Decimal('0')) * Decimal('0.015')).quantize(Decimal('1'))
+    # Conserver les sommes des charges arrondies bulletin par bulletin.
+    # Recalculer un taux sur la base globale cree des ecarts d'arrondi et
+    # masque les eventuelles anomalies, deja exposees par le risque fiscal.
     context.update(_build_paie_totaux_context(totaux))
     context['risque_fiscal'] = _build_risque_fiscal_paie(bulletins_paie, context.get('total_employes', 0))
     context['repartition_service_paie'] = _build_repartition_service_paie(

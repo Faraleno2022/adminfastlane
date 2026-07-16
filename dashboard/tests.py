@@ -91,5 +91,5 @@ class DashboardPaieTotauxTests(SimpleTestCase):
         self.assertEqual(len(lignes), 1)
         self.assertEqual(lignes[0]['nom'], 'Administration')
         self.assertEqual(lignes[0]['effectif'], 1)
-        self.assertEqual(lignes[0]['onfpp'], Decimal('112500'))
-        self.assertEqual(lignes[0]['masse_salariale'], Decimal('11153500'))
+        self.assertEqual(lignes[0]['onfpp'], Decimal('147750'))
+        self.assertEqual(lignes[0]['masse_salariale'], Decimal('11188750'))
