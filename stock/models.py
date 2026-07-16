@@ -6,7 +6,7 @@ Gestion des articles, catégories, fournisseurs, mouvements de stock
 Tous les modèles sont rattachés à une entreprise (multi-entreprise) sur le
 même principe que les modules RH, Comptabilité et Secrétariat.
 """
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -589,7 +589,8 @@ class FactureFournisseur(models.Model):
 
     @property
     def montant_tva(self):
-        return (self.montant_ht or Decimal('0')) * (self.taux_tva or Decimal('0')) / Decimal('100')
+        return ((self.montant_ht or Decimal('0')) * (self.taux_tva or Decimal('0')) / Decimal('100')).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     @property
     def montant_ttc(self):
@@ -872,15 +873,18 @@ class DocumentVente(models.Model):
     @property
     def total_ht(self):
         brut = sum((l.montant for l in self.lignes.all()), Decimal('0'))
-        return brut * (Decimal('1') - (self.remise_globale_pct or Decimal('0')) / Decimal('100'))
+        return (brut * (Decimal('1') - (self.remise_globale_pct or Decimal('0')) / Decimal('100'))).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     @property
     def montant_tva(self):
-        return self.total_ht * (self.taux_tva or Decimal('0')) / Decimal('100')
+        return (self.total_ht * (self.taux_tva or Decimal('0')) / Decimal('100')).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     @property
     def montant_ttc(self):
-        return self.total_ht + self.montant_tva
+        return (self.total_ht + self.montant_tva).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     @property
     def montant_du(self):
@@ -934,8 +938,9 @@ class LigneVente(models.Model):
 
     @property
     def montant(self):
-        return (self.quantite or Decimal('0')) * (self.prix_unitaire or Decimal('0')) \
-            * (Decimal('1') - (self.remise_pct or Decimal('0')) / Decimal('100'))
+        return ((self.quantite or Decimal('0')) * (self.prix_unitaire or Decimal('0'))
+                * (Decimal('1') - (self.remise_pct or Decimal('0')) / Decimal('100'))).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     @property
     def reste_a_livrer(self):

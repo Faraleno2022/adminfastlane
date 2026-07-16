@@ -4,7 +4,7 @@ Tableau de bord, articles, catégories, fournisseurs, mouvements de stock
 (entrées / sorties / ajustements), inventaires physiques et rapports.
 """
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -58,8 +58,12 @@ def appliquer_mouvement_depot(article, depot, type_mouvement, quantite):
         if quantite > avant:
             raise ValueError(f"Stock insuffisant : {avant} disponible(s), {quantite} demandée(s).")
         apres = avant - quantite
-    else:  # ajustement : la quantité devient le stock réel du dépôt
+    elif type_mouvement == 'ajustement':  # la quantité devient le stock réel du dépôt
+        if quantite < 0:
+            raise ValueError("Le stock physique ne peut pas être négatif.")
         apres = quantite
+    else:
+        raise ValueError(f"Type de mouvement inconnu : {type_mouvement}.")
     sad.quantite = apres
     sad.save(update_fields=['quantite'])
     article.recalculer_total(sauver=True)
@@ -84,10 +88,28 @@ def maj_cmup(article, quantite_entree, prix_unitaire, stock_avant):
     ancien_cmup = article.cmup if (article.cmup and article.cmup > 0) else (article.prix_achat or Decimal('0'))
     total = stock_avant + quantite_entree
     if total > 0:
-        article.cmup = (stock_avant * ancien_cmup + quantite_entree * prix_unitaire) / total
+        article.cmup = ((stock_avant * ancien_cmup + quantite_entree * prix_unitaire) / total).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
     else:
-        article.cmup = prix_unitaire
+        article.cmup = Decimal(str(prix_unitaire)).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
     article.save(update_fields=['cmup'])
+
+
+def erreurs_disponibilite_livraison(a_livrer, depot):
+    """Valide le stock en cumulant les lignes qui visent le meme article."""
+    demandes_par_article = {}
+    for ligne, qte in a_livrer.values():
+        demandes_par_article.setdefault(
+            ligne.article_id, [ligne.article, Decimal('0')])[1] += qte
+    erreurs = []
+    for article, qte_totale in demandes_par_article.values():
+        dispo = article.stock_dans(depot)
+        if qte_totale > dispo:
+            erreurs.append(
+                f"{article.designation} : {dispo} en stock dans {depot.nom}, "
+                f"{qte_totale} demandé(s) au total.")
+    return erreurs
 
 
 def valeur_stock_expr():
@@ -794,7 +816,13 @@ def inventaire_detail(request, pk):
             if champ in request.POST:
                 valeur = request.POST.get(champ, '').strip().replace(',', '.')
                 try:
-                    ligne.quantite_physique = Decimal(valeur) if valeur else Decimal('0')
+                    quantite_physique = Decimal(valeur) if valeur else Decimal('0')
+                    if quantite_physique < 0:
+                        messages.error(
+                            request,
+                            f"{ligne.article.designation} : la quantité physique ne peut pas être négative.")
+                        continue
+                    ligne.quantite_physique = quantite_physique
                     ligne.save()  # recalcule l'écart
                 except (ValueError, ArithmeticError):
                     continue
@@ -1933,11 +1961,10 @@ def livraison_create(request, pk):
                 qte = min(qte, ligne.reste_a_livrer)
                 if qte <= 0:
                     continue
-                dispo = ligne.article.stock_dans(depot)
-                if qte > dispo:
-                    erreurs.append(f"{ligne.article.designation} : {dispo} en stock dans {depot.nom}, {qte} demandé(s).")
-                else:
-                    a_livrer[ligne.pk] = (ligne, qte)
+                a_livrer[ligne.pk] = (ligne, qte)
+            # Plusieurs lignes peuvent viser le même article : la disponibilité
+            # doit être contrôlée sur leur somme.
+            erreurs.extend(erreurs_disponibilite_livraison(a_livrer, depot))
             if erreurs:
                 for e in erreurs:
                     messages.error(request, e)
