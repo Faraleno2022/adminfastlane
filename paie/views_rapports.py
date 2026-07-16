@@ -96,6 +96,7 @@ def _calcul_rapport(bulletins_qs):
     """Calcule les agrégats principaux à partir d'un queryset de bulletins."""
     agg = bulletins_qs.aggregate(
         nb=Count('id'),
+        nb_employes=Count('employe', distinct=True),
         brut=Sum('salaire_brut'),
         cnss_sal=Sum('cnss_employe'),
         cnss_emp=Sum('cnss_employeur'),
@@ -106,6 +107,7 @@ def _calcul_rapport(bulletins_qs):
         onfpp=Sum('contribution_onfpp'),
     )
     nb = agg['nb'] or 0
+    nb_employes = agg['nb_employes'] or 0
     brut = agg['brut'] or Decimal('0')
     cnss_sal = agg['cnss_sal'] or Decimal('0')
     cnss_emp = agg['cnss_emp'] or Decimal('0')
@@ -116,13 +118,15 @@ def _calcul_rapport(bulletins_qs):
     onfpp = agg['onfpp'] or Decimal('0')
     charges_totales = cnss_sal + cnss_emp + rts + vf + ta + onfpp
     ratio_charges = (charges_totales / brut * 100) if brut else Decimal('0')
-    cout_moyen = (brut / nb) if nb else Decimal('0')
     # Total charges employeur : CNSS patronal (18%) + VF (6%) + ONFPP (>= 25 salaries) ou TA (< 25)
     charge_employeur = cnss_emp + vf + onfpp + ta
+    cout_employeur = brut + charge_employeur
+    cout_moyen = (cout_employeur / nb_employes) if nb_employes else Decimal('0')
     # Total charges employe : CNSS employe (5%) + RTS
     charge_employe = cnss_sal + rts
     return {
         'nb': nb,
+        'nb_employes': nb_employes,
         'brut': brut,
         'cnss_sal': cnss_sal,
         'cnss_emp': cnss_emp,
@@ -134,6 +138,7 @@ def _calcul_rapport(bulletins_qs):
         'charges_totales': charges_totales,
         'ratio_charges': ratio_charges,
         'cout_moyen': cout_moyen,
+        'cout_employeur': cout_employeur,
         'charge_employeur': charge_employeur,
         'charge_employe': charge_employe,
     }
@@ -660,6 +665,7 @@ def rapport_masse_salariale_pdf(request):
     indic_data = [
         ['Indicateur', 'Valeur'],
         ['Nombre de bulletins', str(indicateurs['nb'])],
+        ["Nombre d'employés distincts", str(indicateurs['nb_employes'])],
         ['Masse salariale brute', f"{indicateurs['brut']:,.0f} GNF"],
         ['CNSS salarié total', f"{indicateurs['cnss_sal']:,.0f} GNF"],
         ['RTS total', f"{indicateurs['rts']:,.0f} GNF"],
@@ -669,7 +675,7 @@ def rapport_masse_salariale_pdf(request):
         ['ONFPP total', f"{indicateurs['onfpp']:,.0f} GNF"],
         ['Total charges sociales et fiscales', f"{indicateurs['charges_totales']:,.0f} GNF"],
         ['Masse salariale nette', f"{indicateurs['net']:,.0f} GNF"],
-        ['Coût moyen / employé', f"{indicateurs['cout_moyen']:,.0f} GNF"],
+        ['Coût employeur moyen / employé', f"{indicateurs['cout_moyen']:,.0f} GNF"],
         ['Ratio charges / brut', f"{indicateurs['ratio_charges']:.1f}%"],
     ]
     t_indic = Table(indic_data, colWidths=[8*cm, 7*cm])
@@ -991,6 +997,24 @@ def _fmt_gnf(val):
     return f'{v:,}'.replace(',', ' ')
 
 
+def _determiner_salaire_base_etat_paie(bulletin, base_lignes, gains_hors_base):
+    """Determine la base historique sans dependre du dossier salarial actuel."""
+    base_bulletin = Decimal(str(getattr(bulletin, 'salaire_base', 0) or 0))
+    if base_bulletin > 0:
+        return base_bulletin
+
+    base_lignes = Decimal(str(base_lignes or 0))
+    if base_lignes > 0:
+        return base_lignes
+
+    gains_hors_base = Decimal(str(gains_hors_base or 0))
+    brut = Decimal(str(getattr(bulletin, 'salaire_brut', 0) or 0))
+    if gains_hors_base > 0 and brut >= gains_hors_base:
+        return brut - gains_hors_base
+
+    return Decimal('0')
+
+
 def _construire_donnees_etat_paie(bulletins_qs, annee, mois, entreprise):
     """Construit les données du tableau État de paie (24 colonnes).
 
@@ -1181,11 +1205,22 @@ def _construire_donnees_etat_paie(bulletins_qs, annee, mois, entreprise):
         logement = Decimal('0')
         cherte_vie = Decimal('0')
         discipline = Decimal('0')
+        salaire_base_lignes = Decimal('0')
+        gains_hors_base = Decimal('0')
         for ligne in b.lignes.all():
             cat = _classer_ligne_bulletin(ligne)
             montant = ligne.montant or Decimal('0')
             if montant <= 0:
                 continue
+            rubrique = ligne.rubrique
+            est_gain_brut = (
+                getattr(rubrique, 'type_rubrique', '') == 'gain'
+                and getattr(rubrique, 'inclus_brut', True)
+            )
+            if cat == 'salaire_base':
+                salaire_base_lignes += montant
+            elif est_gain_brut:
+                gains_hors_base += montant
             if cat == 'transport':
                 transport += montant
             elif cat == 'logement':
@@ -1245,7 +1280,18 @@ def _construire_donnees_etat_paie(bulletins_qs, annee, mois, entreprise):
         paie_dim = hs_dim_map.get(eid, Decimal('0'))
 
         # -- Salaire de base : intelligent & automatique --
-        salaire_base_intelligent = _get_salaire_base_intelligent(emp, b.salaire_base if b else None, annee_int, mois_int)
+        salaire_base_intelligent = _determiner_salaire_base_etat_paie(
+            b,
+            salaire_base_lignes,
+            gains_hors_base,
+        )
+        if salaire_base_intelligent <= 0:
+            salaire_base_intelligent = _get_salaire_base_intelligent(
+                emp,
+                b.salaire_base if b else None,
+                annee_int,
+                mois_int,
+            )
 
         row = {
             'num': idx,
