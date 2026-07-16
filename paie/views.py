@@ -1162,7 +1162,6 @@ def telecharger_bulletin_pdf(request, pk):
     if base_vf > 0 and y > 2.75*cm:
         base_vf_f = float(base_vf)
         brut_gnf = float(bulletin.salaire_brut)
-        deduction = max(0, brut_gnf - base_vf_f)
         ta_ou_onfpp = 'ONFPP' if onfpp > 0 else 'TA'
         taux_ta_note = '1,5' if onfpp > 0 else taux_ta_label
         charge_valeur = onfpp if onfpp > 0 else ta
@@ -1170,8 +1169,8 @@ def telecharger_bulletin_pdf(request, pk):
         p.setFont(_FB, 4.8)
         p.setFillColor(colors.HexColor("#444444"))
         p.drawString(1.5*cm, y,
-            f"Base VF/{ta_ou_onfpp} = Brut {brut_gnf:,.0f} - indemnites exonerees plafonnees {deduction:,.0f} "
-            f"(25% max du brut) = {base_vf_f:,.0f} GNF"
+            f"Base VF = remunerations brutes {base_vf_f:,.0f} GNF | "
+            f"Base {ta_ou_onfpp} = {base_charge_note:,.0f} GNF"
             .replace(",", " "))
         y -= 0.16*cm
         p.drawString(1.5*cm, y,
@@ -1213,12 +1212,18 @@ def telecharger_bulletin_pdf(request, pk):
 
     # Badge conformité
     badge_x, badge_y, badge_w, badge_h = 1.5*cm, 0.78*cm, 5.5*cm, 0.45*cm
-    p.setFillColor(colors.HexColor("#198754"))
+    conforme_cgi = (
+        abs(Decimal(str(base_vf)) - Decimal(str(bulletin.salaire_brut or 0))) <= Decimal('1')
+        and (onfpp <= 0 or abs(Decimal(str(base_onfpp)) - Decimal(str(bulletin.salaire_brut or 0))) <= Decimal('1'))
+        and abs(Decimal(str(vf)) - (Decimal(str(bulletin.salaire_brut or 0)) * Decimal('0.06')).quantize(Decimal('1'), rounding=ROUND_HALF_UP)) <= Decimal('1')
+        and (onfpp <= 0 or abs(Decimal(str(onfpp)) - (Decimal(str(bulletin.salaire_brut or 0)) * Decimal('0.015')).quantize(Decimal('1'), rounding=ROUND_HALF_UP)) <= Decimal('1'))
+    )
+    p.setFillColor(colors.HexColor("#198754" if conforme_cgi else "#dc3545"))
     p.roundRect(badge_x, badge_y, badge_w, badge_h, 3, stroke=0, fill=1)
     p.setFillColor(colors.white)
     p.setFont(_FB, 5.5)
     p.drawCentredString(badge_x + badge_w / 2, badge_y + 0.13*cm,
-                        "\u2713 Conforme CGI Guinee | Compatible CNSS")
+                        "Conforme CGI Guinee | Compatible CNSS" if conforme_cgi else "Conformite fiscale a verifier")
 
     # QR Code (coin bas droit)
     try:
@@ -1799,7 +1804,6 @@ def telecharger_bulletin_public(request, token):
     if base_vf > 0 and y > 2.75*cm:
         base_vf_f = float(base_vf)
         brut_gnf = float(bulletin.salaire_brut)
-        deduction = max(0, brut_gnf - base_vf_f)
         ta_ou_onfpp = 'ONFPP' if onfpp > 0 else 'TA'
         taux_ta_note = '1,5' if onfpp > 0 else taux_ta_label
         charge_valeur = onfpp if onfpp > 0 else ta
@@ -1807,8 +1811,8 @@ def telecharger_bulletin_public(request, token):
         p.setFont(_FB, 4.8)
         p.setFillColor(colors.HexColor("#444444"))
         p.drawString(1.5*cm, y,
-            f"Base VF/{ta_ou_onfpp} = Brut {brut_gnf:,.0f} - indemnites exonerees plafonnees {deduction:,.0f} "
-            f"(25% max du brut) = {base_vf_f:,.0f} GNF"
+            f"Base VF = remunerations brutes {base_vf_f:,.0f} GNF | "
+            f"Base {ta_ou_onfpp} = {base_charge_note:,.0f} GNF"
             .replace(",", " "))
         y -= 0.16*cm
         p.drawString(1.5*cm, y,
@@ -1850,12 +1854,18 @@ def telecharger_bulletin_public(request, token):
 
     # Badge conformité
     badge_x, badge_y, badge_w, badge_h = 1.5*cm, 0.78*cm, 5.5*cm, 0.45*cm
-    p.setFillColor(colors.HexColor("#198754"))
+    conforme_cgi = (
+        abs(Decimal(str(base_vf)) - Decimal(str(bulletin.salaire_brut or 0))) <= Decimal('1')
+        and (onfpp <= 0 or abs(Decimal(str(base_onfpp)) - Decimal(str(bulletin.salaire_brut or 0))) <= Decimal('1'))
+        and abs(Decimal(str(vf)) - (Decimal(str(bulletin.salaire_brut or 0)) * Decimal('0.06')).quantize(Decimal('1'), rounding=ROUND_HALF_UP)) <= Decimal('1')
+        and (onfpp <= 0 or abs(Decimal(str(onfpp)) - (Decimal(str(bulletin.salaire_brut or 0)) * Decimal('0.015')).quantize(Decimal('1'), rounding=ROUND_HALF_UP)) <= Decimal('1'))
+    )
+    p.setFillColor(colors.HexColor("#198754" if conforme_cgi else "#dc3545"))
     p.roundRect(badge_x, badge_y, badge_w, badge_h, 3, stroke=0, fill=1)
     p.setFillColor(colors.white)
     p.setFont(_FB, 5.5)
     p.drawCentredString(badge_x + badge_w / 2, badge_y + 0.13*cm,
-                        "\u2713 Conforme CGI Guinee | Compatible CNSS")
+                        "Conforme CGI Guinee | Compatible CNSS" if conforme_cgi else "Conformite fiscale a verifier")
 
     # QR Code (coin bas droit)
     try:

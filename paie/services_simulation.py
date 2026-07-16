@@ -251,8 +251,9 @@ def calculer_un_bareme(
     net = int(brut) - cnss - rts
 
     # -- Charges patronales --
-    deduction_vf = int(exon)
-    base_vf = max(Decimal('0'), brut - Decimal(str(deduction_vf)))
+    # L'exonération indemnitaire est réservée à la RTS.
+    deduction_vf = 0
+    base_vf = max(Decimal('0'), brut)
     vf = _half_up(base_vf * taux_vf / Decimal('100'))
     # Seuil TA/ONFPP : < seuil -> TA 2%, >= seuil -> ONFPP 1,5% sur base VF
     seuil_ta_onfpp = int(constantes.get('SEUIL_TA_ONFPP', Decimal('30')))
@@ -262,7 +263,7 @@ def calculer_un_bareme(
         base_onfpp = Decimal('0')
     else:
         ta    = 0
-        base_onfpp = base_vf
+        base_onfpp = brut
         onfpp = _half_up(base_onfpp * TAUX_ONFPP_LEGAL / Decimal('100'))
 
     return {

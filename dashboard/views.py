@@ -28,12 +28,10 @@ def _base_cnss_attendue(brut):
 
 def _charges_attendues_bulletin(bulletin, effectif):
     brut = Decimal(str(bulletin.salaire_brut or 0))
-    abattement = Decimal(str(getattr(bulletin, 'abattement_forfaitaire', 0) or 0))
     base_cnss = _base_cnss_attendue(brut)
     cnss_5 = _arrondir_gnf(base_cnss * Decimal('0.05'))
     cnss_18 = _arrondir_gnf(base_cnss * Decimal('0.18'))
-    deduction_vf = _arrondir_gnf(min(abattement, brut))
-    base_vf = max(Decimal('0'), brut - deduction_vf)
+    base_vf = _arrondir_gnf(max(Decimal('0'), brut))
     vf = _arrondir_gnf(base_vf * Decimal('0.06'))
     if effectif >= 30:
         ta = Decimal('0')

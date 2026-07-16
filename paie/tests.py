@@ -669,9 +669,9 @@ class SimulationCalculTests(SimpleTestCase):
         self.assertEqual(resultat['base_rts'], 4375000)
         self.assertEqual(resultat['rts'], 210000)
         self.assertEqual(resultat['net'], 5665000)
-        self.assertEqual(resultat['base_vf'], 4500000)
-        self.assertEqual(resultat['vf'], 270000)
-        self.assertEqual(resultat['ta'], 90000)
+        self.assertEqual(resultat['base_vf'], 6000000)
+        self.assertEqual(resultat['vf'], 360000)
+        self.assertEqual(resultat['ta'], 120000)
 
     def test_rts_arrondie_tranche_par_tranche(self):
         """La simulation applique le meme arrondi partiel que services.py."""
@@ -711,9 +711,8 @@ class ChargesPatronalesTests(SimpleTestCase):
     TAUX_TA = Decimal('0.02')    # 2%
 
     def _calculer_vf_ta(self, salaire_brut):
-        """Calcule VF et TA sur base VF."""
-        deduction_vf = round(salaire_brut * Decimal('0.25'))
-        base_vf = salaire_brut - deduction_vf
+        """Calcule VF et TA sur le brut, indépendamment de la RTS."""
+        base_vf = salaire_brut
         vf = round(base_vf * self.TAUX_VF)
         ta = round(base_vf * self.TAUX_TA)
         return base_vf, vf, ta
@@ -723,15 +722,15 @@ class ChargesPatronalesTests(SimpleTestCase):
         salaire = Decimal('3600000')
         base_vf, vf, _ = self._calculer_vf_ta(salaire)
 
-        self.assertEqual(base_vf, Decimal('2700000'))
-        self.assertEqual(vf, Decimal('162000'))
+        self.assertEqual(base_vf, Decimal('3600000'))
+        self.assertEqual(vf, Decimal('216000'))
 
     def test_tu05_ta_2_pourcent(self):
         """TU-05: Taxe Apprentissage = 2% de la base VF"""
         salaire = Decimal('3600000')
         _, _, ta = self._calculer_vf_ta(salaire)
 
-        self.assertEqual(ta, Decimal('54000'))
+        self.assertEqual(ta, Decimal('72000'))
 
     def test_charges_patronales_total(self):
         """Total charges patronales = CNSS 18% + VF 6% + TA 2%"""
@@ -743,7 +742,7 @@ class ChargesPatronalesTests(SimpleTestCase):
         _, vf, ta = self._calculer_vf_ta(salaire)
         total = cnss_employeur + vf + ta
 
-        self.assertEqual(total, Decimal('666000'))
+        self.assertEqual(total, Decimal('738000'))
 
     def test_charges_patronales_onfpp_a_partir_de_30_salaries(self):
         """ONFPP = 1,5% de la base VF quand l'effectif atteint le seuil."""
@@ -761,12 +760,12 @@ class ChargesPatronalesTests(SimpleTestCase):
             charges = calculer_charges_patronales(Decimal('3600000'), nb_salaries=30)
 
         self.assertEqual(charges['libelle_ta'], 'ONFPP')
-        self.assertEqual(charges['base_vf'], 2700000)
-        self.assertEqual(charges['base_onfpp'], 2700000)
-        self.assertEqual(charges['base_ta_onfpp'], 2700000)
-        self.assertEqual(charges['vf'], 162000)
-        self.assertEqual(charges['ta'], 40500)
-        self.assertEqual(charges['total'], 652500)
+        self.assertEqual(charges['base_vf'], 3600000)
+        self.assertEqual(charges['base_onfpp'], 3600000)
+        self.assertEqual(charges['base_ta_onfpp'], 3600000)
+        self.assertEqual(charges['vf'], 216000)
+        self.assertEqual(charges['ta'], 54000)
+        self.assertEqual(charges['total'], 720000)
 
     def test_charges_patronales_onfpp_strict_sur_brut_sans_changer_vf(self):
         """Le mode ONFPP strict applique seulement l'ONFPP sur le brut."""
@@ -785,13 +784,13 @@ class ChargesPatronalesTests(SimpleTestCase):
                 Decimal('3600000'), nb_salaries=30, mode_base_onfpp='brut'
             )
 
-        self.assertEqual(charges['mode_base_vf'], 'brut_moins_deduction')
+        self.assertEqual(charges['mode_base_vf'], 'brut')
         self.assertEqual(charges['mode_base_onfpp'], 'brut')
-        self.assertEqual(charges['base_vf'], 2700000)
+        self.assertEqual(charges['base_vf'], 3600000)
         self.assertEqual(charges['base_onfpp'], 3600000)
-        self.assertEqual(charges['vf'], 162000)
+        self.assertEqual(charges['vf'], 216000)
         self.assertEqual(charges['ta'], 54000)
-        self.assertEqual(charges['total'], 666000)
+        self.assertEqual(charges['total'], 720000)
 
     def test_charges_patronales_ta_sous_30_salaries(self):
         """TA = 2% de la base VF tant que l'effectif reste sous le seuil."""
@@ -809,8 +808,8 @@ class ChargesPatronalesTests(SimpleTestCase):
             charges = calculer_charges_patronales(Decimal('3600000'), nb_salaries=29)
 
         self.assertEqual(charges['libelle_ta'], 'TA')
-        self.assertEqual(charges['ta'], 54000)
-        self.assertEqual(charges['total'], 666000)
+        self.assertEqual(charges['ta'], 72000)
+        self.assertEqual(charges['total'], 738000)
 
     def test_rapport_inclut_onfpp_dans_charges_patronales(self):
         """Les rapports doivent additionner CNSS patronale, VF, TA et ONFPP."""
@@ -885,22 +884,22 @@ class ChargesPatronalesTests(SimpleTestCase):
             Decimal('3600000'), Decimal('900000'), tranches, constantes, nb_salaries=30
         )
 
-        self.assertEqual(sous_seuil['ta'], 54000)
+        self.assertEqual(sous_seuil['ta'], 72000)
         self.assertEqual(sous_seuil['onfpp'], 0)
         self.assertEqual(au_seuil['ta'], 0)
-        self.assertEqual(au_seuil['base_onfpp'], 2700000)
-        self.assertEqual(au_seuil['onfpp'], 40500)
+        self.assertEqual(au_seuil['base_onfpp'], 3600000)
+        self.assertEqual(au_seuil['onfpp'], 54000)
 
     def test_onfpp_exemple_bulletin_base_vf(self):
-        """Cas audit: ONFPP sur base VF/ONFPP, pas sur le brut."""
+        """Cas audit: VF et ONFPP sur le brut."""
         brut = Decimal('4479445')
         base_vf, vf, _ = self._calculer_vf_ta(brut)
         onfpp = round(base_vf * Decimal('0.015'))
 
-        self.assertEqual(base_vf, Decimal('3359584'))
-        self.assertEqual(vf, Decimal('201575'))
-        self.assertEqual(onfpp, Decimal('50394'))
-        self.assertEqual(Decimal('450000') + vf + onfpp, Decimal('701969'))
+        self.assertEqual(base_vf, Decimal('4479445'))
+        self.assertEqual(vf, Decimal('268767'))
+        self.assertEqual(onfpp, Decimal('67192'))
+        self.assertEqual(Decimal('450000') + vf + onfpp, Decimal('785959'))
 
     def test_charges_patronales_mode_strict_fiscal_sur_brut(self):
         """Le mode strict fiscal applique VF/ONFPP directement sur le brut."""
@@ -940,7 +939,7 @@ class ChargesPatronalesTests(SimpleTestCase):
         self.assertEqual(bulletin.mode_base_vf_effectif, 'optimise')
         self.assertEqual(bulletin.taux_optimisation_vf_onfpp, Decimal('25.00'))
         self.assertEqual(bulletin.economie_vf_onfpp_vs_strict, Decimal('67500'))
-        self.assertEqual(bulletin.risque_fiscal_bulletin['niveau'], 'moyen')
+        self.assertEqual(bulletin.risque_fiscal_bulletin['niveau'], 'eleve')
 
     def test_bulletin_controle_onfpp_strict_sur_base_dediee(self):
         """Le controle accepte ONFPP sur brut quand base_onfpp est renseignee."""
@@ -966,7 +965,7 @@ class ChargesPatronalesTests(SimpleTestCase):
         )
 
         self.assertEqual(bulletin.risque_fiscal_bulletin['niveau'], 'eleve')
-        self.assertIn('Ecart VF', bulletin.risque_fiscal_bulletin['raisons'])
+        self.assertIn('Base VF differente du brut', bulletin.risque_fiscal_bulletin['raisons'])
 
 
 class IRGCalculTests(SimpleTestCase):

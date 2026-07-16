@@ -62,10 +62,10 @@ def analyser_bases_vf_onfpp(masse_salariale, base_vf, base_onfpp):
         mode_fiscal_label = 'Bases différenciées - VF et ONFPP sur assiettes distinctes'
     elif taux_vf > 0:
         mode_fiscal = 'optimise'
-        mode_fiscal_label = 'Optimisé - base VF/ONFPP réduite des indemnités exonérées'
+        mode_fiscal_label = 'Base VF/ONFPP réduite - configuration historique à vérifier'
     else:
         mode_fiscal = 'strict'
-        mode_fiscal_label = 'Strict fiscal - VF/ONFPP sur salaire brut'
+        mode_fiscal_label = 'Conforme - VF/ONFPP sur salaire brut'
 
     return {
         'base_vf': base_vf,

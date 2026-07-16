@@ -1194,8 +1194,8 @@ class MoteurCalculPaie:
 
         from .formules import evaluer_formule as _evaluer_vf
         params_vf = getattr(self.employe.entreprise, 'parametres_calcul_paie', None)
-        mode_base_vf = params_vf.mode_base_vf if params_vf else 'brut_moins_deduction'
-        mode_base_onfpp = getattr(params_vf, 'mode_base_onfpp', 'base_vf') if params_vf else 'base_vf'
+        mode_base_vf = params_vf.mode_base_vf if params_vf else 'brut'
+        mode_base_onfpp = getattr(params_vf, 'mode_base_onfpp', 'brut') if params_vf else 'brut'
 
         if params_vf and params_vf.mode_base_vf == 'formule' and params_vf.formule_base_vf:
             # Mode personnalisé : formule définie par l'entreprise
@@ -1209,9 +1209,9 @@ class MoteurCalculPaie:
                     'avertissement',
                     "Formule personnalisée de base VF invalide. Calcul standard appliqué."
                 )
-                deduction_vf = self._arrondir(min(exoneration_vf, base_vf_ta))
-                base_vf_nette = base_vf_ta - deduction_vf
-        elif params_vf and params_vf.mode_base_vf == 'brut':
+                deduction_vf = Decimal('0')
+                base_vf_nette = base_vf_ta
+        elif not params_vf or params_vf.mode_base_vf == 'brut':
             # Mode legacy : base = brut directement, pas de déduction
             deduction_vf = Decimal('0')
             base_vf_nette = base_vf_ta
@@ -1233,7 +1233,7 @@ class MoteurCalculPaie:
             'vf',
             'VF',
             base_vf_nette,
-            'salaire brut - exoneration indemnitaire plafonnee',
+            'remunerations brutes moins exemptions VF explicites',
         )
 
         self.montants['base_vf'] = base_vf_nette

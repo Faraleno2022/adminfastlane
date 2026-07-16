@@ -169,7 +169,7 @@ class BulletinPaie(models.Model):
     retenue_trop_percu = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text='Retenue trop-perçu mois précédent (hors base)')
     
     # Charges patronales
-    base_vf = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text='Base de calcul du VF (brut - déduction)')
+    base_vf = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text='Base de calcul du VF (brut par défaut)')
     versement_forfaitaire = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text='VF 6% sur base VF')
     taxe_apprentissage = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text='TA 2% sur base VF')
     taux_ta = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text='Taux TA appliqué (%)')
@@ -323,17 +323,13 @@ class BulletinPaie(models.Model):
             niveau = 'eleve'
             classe = 'danger'
             raisons.append('Base VF/ONFPP manquante')
-        elif taux > Decimal('25.01'):
+        elif abs(brut - base_vf) > Decimal('1'):
             niveau = 'eleve'
             classe = 'danger'
-            raisons.append('Optimisation superieure au plafond 25%')
-        elif taux >= Decimal('23.00'):
-            niveau = 'moyen'
-            classe = 'warning'
-            raisons.append('Structure fortement optimisee')
+            raisons.append('Base VF differente du brut')
 
         if base_vf > 0:
-            vf_attendue = (base_vf * Decimal('0.06')).quantize(Decimal('1'))
+            vf_attendue = (brut * Decimal('0.06')).quantize(Decimal('1'))
             vf_reelle = Decimal(self.versement_forfaitaire or 0).quantize(Decimal('1'))
             if abs(vf_reelle - vf_attendue) > Decimal('1'):
                 niveau = 'eleve'
@@ -341,11 +337,11 @@ class BulletinPaie(models.Model):
                 raisons.append('Ecart VF')
 
             if (self.taxe_apprentissage or 0) > 0:
-                base_charge = base_vf
+                base_charge = brut
                 taux_ta_onfpp = Decimal('0.02')
                 reel = Decimal(self.taxe_apprentissage or 0).quantize(Decimal('1'))
             else:
-                base_charge = Decimal(self.base_onfpp or 0) or base_vf
+                base_charge = brut
                 taux_ta_onfpp = Decimal('0.015')
                 reel = Decimal(self.contribution_onfpp or 0).quantize(Decimal('1'))
             attendu = (base_charge * taux_ta_onfpp).quantize(Decimal('1'))
@@ -1337,12 +1333,12 @@ class ParametresCalculPaie(models.Model):
 
     # Base VF / TA
     MODE_BASE_VF = [
-        ('brut_moins_deduction', 'Mode optimise GuineeRH : VF/TA sur brut - deduction CGI plafonnee'),
-        ('brut', 'Mode strict fiscal : VF/TA sur salaire brut'),
+        ('brut_moins_deduction', 'Mode historique non standard : VF/TA sur brut - deduction'),
+        ('brut', 'Mode legal par defaut : VF/TA sur salaire brut'),
         ('formule', 'Formule personnalisee'),
     ]
     mode_base_vf = models.CharField(
-        max_length=30, choices=MODE_BASE_VF, default='brut_moins_deduction'
+        max_length=30, choices=MODE_BASE_VF, default='brut'
     )
     formule_base_vf = models.TextField(
         blank=True,
@@ -1350,11 +1346,11 @@ class ParametresCalculPaie(models.Model):
     )
 
     MODE_BASE_ONFPP = [
-        ('base_vf', 'Mode standard GuineeRH : ONFPP sur base VF/TA'),
-        ('brut', 'Mode strict fiscal : ONFPP sur salaire brut'),
+        ('base_vf', 'Mode personnalise : ONFPP sur base VF/TA'),
+        ('brut', 'Mode legal par defaut : ONFPP sur salaire brut'),
     ]
     mode_base_onfpp = models.CharField(
-        max_length=20, choices=MODE_BASE_ONFPP, default='base_vf'
+        max_length=20, choices=MODE_BASE_ONFPP, default='brut'
     )
 
     # Base RTS personnalisée
@@ -1379,9 +1375,9 @@ class ParametresCalculPaie(models.Model):
         self.mode_exoneration_indemnites = 'plafond_pct'
         self.plafond_exoneration_pct = Decimal('25')
         self.formule_exoneration = ''
-        self.mode_base_vf = 'brut_moins_deduction'
+        self.mode_base_vf = 'brut'
         self.formule_base_vf = ''
-        self.mode_base_onfpp = 'base_vf'
+        self.mode_base_onfpp = 'brut'
         self.utiliser_formule_base_rts = False
         self.formule_base_rts = ''
 
