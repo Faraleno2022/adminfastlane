@@ -247,7 +247,12 @@ else:
     if DEBUG:
         STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
     else:
-        STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+        # Compression WhiteNoise SANS manifeste haché : le stockage manifeste
+        # (post_process) échoue dès qu'un fichier RÉFÉRENCÉ est absent — source-maps
+        # (.map) et polices FontAwesome (webfonts/*.ttf) manquants des assets vendored,
+        # ce qui bloquait collectstatic en production. Le stockage compressé sert les
+        # fichiers tels quels (avec gzip/brotli et cache), sans casser sur ces références.
+        STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
