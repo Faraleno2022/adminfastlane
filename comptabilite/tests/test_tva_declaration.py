@@ -17,6 +17,7 @@ from comptabilite.models import (
     ExerciceComptable, RegimeTVA, TauxTVA, DeclarationTVA, LigneDeclarationTVA,
 )
 from comptabilite.services.calcul_tva_service import CalculTVAService
+from comptabilite.services.fiscalite_service import FiscaliteService
 
 
 class DeclarationTVATotauxTest(TestCase):
@@ -84,3 +85,25 @@ class DeclarationTVATotauxTest(TestCase):
         r = service.calculer_tva_depuis_regime(Decimal('100000'), self.regime)
         self.assertEqual(r['montant_tva'], Decimal('18000.00'))
         self.assertEqual(r['montant_ttc'], Decimal('118000.00'))
+
+    def test_calcul_ht_accepte_taux_cent_pour_cent(self):
+        service = CalculTVAService(self.user)
+        self.assertEqual(
+            service.calculer_ht(Decimal('200.00'), Decimal('100')),
+            Decimal('100.00'))
+
+    def test_arrondi_tva_montant_limite_half_up(self):
+        service = CalculTVAService(self.user)
+        self.assertEqual(
+            service.calculer_tva(Decimal('0.005'), Decimal('100')),
+            Decimal('0.01'))
+
+    def test_ancien_service_fiscal_utilise_le_sens_des_lignes(self):
+        # Le taux est volontairement applicable aux ventes ET aux achats :
+        # seule la colonne sens doit décider de la répartition.
+        self._ligne(1, '100000', '18000', 'COLLECTEE')
+        self._ligne(2, '50000', '9000', 'DEDUCTIBLE')
+        montants = FiscaliteService(self.user).calculer_montants_declaration(self.declaration)
+        self.assertEqual(montants['montant_tva_collecte'], Decimal('18000'))
+        self.assertEqual(montants['montant_tva_deductible'], Decimal('9000'))
+        self.assertEqual(montants['montant_tva_due'], Decimal('9000'))

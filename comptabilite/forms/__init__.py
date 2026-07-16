@@ -29,6 +29,7 @@ from .forms_base import (
     EcritureForm,
     TiersForm,
     FactureForm,
+    LigneFactureFormSet,
     ReglementForm,
 )
 
@@ -67,6 +68,7 @@ __all__ = [
     'EcritureForm',
     'TiersForm',
     'FactureForm',
+    'LigneFactureFormSet',
     'ReglementForm',
     # Audit & conformité
     'RapportAuditForm',

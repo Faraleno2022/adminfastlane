@@ -1,7 +1,7 @@
 """
 Service de calcul TVA
 """
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.contrib.auth.models import User
 
 from comptabilite.models import RegimeTVA, TauxTVA
@@ -49,7 +49,7 @@ class CalculTVAService(BaseComptaService):
                 return Decimal('0.00')
             
             montant_tva = montant_ht * (taux / 100)
-            return montant_tva.quantize(Decimal('0.01'))
+            return montant_tva.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             
         except Exception as e:
             self.avertissement(f"Erreur calcul TVA: {str(e)}")
@@ -70,7 +70,7 @@ class CalculTVAService(BaseComptaService):
             montant_ht = Decimal(str(montant_ht))
             montant_tva = self.calculer_tva(montant_ht, taux)
             montant_ttc = montant_ht + montant_tva
-            return montant_ttc.quantize(Decimal('0.01'))
+            return montant_ttc.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             
         except Exception as e:
             self.avertissement(f"Erreur calcul TTC: {str(e)}")
@@ -93,7 +93,7 @@ class CalculTVAService(BaseComptaService):
             
             conditions = {
                 'montant_ttc_positif': montant_ttc >= 0,
-                'taux_valide': 0 <= taux < 100
+                'taux_valide': 0 <= taux <= 100
             }
             
             self.valider(conditions)
@@ -103,7 +103,7 @@ class CalculTVAService(BaseComptaService):
             
             # HT = TTC / (1 + taux/100)
             montant_ht = montant_ttc / (1 + (taux / 100))
-            return montant_ht.quantize(Decimal('0.01'))
+            return montant_ht.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             
         except Exception as e:
             self.avertissement(f"Erreur calcul HT: {str(e)}")
@@ -254,7 +254,7 @@ class CalculTVAService(BaseComptaService):
                 return Decimal('0.00')
             
             taux = (montant_tva / montant_ht) * 100
-            return taux.quantize(Decimal('0.01'))
+            return taux.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             
         except Exception as e:
             self.avertissement(f"Erreur taux effectif: {str(e)}")

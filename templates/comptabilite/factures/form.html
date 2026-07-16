@@ -12,6 +12,7 @@
     <div class="card-body">
         <form method="post">
             {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">N° Facture <span class="text-danger">*</span></label>
@@ -43,6 +44,49 @@
                 </div>
             </div>
             <hr>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Lignes de facture</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="ajouter-ligne">
+                    <i class="bi bi-plus-circle me-1"></i>Ajouter une ligne
+                </button>
+            </div>
+            {{ formset.management_form }}
+            {% if formset.non_form_errors %}
+                <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+            {% endif %}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle" id="table-lignes">
+                    <thead>
+                        <tr>
+                            <th>Désignation</th><th>Quantité</th><th>Prix unitaire</th>
+                            <th>TVA (%)</th><th>Compte</th><th>Supprimer</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lignes-body">
+                        {% for ligne_form in formset %}
+                        <tr class="ligne-form">
+                            <td>{{ ligne_form.id }}{{ ligne_form.designation }}{{ ligne_form.designation.errors }}</td>
+                            <td>{{ ligne_form.quantite }}{{ ligne_form.quantite.errors }}</td>
+                            <td>{{ ligne_form.prix_unitaire }}{{ ligne_form.prix_unitaire.errors }}</td>
+                            <td>{{ ligne_form.taux_tva }}{{ ligne_form.taux_tva.errors }}</td>
+                            <td>{{ ligne_form.compte_comptable }}{{ ligne_form.compte_comptable.errors }}</td>
+                            <td class="text-center">{{ ligne_form.DELETE }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <template id="ligne-vide">
+                <tr class="ligne-form">
+                    <td>{{ formset.empty_form.id }}{{ formset.empty_form.designation }}</td>
+                    <td>{{ formset.empty_form.quantite }}</td>
+                    <td>{{ formset.empty_form.prix_unitaire }}</td>
+                    <td>{{ formset.empty_form.taux_tva }}</td>
+                    <td>{{ formset.empty_form.compte_comptable }}</td>
+                    <td class="text-center">{{ formset.empty_form.DELETE }}</td>
+                </tr>
+            </template>
+            <hr>
             <div class="d-flex justify-content-end gap-2">
                 <a href="{% url 'comptabilite:facture_list' %}" class="btn btn-outline-secondary">Annuler</a>
                 <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i>Enregistrer</button>
@@ -50,4 +94,13 @@
         </form>
     </div>
 </div>
+<script>
+document.getElementById('ajouter-ligne').addEventListener('click', function () {
+    const total = document.getElementById('id_lignes-TOTAL_FORMS');
+    const index = parseInt(total.value, 10);
+    const html = document.getElementById('ligne-vide').innerHTML.replaceAll('__prefix__', index);
+    document.getElementById('lignes-body').insertAdjacentHTML('beforeend', html);
+    total.value = index + 1;
+});
+</script>
 {% endblock %}

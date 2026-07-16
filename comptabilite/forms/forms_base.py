@@ -1,4 +1,5 @@
 from django import forms
+from django.forms import BaseInlineFormSet, inlineformset_factory
 from ..models import (
     PlanComptable, Journal, ExerciceComptable, EcritureComptable,
     LigneEcriture, Tiers, Facture, LigneFacture, Reglement
@@ -231,6 +232,33 @@ class LigneFactureForm(forms.ModelForm):
             'taux_tva': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'compte_comptable': forms.Select(attrs={'class': 'form-select'}),
         }
+
+    def __init__(self, *args, entreprise=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if entreprise:
+            self.fields['compte_comptable'].queryset = PlanComptable.objects.filter(
+                entreprise=entreprise, est_actif=True).order_by('numero_compte')
+
+
+class BaseLigneFactureFormSet(BaseInlineFormSet):
+    def get_form_kwargs(self, index):
+        kwargs = super().get_form_kwargs(index)
+        kwargs['entreprise'] = getattr(self.instance, 'entreprise', None)
+        return kwargs
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        lignes = [form for form in self.forms
+                  if form.cleaned_data and not form.cleaned_data.get('DELETE', False)]
+        if not lignes:
+            raise forms.ValidationError('Ajoutez au moins une ligne à la facture.')
+
+
+LigneFactureFormSet = inlineformset_factory(
+    Facture, LigneFacture, form=LigneFactureForm,
+    formset=BaseLigneFactureFormSet, extra=1, can_delete=True)
 
 
 class ReglementForm(forms.ModelForm):

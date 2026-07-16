@@ -1,7 +1,7 @@
 """
 Service de gestion des déclarations TVA et fiscalité
 """
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, date
 from django.db import transaction
 from django.contrib.auth.models import User
@@ -125,7 +125,8 @@ class FiscaliteService(BaseComptaService):
                 return None, self.erreurs
             
             # Calcul TVA
-            montant_tva = montant_ht * (taux_tva.taux / 100)
+            montant_tva = (montant_ht * (taux_tva.taux / 100)).quantize(
+                Decimal('0.01'), rounding=ROUND_HALF_UP)
             
             # Déterminer numéro de ligne
             derniere_ligne = declaration.lignes.order_by('-numero_ligne').first()
@@ -175,17 +176,15 @@ class FiscaliteService(BaseComptaService):
             lignes = declaration.lignes.all()
             
             montant_ht_total = sum(Decimal(l.montant_ht) for l in lignes) or Decimal('0.00')
-            montant_tva_total = sum(Decimal(l.montant_tva) for l in lignes) or Decimal('0.00')
-            
             # Distinction TVA collectée vs déductible
             montant_tva_collecte = Decimal('0.00')
             montant_tva_deductible = Decimal('0.00')
             
             for ligne in lignes:
-                if ligne.taux.applicable_au_ventes:
-                    montant_tva_collecte += ligne.montant_tva
-                if ligne.taux.applicable_aux_achats:
+                if ligne.sens == 'DEDUCTIBLE':
                     montant_tva_deductible += ligne.montant_tva
+                else:
+                    montant_tva_collecte += ligne.montant_tva
             
             montant_tva_due = montant_tva_collecte - montant_tva_deductible
             

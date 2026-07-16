@@ -19,7 +19,7 @@ from .models import (
 )
 from .forms import (
     PlanComptableForm, JournalForm, ExerciceForm, EcritureForm,
-    TiersForm, FactureForm, ReglementForm
+    TiersForm, FactureForm, LigneFactureFormSet, ReglementForm
 )
 
 
@@ -803,10 +803,12 @@ def facture_create(request):
     
     if request.method == 'POST':
         form = FactureForm(request.POST, entreprise=request.user.entreprise)
-        if form.is_valid():
+        facture = form.save(commit=False) if form.is_valid() else Facture()
+        facture.entreprise = request.user.entreprise
+        formset = LigneFactureFormSet(request.POST, instance=facture)
+        if form.is_valid() and formset.is_valid():
             try:
                 with transaction.atomic():
-                    facture = form.save(commit=False)
                     facture.entreprise = request.user.entreprise
                     
                     # Générer un numéro unique si vide
@@ -820,6 +822,9 @@ def facture_create(request):
                         )
                     
                     facture.save()
+                    formset.instance = facture
+                    formset.save()
+                    facture.recalculer_totaux()
                     messages.success(request, f"Facture {facture.numero} créée.")
                     return redirect('comptabilite:facture_detail', pk=facture.pk)
             except Exception as e:
@@ -842,8 +847,10 @@ def facture_create(request):
                 'numero': numero_suggestion
             }
         )
+        formset = LigneFactureFormSet(instance=Facture(entreprise=request.user.entreprise))
     
-    return render(request, 'comptabilite/factures/form.html', {'form': form, 'type_facture': type_facture})
+    return render(request, 'comptabilite/factures/form.html', {
+        'form': form, 'formset': formset, 'type_facture': type_facture})
 
 
 @reauth_required
@@ -871,14 +878,20 @@ def facture_update(request, pk):
     
     if request.method == 'POST':
         form = FactureForm(request.POST, instance=facture, entreprise=request.user.entreprise)
-        if form.is_valid():
-            form.save()
+        formset = LigneFactureFormSet(request.POST, instance=facture)
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                form.save()
+                formset.save()
+                facture.recalculer_totaux()
             messages.success(request, "Facture modifiée avec succès.")
             return redirect('comptabilite:facture_detail', pk=pk)
     else:
         form = FactureForm(instance=facture, entreprise=request.user.entreprise)
+        formset = LigneFactureFormSet(instance=facture)
     
-    return render(request, 'comptabilite/factures/form.html', {'form': form, 'facture': facture})
+    return render(request, 'comptabilite/factures/form.html', {
+        'form': form, 'formset': formset, 'facture': facture})
 
 
 @reauth_required
@@ -971,6 +984,16 @@ def facture_delete(request, pk):
 
 # ==================== RÈGLEMENTS ====================
 
+def _recalculer_paiement_facture(facture):
+    """Synchronise le payé et le statut depuis les règlements réellement présents."""
+    facture.montant_paye = facture.reglements.aggregate(total=Sum('montant'))['total'] or Decimal('0.00')
+    if facture.montant_ttc > 0 and facture.montant_paye >= facture.montant_ttc:
+        facture.statut = 'payee'
+    elif facture.statut == 'payee':
+        facture.statut = 'validee'
+    facture.save(update_fields=['montant_paye', 'statut'])
+
+
 @reauth_required
 @login_required
 @compta_required
@@ -1013,12 +1036,8 @@ def reglement_create(request):
                     
                     reglement.save()
                     
-                    # Mettre à jour le montant payé sur la facture
                     facture = reglement.facture
-                    facture.montant_paye += reglement.montant
-                    if facture.montant_paye >= facture.montant_ttc:
-                        facture.statut = 'payee'
-                    facture.save()
+                    _recalculer_paiement_facture(facture)
 
                 # Moteur comptable : écriture d'encaissement / paiement automatique
                 try:
@@ -1072,7 +1091,7 @@ def reglement_detail(request, pk):
 def reglement_update(request, pk):
     """Modifier un règlement"""
     reglement = get_object_or_404(Reglement, pk=pk, entreprise=request.user.entreprise)
-    ancien_montant = reglement.montant
+    ancienne_facture = reglement.facture
     
     if request.method == 'POST':
         form = ReglementForm(request.POST, instance=reglement, entreprise=request.user.entreprise)
@@ -1080,15 +1099,10 @@ def reglement_update(request, pk):
             try:
                 with transaction.atomic():
                     nouveau_reglement = form.save()
-                    # Recalculer le montant payé sur la facture
                     facture = nouveau_reglement.facture
-                    difference = nouveau_reglement.montant - ancien_montant
-                    facture.montant_paye += difference
-                    if facture.montant_paye >= facture.montant_ttc:
-                        facture.statut = 'payee'
-                    elif facture.statut == 'payee':
-                        facture.statut = 'validee'
-                    facture.save()
+                    _recalculer_paiement_facture(facture)
+                    if ancienne_facture.pk != facture.pk:
+                        _recalculer_paiement_facture(ancienne_facture)
                     messages.success(request, "Règlement modifié avec succès.")
                     return redirect('comptabilite:reglement_detail', pk=pk)
             except Exception as e:
@@ -1108,15 +1122,8 @@ def reglement_delete(request, pk):
     if request.method == 'POST':
         facture = reglement.facture
         numero = reglement.numero
-        montant = reglement.montant
         reglement.delete()
-        # Recalculer le montant payé sur la facture
-        facture.montant_paye -= montant
-        if facture.montant_paye < 0:
-            facture.montant_paye = Decimal('0')
-        if facture.statut == 'payee':
-            facture.statut = 'validee'
-        facture.save()
+        _recalculer_paiement_facture(facture)
         messages.success(request, f'Règlement "{numero}" supprimé avec succès.')
         return redirect('comptabilite:reglement_list')
     return render(request, 'comptabilite/confirm_delete.html', {

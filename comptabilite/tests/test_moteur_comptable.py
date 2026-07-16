@@ -12,15 +12,17 @@ from django.test import TestCase
 from core.models import (Entreprise, Utilisateur, AccesEntreprise,
                          PermissionRole, Delegation)
 from comptabilite.models import (
-    Tiers, Facture, Reglement, EcritureComptable, ExerciceComptable,
+    Tiers, Facture, LigneFacture, Reglement, EcritureComptable, ExerciceComptable,
     Immobilisation, Amortissement, PlanComptable,
     PieceCaisse, RegleEcriture, RegleValidation, DemandeApprobation,
+    CompteBancaire,
 )
 from comptabilite.moteur_comptable import (
     operation_simple, comptabiliser_facture, comptabiliser_reglement,
     comptabiliser_piece_caisse, obtenir_compte_auxiliaire, obtenir_compte,
     generer_ecriture, ErreurComptabilisation, ZERO,
 )
+from comptabilite.services.rapprochement_service import RapprochementService
 
 
 class BaseMoteurTest(TestCase):
@@ -135,6 +137,25 @@ class TestDocuments(BaseMoteurTest):
         self.assert_equilibree(ec)
         self.assertEqual(ec.journal.type_journal, 'AC')
 
+    def test_lignes_recalculent_et_arrondissent_totaux_facture(self):
+        facture = self._facture('vente', ttc='0', ht='0', tva='0')
+        ligne1 = LigneFacture.objects.create(
+            facture=facture, designation='Article A', quantite=Decimal('2.50'),
+            prix_unitaire=Decimal('100.005'), taux_tva=Decimal('18'))
+        LigneFacture.objects.create(
+            facture=facture, designation='Article B', quantite=Decimal('1'),
+            prix_unitaire=Decimal('50.00'), taux_tva=Decimal('0'))
+        facture.refresh_from_db()
+        self.assertEqual(ligne1.montant_ht, Decimal('250.01'))
+        self.assertEqual(ligne1.montant_tva, Decimal('45.00'))
+        self.assertEqual(facture.montant_ht, Decimal('300.01'))
+        self.assertEqual(facture.montant_tva, Decimal('45.00'))
+        self.assertEqual(facture.montant_ttc, Decimal('345.01'))
+
+        ligne1.delete()
+        facture.refresh_from_db()
+        self.assertEqual(facture.montant_ttc, Decimal('50.00'))
+
     def test_reglement_client_et_fournisseur(self):
         f = self._facture('vente')
         r = Reglement.objects.create(
@@ -150,6 +171,30 @@ class TestDocuments(BaseMoteurTest):
         ec2 = comptabiliser_reglement(ra, self.u)
         self.assertIn('5711', self.comptes(ec2))   # espèces → caisse
 
+    def test_remboursement_avoir_fournisseur_utilise_compte_fournisseur(self):
+        facture = self._facture('avoir_fournisseur')
+        reglement = Reglement.objects.create(
+            entreprise=self.e, numero='R-AF', facture=facture,
+            date_reglement=date(2026, 4, 12), montant=Decimal('1180000'),
+            mode_paiement='virement')
+        ecriture = comptabiliser_reglement(reglement, self.u)
+        self.assert_equilibree(ecriture)
+        ligne_tiers = ecriture.lignes.get(compte__numero_compte__startswith='401')
+        self.assertEqual(ligne_tiers.montant_credit, Decimal('1180000'))
+        self.assertFalse(ecriture.lignes.filter(compte__numero_compte__startswith='411').exists())
+
+    def test_remboursement_avoir_client_utilise_compte_client(self):
+        facture = self._facture('avoir_client')
+        reglement = Reglement.objects.create(
+            entreprise=self.e, numero='R-AC', facture=facture,
+            date_reglement=date(2026, 4, 13), montant=Decimal('1180000'),
+            mode_paiement='virement')
+        ecriture = comptabiliser_reglement(reglement, self.u)
+        self.assert_equilibree(ecriture)
+        ligne_tiers = ecriture.lignes.get(compte__numero_compte__startswith='411')
+        self.assertEqual(ligne_tiers.montant_debit, Decimal('1180000'))
+        self.assertFalse(ecriture.lignes.filter(compte__numero_compte__startswith='401').exists())
+
     def test_piece_caisse(self):
         p = PieceCaisse.objects.create(
             entreprise=self.e, numero='PCS-1', type_piece='sortie',
@@ -162,6 +207,28 @@ class TestDocuments(BaseMoteurTest):
 
 class TestControles(BaseMoteurTest):
     """Contrôles du moteur : équilibre, doublons, exercice clôturé."""
+
+    def test_solde_rapprochement_inclut_ouverture_et_exclut_brouillon(self):
+        banque = obtenir_compte(self.e, 'banque')
+        contrepartie = obtenir_compte(self.e, 'produits_divers')
+        compte_bancaire = CompteBancaire.objects.create(
+            entreprise=self.e, code='BQ-TEST', libelle='Banque test',
+            banque='Banque test', solde_initial=Decimal('1000'),
+            compte_comptable=banque)
+        validee = generer_ecriture(
+            self.e, self.u, 'BQ', date(2026, 4, 1), 'Mouvement valide',
+            [(banque, 'Mouvement valide', Decimal('100'), ZERO),
+             (contrepartie, 'Mouvement valide', ZERO, Decimal('100'))])
+        brouillon = generer_ecriture(
+            self.e, self.u, 'BQ', date(2026, 4, 2), 'Mouvement brouillon',
+            [(banque, 'Mouvement brouillon', Decimal('900'), ZERO),
+             (contrepartie, 'Mouvement brouillon', ZERO, Decimal('900'))])
+        brouillon.est_validee = False
+        brouillon.save(update_fields=['est_validee'])
+
+        solde = RapprochementService(self.e, self.u).calculer_solde_comptable(
+            compte_bancaire, date(2026, 4, 30))
+        self.assertEqual(solde, Decimal('1100'))
 
     def test_refus_ecriture_desequilibree(self):
         c1 = obtenir_compte(self.e, 'caisse')

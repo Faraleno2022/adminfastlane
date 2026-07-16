@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import uuid
 from core.models import Entreprise, Utilisateur
 
@@ -309,6 +309,19 @@ class Facture(models.Model):
     def reste_a_payer(self):
         return self.montant_ttc - self.montant_paye
 
+    def recalculer_totaux(self, sauvegarder=True):
+        """Recalcule les totaux de la facture depuis ses lignes."""
+        from django.db.models import Sum
+
+        totaux = self.lignes.aggregate(
+            ht=Sum('montant_ht'), tva=Sum('montant_tva'), ttc=Sum('montant_ttc'))
+        self.montant_ht = totaux['ht'] or Decimal('0.00')
+        self.montant_tva = totaux['tva'] or Decimal('0.00')
+        self.montant_ttc = totaux['ttc'] or Decimal('0.00')
+        if sauvegarder:
+            self.save(update_fields=['montant_ht', 'montant_tva', 'montant_ttc'])
+        return self.montant_ht, self.montant_tva, self.montant_ttc
+
 
 class LigneFacture(models.Model):
     """Lignes de facture"""
@@ -328,10 +341,21 @@ class LigneFacture(models.Model):
         verbose_name_plural = 'Lignes de factures'
     
     def save(self, *args, **kwargs):
-        self.montant_ht = self.quantite * self.prix_unitaire
-        self.montant_tva = self.montant_ht * self.taux_tva / 100
-        self.montant_ttc = self.montant_ht + self.montant_tva
+        centime = Decimal('0.01')
+        self.montant_ht = (self.quantite * self.prix_unitaire).quantize(
+            centime, rounding=ROUND_HALF_UP)
+        self.montant_tva = (self.montant_ht * self.taux_tva / Decimal('100')).quantize(
+            centime, rounding=ROUND_HALF_UP)
+        self.montant_ttc = (self.montant_ht + self.montant_tva).quantize(
+            centime, rounding=ROUND_HALF_UP)
         super().save(*args, **kwargs)
+        self.facture.recalculer_totaux()
+
+    def delete(self, *args, **kwargs):
+        facture = self.facture
+        resultat = super().delete(*args, **kwargs)
+        facture.recalculer_totaux()
+        return resultat
 
 
 class Reglement(models.Model):

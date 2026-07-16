@@ -49,12 +49,15 @@ class RapprochementService(BaseComptaService):
         
         for ligne in LigneEcriture.objects.filter(
             compte=compte,
-            ecriture__date_ecriture__lte=date_fin
+            ecriture__date_ecriture__lte=date_fin,
+            ecriture__est_validee=True,
         ):
             total_debit += ligne.montant_debit
             total_credit += ligne.montant_credit
         
-        solde = total_debit - total_credit
+        # Le solde d'ouverture du compte bancaire precede les mouvements du
+        # grand livre. Les brouillons sont exclus ci-dessus.
+        solde = compte_bancaire.solde_initial + total_debit - total_credit
         return solde
     
     def calculer_solde_bancaire(self, releve):

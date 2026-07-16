@@ -13,7 +13,7 @@ Principes :
   exercice comptable ouvert (créé automatiquement si absent).
 - Chaque écriture générée est validée et rattachée au document d'origine.
 """
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import date as date_type
 
 from django.db import transaction
@@ -369,16 +369,31 @@ def comptabiliser_reglement(reglement, utilisateur):
     journal = 'CA' if tresorerie.numero_compte.startswith('57') else 'BQ'
     lib = f"Règlement {reglement.numero} - Facture {facture.numero} - {facture.tiers.raison_sociale}"
 
-    if facture.type_facture in ('vente', 'acompte', 'avoir_fournisseur'):
+    if facture.type_facture in ('vente', 'acompte'):
         lignes = [
             (tresorerie, lib, montant, ZERO),
             (_compte_tiers(e, facture.tiers, 'clients'), lib, ZERO, montant),
         ]
-    else:
+    elif facture.type_facture == 'achat':
         lignes = [
             (_compte_tiers(e, facture.tiers, 'fournisseurs'), lib, montant, ZERO),
             (tresorerie, lib, ZERO, montant),
         ]
+    elif facture.type_facture == 'avoir_client':
+        # Remboursement d'un avoir au client : solder la dette envers le
+        # client (411 au debit), jamais un compte fournisseur 401.
+        lignes = [
+            (_compte_tiers(e, facture.tiers, 'clients'), lib, montant, ZERO),
+            (tresorerie, lib, ZERO, montant),
+        ]
+    elif facture.type_facture == 'avoir_fournisseur':
+        lignes = [
+            (tresorerie, lib, montant, ZERO),
+            (_compte_tiers(e, facture.tiers, 'fournisseurs'), lib, ZERO, montant),
+        ]
+    else:
+        raise ErreurComptabilisation(
+            f"Type de facture non géré pour le règlement : {facture.type_facture}.")
     ecriture = generer_ecriture(e, utilisateur, journal, reglement.date_reglement, lib, lignes)
     reglement.ecriture = ecriture
     reglement.save(update_fields=['ecriture'])
@@ -415,7 +430,8 @@ def operation_simple(entreprise, utilisateur, type_operation, date_operation, li
     montant_ht = Decimal(montant_ht or 0)
     if montant_ht <= 0:
         raise ErreurComptabilisation("Le montant doit être supérieur à zéro.")
-    tva = (montant_ht * Decimal(taux_tva or 0) / Decimal('100')).quantize(Decimal('1'))
+    tva = (montant_ht * Decimal(taux_tva or 0) / Decimal('100')).quantize(
+        Decimal('1'), rounding=ROUND_HALF_UP)
     ttc = montant_ht + tva
     e = entreprise
     tresorerie = _compte_tresorerie(e, mode_paiement)

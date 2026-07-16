@@ -15,6 +15,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 import logging
 
+from core.models import Entreprise
 from comptabilite.models import (
     CompteBancaire, RapprochementBancaire, OperationBancaire,
     ExerciceComptable, EcritureComptable, EcartBancaire
@@ -121,17 +122,22 @@ class RapprochementServiceTest(TestCase):
     
     def setUp(self):
         """Initialise les données de test."""
-        # Crée une entreprise (à adapter selon votre modèle)
+        self.entreprise = Entreprise.objects.create(nom_entreprise='Test Compta SARL')
         self.user = User.objects.create_user(
             username='testuser',
-            password='testpass'
+            password='testpass',
+            email='testuser@test.gn',
+            entreprise=self.entreprise,
         )
-        
-        # Crée un compte bancaire
+
+        # Crée un compte bancaire (champs réels du modèle : code/libelle/banque)
         self.compte = CompteBancaire.objects.create(
-            numero_compte='12345678901',
+            entreprise=self.entreprise,
+            code='BNK-001',
+            libelle='Test Bank Account',
+            banque='Banque Test',
             iban='FR1420041010050500013M02606',
-            intitule_tiers='Test Bank Account',
+            solde_initial=Decimal('0.00'),
         )
     
     def test_service_initialization(self):
@@ -148,20 +154,23 @@ class RapprochementServiceTest(TestCase):
 
 class ComptaBancaireModelTest(TestCase):
     """Tests du modèle CompteBancaire."""
-    
+
     def setUp(self):
         """Initialise les données de test."""
+        self.entreprise = Entreprise.objects.create(nom_entreprise='Test Compta SARL')
         self.compte = CompteBancaire.objects.create(
-            numero_compte='12345678901',
+            entreprise=self.entreprise,
+            code='BNK-001',
+            libelle='Test Bank',
+            banque='Banque Test',
             iban='FR1420041010050500013M02606',
-            intitule_tiers='Test Bank',
         )
-    
+
     def test_creation_compte(self):
         """Teste la création d'un compte."""
-        self.assertEqual(self.compte.numero_compte, '12345678901')
-        self.assertTrue(self.compte.actif)
-    
+        self.assertEqual(self.compte.code, 'BNK-001')
+        self.assertTrue(self.compte.est_actif)
+
     def test_string_representation(self):
         """Teste la représentation en string."""
         self.assertIn('Test Bank', str(self.compte))
@@ -173,34 +182,39 @@ class RapprochementBancaireViewTest(TestCase):
     def setUp(self):
         """Initialise les données de test."""
         self.client = Client()
+        self.entreprise = Entreprise.objects.create(nom_entreprise='Test Compta SARL')
         self.user = User.objects.create_user(
             username='testuser',
             password='testpass',
-            is_staff=True
+            email='testuser@test.gn',
+            is_staff=True,
+            entreprise=self.entreprise,
         )
-        self.client.login(username='testuser', password='testpass')
-    
+        # force_login : client.login() est incompatible avec django-axes
+        # (AxesBackend exige un objet request).
+        self.client.force_login(self.user)
+
     def test_liste_rapprochements_non_authentifie(self):
-        """Teste l'accès sans authentification."""
+        """Teste l'accès sans authentification : redirection login ou 403."""
         client = Client()
         response = client.get(reverse('comptabilite:rapprochement-list'))
-        # Dépend de votre configuration d'authentification
-        pass
-    
+        self.assertIn(response.status_code, (302, 403))
+
     def test_liste_rapprochements_authentifie(self):
-        """Teste la liste avec authentification."""
+        """Teste la liste avec authentification (200 ou redirection métier)."""
         response = self.client.get(reverse('comptabilite:rapprochement-list'))
-        # À adapter selon votre configuration d'URLs
+        self.assertIn(response.status_code, (200, 302))
 
 
 class IntegrationTest(TestCase):
     """Tests d'intégration complets."""
-    
+
     def setUp(self):
         """Initialise les données de test."""
         self.user = User.objects.create_user(
             username='testuser',
-            password='testpass'
+            password='testpass',
+            email='testuser@test.gn'
         )
     
     def test_workflow_complet(self):
