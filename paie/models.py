@@ -1146,7 +1146,7 @@ class ConfigurationPaieEntreprise(models.Model):
     )
     
     MODES_CONGES = (
-        ('code_travail', 'Code du Travail (1,5 j/mois)'),
+        ('code_travail', 'Code du Travail (2,5 j/mois)'),
         ('convention', 'Convention Collective (2,5 j/mois)'),
         ('personnalise', 'Personnalisé'),
     )
@@ -1177,14 +1177,14 @@ class ConfigurationPaieEntreprise(models.Model):
         help_text='Code du Travail: 60%, Convention: 25%'
     )
     taux_hs_nuit = models.DecimalField(
-        max_digits=5, decimal_places=2, default=50.00,
+        max_digits=5, decimal_places=2, default=20.00,
         verbose_name='Majoration heures de nuit (%)',
         help_text='20h-6h. Code du Travail: 20%, Convention: 50%'
     )
     taux_hs_dimanche = models.DecimalField(
-        max_digits=5, decimal_places=2, default=100.00,
+        max_digits=5, decimal_places=2, default=60.00,
         verbose_name='Majoration dimanche/férié jour (%)',
-        help_text='Convention: 100%'
+        help_text='Jour férié: 60%'
     )
     taux_hs_ferie_nuit = models.DecimalField(
         max_digits=5, decimal_places=2, default=100.00,
@@ -1200,9 +1200,9 @@ class ConfigurationPaieEntreprise(models.Model):
         verbose_name='Mode calcul congés'
     )
     jours_conges_par_mois = models.DecimalField(
-        max_digits=4, decimal_places=2, default=1.50,
+        max_digits=4, decimal_places=2, default=2.50,
         verbose_name='Jours de congé acquis par mois',
-        help_text='Code du Travail: 1,5 j/mois (18j/an), Convention: 2,5 j/mois (30j/an)'
+        help_text='Minimum légal Code du Travail Art. 222 : 2,5 j/mois (30 j/an). Une convention collective peut être plus favorable.'
     )
     jours_conges_anciennete = models.DecimalField(
         max_digits=4, decimal_places=2, default=2.00,
@@ -1289,7 +1289,8 @@ class ConfigurationPaieEntreprise(models.Model):
         self.taux_hs_au_dela = Decimal('60.00')
         self.taux_hs_nuit = Decimal('20.00')
         self.mode_conges = 'code_travail'
-        self.jours_conges_par_mois = Decimal('1.50')
+        # Code du Travail Art. 222 : minimum légal 2,5 j/mois (30 j/an)
+        self.jours_conges_par_mois = Decimal('2.50')
         self.save()
     
     def appliquer_mode_convention(self):

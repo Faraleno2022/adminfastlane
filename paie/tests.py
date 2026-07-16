@@ -14,7 +14,9 @@ from django.urls import reverse
 
 from core.models import Entreprise, Utilisateur
 from employes.models import Employe
-from paie.models import BulletinPaie, ElementSalaire, PeriodePaie, RubriquePaie
+from paie.models import (
+    BulletinPaie, ConfigurationPaieEntreprise, ElementSalaire, PeriodePaie, RubriquePaie,
+)
 from paie.services import MoteurCalculPaie, appliquer_constantes_cnss_legales
 from paie.services_retropaie import calculer_charges_patronales
 from paie.services_simulation import calculer_un_bareme as calculer_un_bareme_simulation
@@ -23,6 +25,26 @@ from paie.views_rapports import _audit_masse_salariale, _charges_patronales_bull
 from paie.views_etax import get_etax_data
 from paie.views_export import get_declarations_data
 from temps_travail.models import HeureSupplementaire
+
+
+class AcquisitionCongesPaieTests(TestCase):
+    def test_acquisition_est_progressive_dans_annee_courante(self):
+        entreprise = Entreprise.objects.create(
+            nom_entreprise='Congés SARL', slug='conges-sarl', email='conges@example.com')
+        employe = Employe.objects.create(
+            entreprise=entreprise, matricule='CONGE-001', nom='Test', prenoms='Congés',
+            statut_employe='actif', date_embauche=date(2020, 1, 1))
+        ConfigurationPaieEntreprise.objects.create(
+            entreprise=entreprise, jours_conges_par_mois=Decimal('2.50'),
+            jours_conges_anciennete=Decimal('0'))
+        periode = PeriodePaie.objects.create(
+            entreprise=entreprise, annee=2026, mois=3, libelle='Mars 2026',
+            date_debut=date(2026, 3, 1), date_fin=date(2026, 3, 31),
+            statut_periode='ouverte')
+
+        acquis = MoteurCalculPaie(employe, periode)._calculer_conges_acquis()
+
+        self.assertEqual(acquis, Decimal('7.50'))
 
 
 class LibellePorteeLivrePaieTests(SimpleTestCase):
@@ -129,11 +151,11 @@ class HeuresSupplementairesBaseTests(TestCase):
         HeureSupplementaire.objects.create(
             employe=self.employe,
             date_hs=date(2026, 5, 8),
-            type_hs='jour_25',
+            type_hs='jour_30',
             nombre_heures=Decimal('1.03'),
-            taux_majoration=Decimal('25'),
+            taux_majoration=Decimal('30'),
             taux_horaire_base=Decimal('40000'),
-            montant_hs=Decimal('51500'),
+            montant_hs=Decimal('53560'),
             statut='valide',
         )
 
@@ -142,8 +164,8 @@ class HeuresSupplementairesBaseTests(TestCase):
         moteur._calculer_gains()
 
         self.assertEqual(moteur.montants['heures_supplementaires'], Decimal('1.03'))
-        self.assertEqual(moteur.montants['montant_heures_sup'], Decimal('51500'))
-        self.assertGreaterEqual(moteur.montants['total_gains'], Decimal('7245419'))
+        self.assertEqual(moteur.montants['montant_heures_sup'], Decimal('53560'))
+        self.assertGreaterEqual(moteur.montants['total_gains'], Decimal('7247479'))
         self.assertEqual(moteur.lignes[-1]['nombre'], Decimal('1.03'))
 
 

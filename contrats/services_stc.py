@@ -28,20 +28,27 @@ def calculer_solde_tout_compte(contrat, date_fin_effective=None):
 
     # === 1. DURÉE DU CONTRAT ===
     delta = relativedelta(date_fin, date_debut)
-    duree_mois = max(delta.years * 12 + delta.months, 0)
+    mois_complets = max(delta.years * 12 + delta.months, 0)
+    duree_mois = (
+        Decimal(str(mois_complets)) + Decimal(str(max(delta.days, 0))) / Decimal('30')
+    ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     duree_jours = max((date_fin - date_debut).days, 0)
     duree_annees = round(duree_jours / 365, 2)
 
     # === 2. SALAIRE MENSUEL DE RÉFÉRENCE ===
     salaire_mensuel = Decimal('0')
 
-    # Priorité 1 : dernier bulletin de paie validé
+    bulletins_valides = None
+    # Priorité 1 : bulletins validés ou payés compris dans le contrat
     try:
         from paie.models import BulletinPaie
-        dernier_bulletin = BulletinPaie.objects.filter(
+        bulletins_valides = BulletinPaie.objects.filter(
             employe=emp,
-            statut='valide'
-        ).order_by('-annee_paie', '-mois_paie').first()
+            statut_bulletin__in=['valide', 'paye'],
+            periode__date_fin__gte=date_debut,
+            periode__date_debut__lte=date_fin,
+        ).order_by('annee_paie', 'mois_paie')
+        dernier_bulletin = bulletins_valides.last()
         if dernier_bulletin and dernier_bulletin.salaire_brut:
             salaire_mensuel = Decimal(str(dernier_bulletin.salaire_brut))
     except Exception:
@@ -51,19 +58,28 @@ def calculer_solde_tout_compte(contrat, date_fin_effective=None):
     if salaire_mensuel == 0 and contrat.salaire_base:
         salaire_mensuel = Decimal(str(contrat.salaire_base))
 
-    salaire_journalier = (salaire_mensuel / 26).quantize(
+    # Salaire journalier = salaire mensuel / 30 (méthode du manuel de paie projet
+    # et de calculer_indemnite_conges) — diviseur harmonisé à 30.
+    salaire_journalier = (salaire_mensuel / 30).quantize(
         Decimal('1'), rounding=ROUND_HALF_UP
     ) if salaire_mensuel else Decimal('0')
 
     # === 3. INDEMNITÉ DE FIN DE CDD ===
     # Art. Code du Travail guinéen : 7% de la rémunération totale brute perçue
-    remuneration_totale = salaire_mensuel * Decimal(str(duree_mois))
+    if bulletins_valides is not None and bulletins_valides.exists():
+        from django.db.models import Sum
+        remuneration_totale = (
+            bulletins_valides.aggregate(total=Sum('salaire_brut'))['total'] or Decimal('0')
+        )
+    else:
+        # Estimation proratisée lorsqu'aucun bulletin validé n'est disponible.
+        remuneration_totale = salaire_mensuel * duree_mois
     indemnite_fin_cdd = (remuneration_totale * Decimal('0.07')).quantize(
         Decimal('1'), rounding=ROUND_HALF_UP
     )
 
     # === 4. INDEMNITÉ COMPENSATRICE DE CONGÉS NON PRIS ===
-    conges_acquis = Decimal('2.5') * Decimal(str(duree_mois))
+    conges_acquis = Decimal('2.5') * duree_mois
     conges_pris = Decimal('0')
     conges_restants = Decimal('0')
 
@@ -91,7 +107,24 @@ def calculer_solde_tout_compte(contrat, date_fin_effective=None):
 
     # === 5. TOTAUX ===
     total_brut = indemnite_fin_cdd + indemnite_conges
-    cnss_employe = (total_brut * Decimal('0.05')).quantize(
+    # Utiliser la même assiette encadrée et le même taux que le moteur de paie.
+    try:
+        from paie.models import Constante
+        constantes = dict(Constante.objects.filter(
+            code__in=['PLANCHER_CNSS', 'PLAFOND_CNSS', 'TAUX_CNSS_EMPLOYE'],
+            actif=True,
+        ).values_list('code', 'valeur'))
+    except Exception:
+        constantes = {}
+    plancher_cnss = Decimal(str(constantes.get('PLANCHER_CNSS', Decimal('550000'))))
+    plafond_cnss = Decimal(str(constantes.get('PLAFOND_CNSS', Decimal('2500000'))))
+    taux_cnss = Decimal(str(constantes.get('TAUX_CNSS_EMPLOYE', Decimal('5'))))
+    seuil_minimum = plancher_cnss * Decimal('0.10')
+    if total_brut < seuil_minimum:
+        base_cnss = Decimal('0')
+    else:
+        base_cnss = max(min(total_brut, plafond_cnss), plancher_cnss)
+    cnss_employe = (base_cnss * taux_cnss / Decimal('100')).quantize(
         Decimal('1'), rounding=ROUND_HALF_UP
     )
     net_a_payer = total_brut - cnss_employe
@@ -116,6 +149,7 @@ def calculer_solde_tout_compte(contrat, date_fin_effective=None):
         'indemnite_conges': indemnite_conges,
         # Totaux
         'total_brut': total_brut,
+        'base_cnss': base_cnss,
         'cnss_employe': cnss_employe,
         'net_a_payer': net_a_payer,
     }

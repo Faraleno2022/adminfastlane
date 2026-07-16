@@ -2094,13 +2094,19 @@ class MoteurCalculPaie:
             if not emp.date_embauche:
                 return Decimal('0')
             
-            # Calculer l'ancienneté en mois à la fin du mois actuel
+            # Calculer l'ancienneté totale pour les bonus, puis les seuls mois
+            # acquis dans l'année de paie pour le droit de base.
             dernier_jour = date(
                 self.periode.annee, 
                 self.periode.mois, 
                 calendar.monthrange(self.periode.annee, self.periode.mois)[1]
             )
             anciennete_mois = self._calculer_anciennete_mois(emp.date_embauche, dernier_jour)
+            if emp.date_embauche > dernier_jour:
+                mois_acquis_annee = 0
+            else:
+                premier_mois = emp.date_embauche.month if emp.date_embauche.year == self.periode.annee else 1
+                mois_acquis_annee = max(0, self.periode.mois - premier_mois + 1)
             
             # Récupérer la configuration de paie (jours/mois)
             # Initialiser config_paie à None avant toute tentative
@@ -2127,8 +2133,8 @@ class MoteurCalculPaie:
                 # Par défaut: 2.5 jours/mois (Code du Travail Guinée)
                 jours_par_mois = Decimal('2.50')
             
-            # Calculer les congés acquis
-            conges_acquis = anciennete_mois * jours_par_mois
+            # Acquisition progressive de l'année, plafonnée à douze mois.
+            conges_acquis = Decimal(str(min(mois_acquis_annee, 12))) * jours_par_mois
             
             # Ajouter bonus ancienneté si applicable
             if config_paie and hasattr(config_paie, 'jours_conges_anciennete') and config_paie.jours_conges_anciennete:
@@ -2139,8 +2145,16 @@ class MoteurCalculPaie:
                     bonus = (anciennete_ans // config_paie.tranche_anciennete_annees) * config_paie.jours_conges_anciennete
                     conges_acquis += Decimal(str(bonus))
             
-            # Limiter à 30 jours par an maximum
-            conges_acquis = min(conges_acquis, Decimal('30'))
+            # La base est plafonnée au droit annuel configuré. Le bonus
+            # d'ancienneté reste ajouté au-delà de cette base.
+            plafond_annuel = jours_par_mois * Decimal('12')
+            conges_base = min(
+                Decimal(str(min(mois_acquis_annee, 12))) * jours_par_mois,
+                plafond_annuel,
+            )
+            bonus_anciennete = max(Decimal('0'), conges_acquis - (
+                Decimal(str(min(mois_acquis_annee, 12))) * jours_par_mois))
+            conges_acquis = conges_base + bonus_anciennete
             
             # Créer ou mettre à jour le SoldeConge
             solde_conge, created = SoldeConge.objects.get_or_create(

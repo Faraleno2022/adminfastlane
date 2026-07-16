@@ -98,9 +98,9 @@ class SoldeConge(models.Model):
     """Soldes de congés"""
     employe = models.ForeignKey(Employe, on_delete=models.CASCADE, related_name='soldes_conges')
     annee = models.IntegerField()
-    conges_acquis = models.DecimalField(max_digits=5, decimal_places=2, default=18.00)
+    conges_acquis = models.DecimalField(max_digits=5, decimal_places=2, default=30.00)
     conges_pris = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    conges_restants = models.DecimalField(max_digits=5, decimal_places=2, default=18.00)
+    conges_restants = models.DecimalField(max_digits=5, decimal_places=2, default=30.00)
     conges_reports = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     date_mise_a_jour = models.DateField(auto_now=True)
     
@@ -115,22 +115,22 @@ class SoldeConge(models.Model):
         return f"{self.employe.nom_complet} - {self.annee} ({self.conges_restants} jours)"
     
     def calculer_conges_acquis(self):
-        """Calcule les congés acquis selon le Code du Travail guinéen"""
-        # Base: 1,5 jour ouvrable par mois = 18 jours/an
-        conges_base = Decimal('18.00')
-        
+        """Calcule les congés acquis selon le Code du Travail guinéen (Art. 222)"""
+        # Base: 2,5 jours ouvrables par mois = 30 jours/an (minimum légal)
+        conges_base = Decimal('30.00')
+
         # Bonus d'ancienneté: +2 jours par tranche de 5 ans
         if hasattr(self.employe, 'date_embauche') and self.employe.date_embauche:
             anciennete_annees = (date(self.annee, 12, 31) - self.employe.date_embauche).days // 365
             bonus_anciennete = (anciennete_annees // 5) * 2
             conges_base += Decimal(str(bonus_anciennete))
-        
-        # Cas spécial: moins de 18 ans = 24 jours/an
+
+        # Cas spécial mineurs (< 18 ans) : jamais inférieur à la base adulte
         if hasattr(self.employe, 'date_naissance') and self.employe.date_naissance:
             age_fin_annee = self.annee - self.employe.date_naissance.year
             if age_fin_annee < 18:
-                conges_base = Decimal('24.00')
-        
+                conges_base = max(conges_base, Decimal('30.00'))
+
         return conges_base
     
     def calculer_conges_proportionnels(self, date_embauche):
@@ -138,12 +138,12 @@ class SoldeConge(models.Model):
         if date_embauche.year != self.annee:
             return self.calculer_conges_acquis()
         
-        # Calcul proportionnel: 1,5 jour par mois travaillé
+        # Calcul proportionnel: 2,5 jours par mois travaillé (Art. 222)
         mois_travailles = 12 - date_embauche.month + 1
         if date_embauche.day > 15:  # Si embauché après le 15, mois non complet
             mois_travailles -= 0.5
-        
-        conges_proportionnels = Decimal(str(mois_travailles * 1.5))
+
+        conges_proportionnels = Decimal(str(mois_travailles * 2.5))
         return min(conges_proportionnels, self.calculer_conges_acquis())
     
     def mettre_a_jour_solde(self):
@@ -390,7 +390,7 @@ class ReglementationTemps(models.Model):
     duree_repos_hebdo_min = models.IntegerField(default=24, help_text="Durée minimale repos hebdo (heures)")
     
     # Congés (Code du Travail guinéen)
-    jours_conges_annuels = models.DecimalField(max_digits=4, decimal_places=2, default=18.00, help_text="Jours de congés annuels (1,5j ouvrable/mois)")
+    jours_conges_annuels = models.DecimalField(max_digits=4, decimal_places=2, default=30.00, help_text="Jours de congés annuels (2,5j ouvrables/mois)")
     jours_conges_mineurs = models.DecimalField(max_digits=4, decimal_places=2, default=24.00, help_text="Jours congés moins de 18 ans (2j/mois)")
     jours_conges_anciennete_5ans = models.IntegerField(default=2, help_text="Jours supplémentaires après 5 ans (+2j)")
     jours_conges_anciennete_10ans = models.IntegerField(default=4, help_text="Jours supplémentaires après 10 ans (+2j par tranche de 5 ans)")
@@ -422,12 +422,11 @@ class HeureSupplementaire(models.Model):
     - Jour férié (nuit): +100% (200% du taux horaire)
     """
     TYPES_HS = (
-        ('jour_15', 'Jour +15% (1-8h)'),
-        ('jour_25', 'Jour +25% (1-8h)'),
-        ('jour_50', 'Jour +50% (>8h)'),
-        ('nuit_50', 'Nuit +50%'),
-        ('dimanche_75', 'Dimanche/Férié +75%'),
-        ('dimanche_nuit_100', 'Dimanche/Férié nuit +100%'),
+        ('jour_30', '4 premières heures/semaine (+30%)'),
+        ('jour_60', 'Au-delà de 4 heures/semaine (+60%)'),
+        ('nuit_20', 'Heures de nuit (+20%)'),
+        ('ferie_60', 'Jour férié (+60%)'),
+        ('ferie_nuit_100', 'Jour férié de nuit (+100%)'),
     )
     
     STATUTS = (
@@ -439,7 +438,7 @@ class HeureSupplementaire(models.Model):
     
     employe = models.ForeignKey(Employe, on_delete=models.CASCADE, related_name='heures_supplementaires')
     date_hs = models.DateField(help_text="Date des heures supplémentaires")
-    type_hs = models.CharField(max_length=20, choices=TYPES_HS, default='jour_25')
+    type_hs = models.CharField(max_length=20, choices=TYPES_HS, default='jour_30')
     nombre_heures = models.DecimalField(max_digits=5, decimal_places=2, help_text="Nombre d'heures")
     taux_majoration = models.DecimalField(max_digits=5, decimal_places=2, help_text="Taux de majoration en %")
     taux_horaire_base = models.DecimalField(max_digits=15, decimal_places=2, help_text="Taux horaire de base")

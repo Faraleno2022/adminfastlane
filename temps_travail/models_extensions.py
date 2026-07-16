@@ -142,16 +142,16 @@ class ParametrageConges(models.Model):
     
     # Règles de base
     jours_conges_annuels = models.DecimalField(
-        max_digits=4, 
-        decimal_places=1, 
-        default=Decimal('18.0'),
-        help_text="Nombre de jours de congés annuels de base"
+        max_digits=4,
+        decimal_places=1,
+        default=Decimal('30.0'),
+        help_text="Nombre de jours de congés annuels de base (Code du Travail Art. 222 : 30 j/an)"
     )
     jours_par_mois = models.DecimalField(
-        max_digits=3, 
-        decimal_places=1, 
-        default=Decimal('1.5'),
-        help_text="Nombre de jours acquis par mois travaillé"
+        max_digits=3,
+        decimal_places=1,
+        default=Decimal('2.5'),
+        help_text="Nombre de jours acquis par mois travaillé (Code du Travail Art. 222 : 2,5 j/mois)"
     )
     
     # Bonus d'ancienneté

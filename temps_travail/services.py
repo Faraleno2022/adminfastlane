@@ -24,9 +24,9 @@ from paie.models import BulletinPaie
 class GestionCongesService:
     """Service de gestion des congés payés"""
     
-    # Constantes légales (Code du Travail guinéen)
-    JOURS_CONGES_PAR_MOIS = Decimal('1.5')  # 1,5 jours ouvrables par mois
-    JOURS_CONGES_ANNUELS = Decimal('18')    # 18 jours ouvrables (1,5 x 12)
+    # Constantes légales (Code du Travail guinéen, Art. 222 - Loi L/2014/072/CNT)
+    JOURS_CONGES_PAR_MOIS = Decimal('2.5')  # 2,5 jours ouvrables par mois (minimum légal)
+    JOURS_CONGES_ANNUELS = Decimal('30')    # 30 jours ouvrables (2,5 x 12)
     JOURS_CONGES_MINEURS_PAR_MOIS = Decimal('2.0')  # 2 jours/mois pour moins de 18 ans
     JOURS_CONGES_MINEURS_ANNUELS = Decimal('24')    # 24 jours/an pour moins de 18 ans
     

@@ -32,9 +32,9 @@ def mes_conges(request):
         employe=employe,
         annee=annee,
         defaults={
-            'conges_acquis': Decimal('26'),
+            'conges_acquis': Decimal('30'),
             'conges_pris': Decimal('0'),
-            'conges_restants': Decimal('26'),
+            'conges_restants': Decimal('30'),
             'conges_reports': Decimal('0'),
         }
     )
@@ -43,7 +43,7 @@ def mes_conges(request):
     stats = {
         'en_attente': conges.filter(statut_demande='en_attente').count(),
         'approuves': conges.filter(statut_demande='approuve').count(),
-        'refuses': conges.filter(statut_demande='refuse').count(),
+        'refuses': conges.filter(statut_demande='rejete').count(),
         'jours_pris': solde.conges_pris,
         'jours_restants': solde.conges_restants,
     }
@@ -71,9 +71,9 @@ def demander_conge(request):
         employe=employe,
         annee=annee,
         defaults={
-            'conges_acquis': Decimal('26'),
+            'conges_acquis': Decimal('30'),
             'conges_pris': Decimal('0'),
-            'conges_restants': Decimal('26'),
+            'conges_restants': Decimal('30'),
         }
     )
     
@@ -106,7 +106,7 @@ def demander_conge(request):
                 current += timedelta(days=1)
             
             # Vérifier le solde pour les congés payés
-            if type_conge == 'conge_paye' and nombre_jours > solde.conges_restants:
+            if type_conge == 'annuel' and nombre_jours > solde.conges_restants:
                 messages.error(request, f"Solde insuffisant. Vous avez {solde.conges_restants} jours disponibles.")
                 return redirect('temps_travail:demander_conge')
             
@@ -131,7 +131,7 @@ def demander_conge(request):
     return render(request, 'temps_travail/portail/demander_conge.html', {
         'employe': employe,
         'solde': solde,
-        'types_conge': Conge.TYPES_CONGE,
+        'types_conge': Conge.TYPES,
     })
 
 
