@@ -137,24 +137,13 @@ class Command(BaseCommand):
         self.stdout.write(f'  CNSS employeur (18%): {cnss_employeur:,.0f} GNF')
         
         # 3. Calcul RTS
-        # Base imposable = Brut - CNSS employé
+        # Base RTS = Brut imposable - CNSS employé.
+        # IMPORTANT (conformité moteur paie/services.py::_calculer_irg) :
+        # la RTS guinéenne n'applique NI déductions familiales NI abattement
+        # professionnel — ces déductions ne concernent que l'IGR annuel.
         base_imposable = salaire_brut - cnss_employe
-        self.stdout.write(f'  Base imposable avant déductions: {base_imposable:,.0f} GNF')
-        
-        # Déductions familiales (exemple: marié avec 2 enfants)
-        deduction_conjoint = Decimal('100000')
-        deduction_enfants = Decimal('50000') * 2
-        deductions_totales = deduction_conjoint + deduction_enfants
-        self.stdout.write(f'  Déductions familiales: {deductions_totales:,.0f} GNF')
-        
-        base_imposable -= deductions_totales
-        
-        # Abattement professionnel (5% plafonné à 1,000,000)
-        abattement = min(base_imposable * Decimal('0.05'), Decimal('1000000'))
-        base_imposable -= abattement
-        self.stdout.write(f'  Abattement professionnel: {abattement:,.0f} GNF')
-        self.stdout.write(f'  Base imposable finale: {base_imposable:,.0f} GNF')
-        
+        self.stdout.write(f'  Base imposable RTS (Brut - CNSS): {base_imposable:,.0f} GNF')
+
         # Calcul RTS progressif
         irg = self.calculer_irg_progressif(base_imposable)
         self.stdout.write(f'  RTS calculé: {irg:,.0f} GNF')
@@ -176,14 +165,16 @@ class Command(BaseCommand):
         if base_imposable <= 0:
             return Decimal('0')
         
-        # Barème RTS CGI 2022 officiel (6 tranches)
+        # Barème RTS CGI 2022 officiel (6 tranches).
+        # Bornes contiguës (pas de gap de 1 GNF) pour éviter qu'un franc de
+        # base échappe au calcul progressif — identique à services.py.
         tranches = [
             (Decimal('0'), Decimal('1000000'), Decimal('0')),
-            (Decimal('1000001'), Decimal('3000000'), Decimal('5')),
-            (Decimal('3000001'), Decimal('5000000'), Decimal('8')),
-            (Decimal('5000001'), Decimal('10000000'), Decimal('10')),
-            (Decimal('10000001'), Decimal('20000000'), Decimal('15')),
-            (Decimal('20000001'), None, Decimal('20')),
+            (Decimal('1000000'), Decimal('3000000'), Decimal('5')),
+            (Decimal('3000000'), Decimal('5000000'), Decimal('8')),
+            (Decimal('5000000'), Decimal('10000000'), Decimal('10')),
+            (Decimal('10000000'), Decimal('20000000'), Decimal('15')),
+            (Decimal('20000000'), None, Decimal('20')),
         ]
         
         irg_total = Decimal('0')

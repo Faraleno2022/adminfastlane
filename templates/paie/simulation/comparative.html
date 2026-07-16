@@ -634,7 +634,9 @@ Exonérées à hauteur de 25% du brut (CGI Art. 93)" data-bs-toggle="tooltip"></
   document.getElementById('btnOptimiser').addEventListener('click', function() {
     var brut = parseMontant(document.getElementById('idBrut').value);
     var indem = parseMontant(document.getElementById('idIndemnites').value);
-    var enveloppe = brut + indem;
+    // Le salaire brut saisi inclut deja les indemnites : conserver le meme
+    // brut total et optimiser uniquement sa repartition interne.
+    var enveloppe = brut;
 
     if (enveloppe <= 0) {
       alert('Saisissez un salaire brut avant d\'optimiser.');

@@ -412,9 +412,9 @@ def generer_bulletin_pdf(bulletin):
         if config_paie:
             acquis_ce_mois = config_paie.jours_conges_par_mois
         else:
-            acquis_ce_mois = Decimal('1.5')  # défaut légal Guinée
+            acquis_ce_mois = Decimal('2.5')  # défaut légal Guinée (Art. 222 : 2,5 j/mois = 30 j/an)
     except Exception:
-        acquis_ce_mois = Decimal('1.5')
+        acquis_ce_mois = Decimal('2.5')
 
     infos_emp = [
         ["Matricule:", emp.matricule or "-", "N° CNSS:", emp.num_cnss_individuel or "-"],

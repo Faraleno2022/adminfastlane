@@ -19,7 +19,10 @@ from paie.models import (
 )
 from paie.services import MoteurCalculPaie, appliquer_constantes_cnss_legales
 from paie.services_retropaie import calculer_charges_patronales
-from paie.services_simulation import calculer_un_bareme as calculer_un_bareme_simulation
+from paie.services_simulation import (
+    calculer_un_bareme as calculer_un_bareme_simulation,
+    optimiser_net,
+)
 from paie.views import _controles_livre_paie, _libelle_portee_livre_paie
 from paie.views_rapports import _audit_masse_salariale, _charges_patronales_bulletin
 from paie.views_etax import get_etax_data
@@ -635,6 +638,70 @@ class CNSSCalculTests(SimpleTestCase):
         self.assertEqual(controles['nb_retenues_hors_cnss_rts'], 1)
         self.assertEqual(controles['retenues_hors_cnss_rts'][0]['matricule'], 'EMP-012')
         self.assertEqual(controles['retenues_hors_cnss_rts'][0]['montant'], Decimal('200000'))
+
+
+class SimulationCalculTests(SimpleTestCase):
+    """Parite du moteur de simulation avec les formules du bulletin reel."""
+
+    CONSTANTES = {
+        'TAUX_VF': Decimal('6'),
+        'SEUIL_TA_ONFPP': Decimal('30'),
+    }
+
+    def test_indemnites_au_dela_25_pct_non_comptees_deux_fois(self):
+        """L'excedent reste taxable dans le brut sans etre reintegre deux fois."""
+        resultat = calculer_un_bareme_simulation(
+            Decimal('6000000'),
+            Decimal('3000000'),
+            [
+                {'borne_inf': 0, 'borne_sup': 1000000, 'taux': 0},
+                {'borne_inf': 1000000, 'borne_sup': 3000000, 'taux': 5},
+                {'borne_inf': 3000000, 'borne_sup': 5000000, 'taux': 8},
+                {'borne_inf': 5000000, 'borne_sup': 10000000, 'taux': 10},
+            ],
+            self.CONSTANTES,
+            nb_salaries=1,
+        )
+
+        self.assertEqual(resultat['plafond_exon'], 1500000)
+        self.assertEqual(resultat['exon'], 1500000)
+        self.assertEqual(resultat['depasse'], 1500000)
+        self.assertEqual(resultat['base_rts'], 4375000)
+        self.assertEqual(resultat['rts'], 210000)
+        self.assertEqual(resultat['net'], 5665000)
+        self.assertEqual(resultat['base_vf'], 4500000)
+        self.assertEqual(resultat['vf'], 270000)
+        self.assertEqual(resultat['ta'], 90000)
+
+    def test_rts_arrondie_tranche_par_tranche(self):
+        """La simulation applique le meme arrondi partiel que services.py."""
+        resultat = calculer_un_bareme_simulation(
+            Decimal('2'),
+            Decimal('0'),
+            [
+                {'borne_inf': 0, 'borne_sup': 1, 'taux': 40},
+                {'borne_inf': 1, 'borne_sup': 2, 'taux': 40},
+            ],
+            self.CONSTANTES,
+        )
+
+        self.assertEqual(resultat['rts'], 0)
+        self.assertEqual(
+            [detail['impot_tranche'] for detail in resultat['detail_tranches']],
+            [0, 0],
+        )
+
+    @patch('paie.services_simulation._charger_constantes', return_value=CONSTANTES)
+    def test_optimiseur_conserve_le_brut_total(self, _mock_constantes):
+        """L'optimisation change la repartition, pas l'enveloppe brute."""
+        resultat = optimiser_net(Decimal('6000000'), bareme_id='fallback')
+        scenarios = resultat['scenarios']
+
+        self.assertEqual([scenario['brut'] for scenario in scenarios], [6000000] * 3)
+        self.assertEqual(scenarios[0]['total_indemnites'], 0)
+        self.assertEqual(scenarios[1]['total_indemnites'], 1500000)
+        self.assertEqual(scenarios[2]['total_indemnites'], 1800000)
+        self.assertEqual(resultat['recommandation']['brut'], 6000000)
 
 
 class ChargesPatronalesTests(SimpleTestCase):

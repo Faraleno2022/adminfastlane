@@ -2,7 +2,7 @@
 TEST PAIE GUINEE — 10 cas + bonus
 Reproduit exactement la logique de services.py (ROUND_HALF_UP, Decimal)
 """
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_UP
 
 # ─────────────────────────────────────────────────────────────────────────────
 # BAREME RTS OFFICIEL CGI GUINEE
@@ -74,7 +74,9 @@ def calculer(sal_base, indemnites=0, hs_30=0, hs_60=0,
     cnss_pat  = arrondir(base_cnss * CNSS_TAUX_PAT / Decimal('100'))
 
     # Exonération indemnités forfaitaires (plafond 25% du brut)
-    plafond_25 = arrondir(brut * EXO_PCT / Decimal('100'))
+    plafond_25 = (brut * EXO_PCT / Decimal('100')).quantize(
+        Decimal('1'), rounding=ROUND_FLOOR
+    )
     exo        = arrondir(min(indemnites, plafond_25))
 
     # Base RTS
@@ -83,13 +85,15 @@ def calculer(sal_base, indemnites=0, hs_30=0, hs_60=0,
     # RTS (barème progressif)
     rts, detail_rts = calc_rts(base_rts)
 
-    # VF / TA
-    vf = arrondir(brut * VF_TAUX / Decimal('100'))
+    # VF / TA / ONFPP : mode standard du moteur réel
+    # Base = brut - exonération indemnitaire plafonnée.
+    base_vf = brut - exo
+    vf = arrondir(base_vf * VF_TAUX / Decimal('100'))
     if nb_sal >= 30:
-        ta = arrondir(brut * ONFPP_TAUX / Decimal('100'))
+        ta = arrondir(base_vf * ONFPP_TAUX / Decimal('100'))
         ta_label = f"ONFPP {ONFPP_TAUX}%"
     else:
-        ta = arrondir(brut * TA_TAUX / Decimal('100'))
+        ta = arrondir(base_vf * TA_TAUX / Decimal('100'))
         ta_label = f"TA {TA_TAUX}%"
 
     total_charges_pat = cnss_pat + vf + ta
@@ -182,14 +186,14 @@ def calculer(sal_base, indemnites=0, hs_30=0, hs_60=0,
     return {
         'brut': brut, 'cnss_emp': cnss_emp, 'exo': exo, 'plafond_25': plafond_25,
         'base_rts': base_rts, 'rts': rts, 'net': net,
-        'cnss_pat': cnss_pat, 'vf': vf, 'ta': ta,
+        'cnss_pat': cnss_pat, 'base_vf': base_vf, 'vf': vf, 'ta': ta,
     }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 print("\n" + "#"*68)
 print("  VALIDATION MOTEUR PAIE GUINEE -- 10 CAS + BONUS")
-print("  Bareme CGI officiel | ROUND_HALF_UP | CNSS plafonne 2 500 000")
+print("  Bareme CGI officiel | Arrondis moteur reel | CNSS plafonne 2 500 000")
 print("#"*68)
 
 # CAS 1 — Cas standard
@@ -214,7 +218,7 @@ r5 = calculer(800_000,
 
 # CAS 6 — Passage tranche 5%
 r6 = calculer(1_500_000,
-              label="CAS 6 — Seuil 5% : sal=1,5M  RTS attendu=25 000")
+              label="CAS 6 — Seuil 5% : sal=1,5M  RTS attendu=21 250")
 
 # CAS 7 — Multi-tranches
 r7 = calculer(4_000_000,
@@ -267,19 +271,22 @@ print(f"  ✅ CAS 4  : exonération = {r4['exo']:,} = 25% du brut (plafond appli
 assert r5['rts'] == 0, f"CAS5: rts={r5['rts']} attendu 0"
 print("  ✅ CAS 5  : RTS = 0 (tranche 0%)")
 
-# CAS 6 : RTS = 25 000 (base RTS = 1,500,000 - CNSS = 1,425,000 → T1 1M×0 + T2 425K×5%)
+# CAS 6 : RTS = 21 250 (base RTS = 1,500,000 - CNSS = 1,425,000 → T1 1M×0 + T2 425K×5%)
 # base_rts = 1,500,000 - 75,000 = 1,425,000
 # T2: (1,425,000 - 1,000,000) × 5% = 425,000 × 5% = 21,250
+assert r6['rts'] == Decimal('21250'), f"CAS6: rts={r6['rts']} attendu 21250"
 print(f"  ℹ️  CAS 6  : RTS = {r6['rts']:,} (base RTS={r6['base_rts']:,})".replace(",", " "))
 
 # CAS 8 : CNSS = 125 000
 assert r8['cnss_emp'] == Decimal('125000'), f"CAS8: cnss={r8['cnss_emp']} attendu 125000"
 print("  ✅ CAS 8  : CNSS = 125 000 (plafond 2 500 000 respecté)")
 
-# CAS 9 : 25% de 5,690,002 = 1,422,500.5 → ROUND_HALF_UP = 1,422,501
-expected_25 = arrondir(Decimal('5690002') * Decimal('25') / Decimal('100'))
+# CAS 9 : le plafond fiscal est arrondi à l'entier inférieur comme en production.
+expected_25 = (Decimal('5690002') * Decimal('25') / Decimal('100')).quantize(
+    Decimal('1'), rounding=ROUND_FLOOR
+)
 assert r9['plafond_25'] == expected_25, f"CAS9: plafond={r9['plafond_25']} attendu {expected_25}"
-print(f"  ✅ CAS 9  : 25% de 5 690 002 = {r9['plafond_25']:,} (ROUND_HALF_UP correct)".replace(",", " "))
-print(f"         exo = base = {r9['exo']:,} — zéro écart d'arrondi".replace(",", " "))
+print(f"  ✅ CAS 9  : 25% de 5 690 002 = {r9['plafond_25']:,} (ROUND_FLOOR production)".replace(",", " "))
+print("         plafond vérifié indépendamment des indemnités")
 
 print("\n  ✅ TOUS LES CAS VALIDÉS\n")

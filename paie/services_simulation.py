@@ -154,7 +154,7 @@ def _calcul_rts_par_tranches(base: Decimal, tranches: list) -> tuple:
         return 0, []
 
     base = Decimal(str(base))
-    impot_total = Decimal('0')
+    impot_total = 0
     details = []
 
     for t in tranches:
@@ -167,7 +167,7 @@ def _calcul_rts_par_tranches(base: Decimal, tranches: list) -> tuple:
 
         plafond = min(base, borne_sup) if borne_sup is not None else base
         base_tranche = plafond - borne_inf
-        impot_tranche = base_tranche * taux / Decimal('100')
+        impot_tranche = _half_up(base_tranche * taux / Decimal('100'))
         impot_total += impot_tranche
 
         details.append({
@@ -175,10 +175,10 @@ def _calcul_rts_par_tranches(base: Decimal, tranches: list) -> tuple:
             'borne_sup': int(borne_sup) if borne_sup is not None else None,
             'taux': float(taux),
             'base_tranche': _half_up(base_tranche),
-            'impot_tranche': _half_up(impot_tranche),
+            'impot_tranche': impot_tranche,
         })
 
-    return _half_up(impot_total), details
+    return impot_total, details
 
 
 def calculer_un_bareme(
@@ -196,13 +196,13 @@ def calculer_un_bareme(
       plafond_exon = floor(brut × 25%)
       exon   = min(indemnites, plafond_exon)
       depasse = max(0, indemnites − plafond_exon)
-      base_rts = brut − CNSS − exon + depasse
+      base_rts = brut − CNSS − exon
       RTS    = calcul progressif (ROUND_HALF_UP sur montants partiels)
       net    = brut − CNSS − RTS
       VF/TA/ONFPP = base VF × taux
     """
-    brut = Decimal(str(brut))
-    total_indemnites = Decimal(str(max(Decimal('0'), total_indemnites)))
+    brut = max(Decimal('0'), Decimal(str(brut)))
+    total_indemnites = max(Decimal('0'), Decimal(str(total_indemnites)))
 
     # CNSS Guinee: parametres legaux fixes, sans surcharge flottante.
     plancher_cnss   = Decimal('550000')
@@ -232,7 +232,10 @@ def calculer_un_bareme(
     depasse = int(max(Decimal('0'), total_indemnites - Decimal(str(plafond_exon))))
 
     # -- Base RTS --
-    base_rts_raw = int(brut) - cnss - exon + depasse
+    # Le brut inclut deja toutes les indemnites. Soustraire l'exoneration
+    # suffit : la fraction depassant 25 % reste donc taxable dans le brut.
+    # Ajouter ``depasse`` ici la compterait une seconde fois.
+    base_rts_raw = int(brut) - cnss - exon
     base_rts     = max(0, base_rts_raw)
 
     # -- RTS par tranches --
@@ -445,13 +448,11 @@ def optimiser_net(
     nb_salaries: int = 0,
 ) -> dict:
     """
-    Trouve la répartition brut / indemnités qui maximise le net à payer
-    pour une enveloppe salariale totale donnée (brut + indemnités).
+    Trouve la répartition interne du brut total qui maximise le net à payer.
 
-    Stratégie : les indemnités sont exonérées jusqu'à 25% du brut.
-    L'optimal est donc : indemnités = 25% du brut, soit :
-      brut_optimal = enveloppe / 1.25
-      indemnités_optimal = enveloppe - brut_optimal
+    Le brut fourni inclut les indemnités, comme ``calculer_un_bareme`` et le
+    bulletin réel. Le montant brut reste donc constant entre les scénarios ;
+    seule la part d'indemnités varie de 0 % à 25 % du brut.
 
     On compare aussi avec le scénario "tout en brut" (indemnités=0)
     et le scénario actuel si fourni.
@@ -484,9 +485,9 @@ def optimiser_net(
     r_brut_pur['scenario'] = 'Tout en brut (0 indemnités)'
     r_brut_pur['conforme_25'] = True
 
-    # Scénario 2 : Optimal 25% (indemnités = 25% du brut)
-    brut_optimal = _floor_gnf(enveloppe * Decimal('100') / Decimal('125'))
-    indem_optimal = int(enveloppe) - brut_optimal
+    # Scénario 2 : Optimal 25% du brut total
+    brut_optimal = int(enveloppe)
+    indem_optimal = _floor_gnf(enveloppe * Decimal('25') / Decimal('100'))
     r_optimal = calculer_un_bareme(
         Decimal(str(brut_optimal)), Decimal(str(indem_optimal)),
         tranches, constantes, nb_salaries
@@ -495,8 +496,8 @@ def optimiser_net(
     r_optimal['conforme_25'] = True
 
     # Scénario 3 : 30% indemnités (au-delà du plafond, pour montrer l'effet)
-    brut_30 = _floor_gnf(enveloppe * Decimal('100') / Decimal('130'))
-    indem_30 = int(enveloppe) - brut_30
+    brut_30 = int(enveloppe)
+    indem_30 = _floor_gnf(enveloppe * Decimal('30') / Decimal('100'))
     r_30 = calculer_un_bareme(
         Decimal(str(brut_30)), Decimal(str(indem_30)),
         tranches, constantes, nb_salaries

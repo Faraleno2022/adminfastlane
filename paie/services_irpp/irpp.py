@@ -2,7 +2,7 @@
 Service de calcul IRPP (Impôt sur le Revenu des Personnes Physiques) - Guinée
 Barème progressif avec déductions fiscales
 """
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import date
 from django.db.models import Q
 from paie.models import TrancheRTS
@@ -11,7 +11,11 @@ from core.models import BaremeIRPP, DeductionFiscale
 
 class IRPPService:
     """Service de calcul de l'IRPP selon le barème progressif guinéen"""
-    
+
+    # Bornes CNSS (GNF) — identiques au bulletin réel (paie/services.py)
+    PLAFOND_CNSS = Decimal('2500000')
+    PLANCHER_CNSS = Decimal('550000')
+
     def __init__(self, annee: int, entreprise=None):
         self.annee = annee
         self.entreprise = entreprise
@@ -114,51 +118,60 @@ class IRPPService:
         return total_deductions
     
     def _calculer_progressif(self, base: Decimal) -> tuple:
-        """Calculer l'impôt selon le barème progressif"""
+        """Calculer l'impôt selon le barème progressif.
+
+        Les bornes sont normalisées pour éliminer les gaps de 1 GNF
+        (ex: T1 finit à 1 000 000 et T2 commence à 1 000 001) afin qu'aucun
+        franc n'échappe au barème, et chaque tranche est arrondie ROUND_HALF_UP
+        — identique à paie/services.py::_calculer_irg_progressif.
+        """
         if base <= 0:
             return Decimal('0'), []
-        
-        irpp_total = Decimal('0')
-        reste = base
-        details = []
-        
+
+        # Construire des seuils contigus (borne_inf, borne_sup, taux, numero)
+        seuils = []
+        prev_sup = None
         for tranche in self.tranches:
-            if reste <= 0:
-                break
-            
-            # Récupérer les bornes selon le type de modèle
             if hasattr(tranche, 'borne_inferieure'):  # TrancheRTS
-                borne_inf = tranche.borne_inferieure
-                borne_sup = tranche.borne_superieure
-                taux = tranche.taux_irg
+                borne_inf, borne_sup, taux = tranche.borne_inferieure, tranche.borne_superieure, tranche.taux_irg
             else:  # BaremeIRPP
-                borne_inf = tranche.revenu_min
-                borne_sup = tranche.revenu_max
-                taux = tranche.taux
-            
-            # Calculer le montant imposable dans cette tranche
-            if borne_sup:
-                largeur_tranche = borne_sup - borne_inf
-                montant_dans_tranche = min(reste, largeur_tranche)
+                borne_inf, borne_sup, taux = tranche.revenu_min, tranche.revenu_max, tranche.taux
+            numero = getattr(tranche, 'numero_tranche', getattr(tranche, 'tranche_numero', 0))
+            borne_inf = Decimal(str(borne_inf))
+            # Aligner borne_inf sur la borne_sup précédente si gap de 1-2 GNF
+            if prev_sup is not None and prev_sup < borne_inf <= prev_sup + 2:
+                borne_inf = prev_sup
+            borne_sup = Decimal(str(borne_sup)) if borne_sup is not None else None
+            seuils.append((borne_inf, borne_sup, Decimal(str(taux)), numero))
+            prev_sup = borne_sup
+
+        irpp_total = Decimal('0')
+        details = []
+        for borne_inf, borne_sup, taux, numero in seuils:
+            if base <= borne_inf:
+                break
+            if borne_sup is not None:
+                montant_dans_tranche = min(base, borne_sup) - borne_inf
             else:
-                montant_dans_tranche = reste
-            
-            # Calculer l'impôt de cette tranche
-            irpp_tranche = montant_dans_tranche * taux / Decimal('100')
+                montant_dans_tranche = base - borne_inf
+            if montant_dans_tranche <= 0:
+                continue
+
+            irpp_tranche = (montant_dans_tranche * taux / Decimal('100')).quantize(
+                Decimal('1'), rounding=ROUND_HALF_UP
+            )
             irpp_total += irpp_tranche
-            
+
             details.append({
-                'tranche': getattr(tranche, 'numero_tranche', getattr(tranche, 'tranche_numero', 0)),
+                'tranche': numero,
                 'borne_inf': borne_inf,
                 'borne_sup': borne_sup,
                 'taux': taux,
                 'montant_imposable': montant_dans_tranche,
-                'irpp': irpp_tranche
+                'irpp': irpp_tranche,
             })
-            
-            reste -= montant_dans_tranche
-        
-        return self._arrondir(irpp_total), details
+
+        return irpp_total, details
     
     def _arrondir(self, montant: Decimal) -> Decimal:
         """Arrondir au franc près"""
@@ -175,9 +188,15 @@ class IRPPService:
         Returns:
             Dict avec tous les détails du calcul
         """
-        # Calculer CNSS
-        cnss = salaire_brut * taux_cnss / Decimal('100')
-        
+        # Calculer CNSS — base plafonnée/planchée comme le bulletin réel.
+        # En dessous de 10% du plancher (salaire quasi nul), pas de cotisation.
+        seuil_minimum = self.PLANCHER_CNSS * Decimal('0.10')
+        if salaire_brut < seuil_minimum:
+            base_cnss = Decimal('0')
+        else:
+            base_cnss = max(min(salaire_brut, self.PLAFOND_CNSS), self.PLANCHER_CNSS)
+        cnss = base_cnss * taux_cnss / Decimal('100')
+
         # Base imposable = Brut - CNSS
         base_imposable = salaire_brut - cnss
         
