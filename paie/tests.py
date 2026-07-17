@@ -257,9 +257,11 @@ class BulletinCnssIndemnitesTests(TestCase):
         self.assertEqual(montants['base_rts'], Decimal('1888158'))
         self.assertEqual(montants['irg'], Decimal('44408'))
         self.assertEqual(montants['net'], Decimal('2500000'))
-        self.assertEqual(montants['base_vf'], Decimal('2013158'))
-        self.assertEqual(montants['versement_forfaitaire'], Decimal('120789'))
-        self.assertEqual(montants['taxe_apprentissage'], Decimal('40263'))
+        # Depuis la migration 0142 (audit CGI art. 201) : base VF/TA = brut
+        # integral par defaut, l'exoneration de 25% ne s'applique qu'a la RTS.
+        self.assertEqual(montants['base_vf'], Decimal('2669408'))
+        self.assertEqual(montants['versement_forfaitaire'], Decimal('160164'))
+        self.assertEqual(montants['taxe_apprentissage'], Decimal('53388'))
 
 
 class LivrePaiePdfTests(TestCase):
