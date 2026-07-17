@@ -8,6 +8,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.test import TestCase
+from django.core.exceptions import ValidationError
 
 from core.models import (Entreprise, Utilisateur, AccesEntreprise,
                          PermissionRole, Delegation)
@@ -15,7 +16,7 @@ from comptabilite.models import (
     Tiers, Facture, LigneFacture, Reglement, EcritureComptable, ExerciceComptable,
     Immobilisation, Amortissement, PlanComptable,
     PieceCaisse, RegleEcriture, RegleValidation, DemandeApprobation,
-    CompteBancaire,
+    CompteBancaire, ReleveBancaire, OperationBancaire, RapprochementBancaire,
 )
 from comptabilite.moteur_comptable import (
     operation_simple, comptabiliser_facture, comptabiliser_reglement,
@@ -229,6 +230,47 @@ class TestControles(BaseMoteurTest):
         solde = RapprochementService(self.e, self.u).calculer_solde_comptable(
             compte_bancaire, date(2026, 4, 30))
         self.assertEqual(solde, Decimal('1100'))
+
+    def test_rapprochement_desequilibre_refuse_meme_sans_ecart_enregistre(self):
+        banque = obtenir_compte(self.e, 'banque')
+        compte_bancaire = CompteBancaire.objects.create(
+            entreprise=self.e, code='BQ-ECART', libelle='Banque ecart',
+            banque='Banque test', solde_initial=Decimal('100'),
+            compte_comptable=banque)
+        rapprochement = RapprochementBancaire.objects.create(
+            compte_bancaire=compte_bancaire,
+            date_rapprochement=date(2026, 4, 30),
+            solde_bancaire=Decimal('0'), solde_comptable=Decimal('100'),
+            ecart=Decimal('100'), responsable=self.u)
+
+        with self.assertRaises(ValidationError):
+            RapprochementService(self.e, self.u).valider_rapprochement(
+                rapprochement)
+
+    def test_lettrage_compare_uniquement_la_ligne_bancaire(self):
+        banque = obtenir_compte(self.e, 'banque')
+        charge = obtenir_compte(self.e, 'achats')
+        contrepartie = obtenir_compte(self.e, 'fournisseurs')
+        compte_bancaire = CompteBancaire.objects.create(
+            entreprise=self.e, code='BQ-LET', libelle='Banque lettrage',
+            banque='Banque test', compte_comptable=banque)
+        ecriture = generer_ecriture(
+            self.e, self.u, 'BQ', date(2026, 4, 15), 'Paiement compose',
+            [(banque, 'Banque', Decimal('100'), ZERO),
+             (charge, 'Frais', Decimal('50'), ZERO),
+             (contrepartie, 'Contrepartie', ZERO, Decimal('150'))])
+        releve = ReleveBancaire.objects.create(
+            compte_bancaire=compte_bancaire, numero='REL-LET',
+            date_debut=date(2026, 4, 1), date_fin=date(2026, 4, 30),
+            solde_initial=ZERO, solde_final=Decimal('100'))
+        operation = OperationBancaire.objects.create(
+            releve=releve, date_operation=date(2026, 4, 15),
+            description='Paiement compose', montant=Decimal('100'),
+            type_operation='credit')
+
+        lettrage = RapprochementService(self.e, self.u).lettrer_operation(
+            operation, ecriture)
+        self.assertEqual(lettrage.ecriture, ecriture)
 
     def test_refus_ecriture_desequilibree(self):
         c1 = obtenir_compte(self.e, 'caisse')

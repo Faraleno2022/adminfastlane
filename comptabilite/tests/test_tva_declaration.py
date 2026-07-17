@@ -92,6 +92,18 @@ class DeclarationTVATotauxTest(TestCase):
             service.calculer_ht(Decimal('200.00'), Decimal('100')),
             Decimal('100.00'))
 
+    def test_calcul_ttc_refuse_taux_superieur_a_cent(self):
+        service = CalculTVAService(self.user)
+        self.assertEqual(
+            service.calculer_ttc(Decimal('100.00'), Decimal('101')),
+            Decimal('0.00'))
+
+    def test_calcul_ttc_refuse_montant_negatif(self):
+        service = CalculTVAService(self.user)
+        self.assertEqual(
+            service.calculer_ttc(Decimal('-100.00'), Decimal('18')),
+            Decimal('0.00'))
+
     def test_arrondi_tva_montant_limite_half_up(self):
         service = CalculTVAService(self.user)
         self.assertEqual(

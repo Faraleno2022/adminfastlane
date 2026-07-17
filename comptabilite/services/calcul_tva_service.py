@@ -68,6 +68,11 @@ class CalculTVAService(BaseComptaService):
         """
         try:
             montant_ht = Decimal(str(montant_ht))
+            taux = Decimal(str(taux))
+            self.valider({
+                'montant_ht_positif': montant_ht >= 0,
+                'taux_valide': Decimal('0') <= taux <= Decimal('100'),
+            })
             montant_tva = self.calculer_tva(montant_ht, taux)
             montant_ttc = montant_ht + montant_tva
             return montant_ttc.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
