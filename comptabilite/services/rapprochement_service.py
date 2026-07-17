@@ -144,13 +144,28 @@ class RapprochementService(BaseComptaService):
         Returns:
             LettrageOperation: Nouveau lettrage
         """
-        # Valide les montants
-        if operation_bancaire.montant != ecriture_comptable.total_debit:
-            if operation_bancaire.montant != ecriture_comptable.total_credit:
-                raise ValidationError(
-                    f"Montants différents: {operation_bancaire.montant} vs "
-                    f"{max(ecriture_comptable.total_debit, ecriture_comptable.total_credit)}"
-                )
+        compte_bancaire = operation_bancaire.releve.compte_bancaire
+        compte_comptable = compte_bancaire.compte_comptable
+        if not compte_comptable:
+            raise ValidationError("Compte bancaire non lié à un compte comptable")
+
+        # Une écriture peut contenir plusieurs contreparties. Le montant à
+        # rapprocher est le mouvement net du compte bancaire concerné.
+        lignes_banque = ecriture_comptable.lignes.filter(compte=compte_comptable)
+        debit_banque = sum(
+            (ligne.montant_debit or Decimal('0.00') for ligne in lignes_banque),
+            Decimal('0.00'),
+        )
+        credit_banque = sum(
+            (ligne.montant_credit or Decimal('0.00') for ligne in lignes_banque),
+            Decimal('0.00'),
+        )
+        montant_banque = abs(debit_banque - credit_banque)
+        if operation_bancaire.montant != montant_banque:
+            raise ValidationError(
+                f"Montants différents: {operation_bancaire.montant} vs "
+                f"{montant_banque} sur le compte bancaire"
+            )
         
         # Crée le lettrage
         lettrage = LettrageOperation.objects.create(
@@ -216,16 +231,16 @@ class RapprochementService(BaseComptaService):
             rapprochement.date_rapprochement
         )
         
-        if abs(solde_comptable - rapprochement.solde_bancaire) > Decimal('0.01'):
+        ecart = abs(solde_comptable - rapprochement.solde_bancaire)
+        if ecart > Decimal('0.01'):
             ecarts_non_resolus = EcartBancaire.objects.filter(
                 rapprochement=rapprochement,
                 est_resolu=False
             ).count()
-            
-            if ecarts_non_resolus > 0:
-                raise ValidationError(
-                    f"Écarts non résolus: {ecarts_non_resolus}"
-                )
+            raise ValidationError(
+                f"Rapprochement déséquilibré de {ecart}: "
+                f"{ecarts_non_resolus} écart(s) non résolu(s)"
+            )
         
         rapprochement.statut = 'termine'
         rapprochement.save()
