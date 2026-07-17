@@ -5288,8 +5288,8 @@ def api_impact_fiscal(request):
         statut_employe='actif'
     ).count()
 
-    constantes = _charger_constantes()
     annee = date.today().year
+    constantes = _charger_constantes(date(annee, 1, 1))
 
     # Charger meilleur barème dispo
     tranches = _charger_tranches_db(annee, 'officiel')
@@ -5470,8 +5470,8 @@ def api_optimiser_decomposition(request):
         statut_employe='actif'
     ).count()
 
-    constantes = _charger_constantes()
     annee = date.today().year
+    constantes = _charger_constantes(date(annee, 1, 1))
     tranches = _charger_tranches_db(annee, 'officiel')
     if not tranches:
         tranches = list(BAREME_CGI_REFERENCE)
@@ -5812,15 +5812,17 @@ def api_proposition_complete(request):
     # ── Étape 3 : Optimisation dynamique de la structure ──────────────────
     from .services_simulation import optimiser_structure_dynamique, _charger_constantes, _charger_tranches_db, BAREME_CGI_REFERENCE
 
-    constantes_sim = _charger_constantes()
+    constantes_sim = _charger_constantes(date(annee, 1, 1))
     tranches_sim = _charger_tranches_db(annee, 'officiel')
     if not tranches_sim:
         tranches_sim = list(BAREME_CGI_REFERENCE)
 
     try:
         optim = optimiser_structure_dynamique(
-            brut_calcule, tranches_sim, constantes_sim, objectif=objectif,
-            taux_max=taux_max
+            brut_calcule, tranches_sim, constantes_sim,
+            nb_salaries=nb_salaries,
+            objectif=objectif,
+            taux_max=taux_max,
         )
     except Exception as e:
         return JsonResponse({'error': f'Erreur optimisation : {str(e)}'}, status=500)
@@ -6064,8 +6066,8 @@ def api_valider_simulation(request):
         statut_employe='actif'
     ).count()
 
-    constantes = _charger_constantes()
     annee = date.today().year
+    constantes = _charger_constantes(date(annee, 1, 1))
     tranches = _charger_tranches_db(annee, 'officiel')
     if not tranches:
         tranches = list(BAREME_CGI_REFERENCE)
@@ -6312,8 +6314,8 @@ def api_simulation_pdf(request):
             return JsonResponse({'error': 'Données insuffisantes'}, status=400)
 
         from .services_simulation import calculer_un_bareme, _charger_constantes, BAREME_CGI_REFERENCE, _charger_tranches_db
-        constantes = _charger_constantes()
         annee = date.today().year
+        constantes = _charger_constantes(date(annee, 1, 1))
         tranches_bareme = _charger_tranches_db(annee, 'officiel')
         if not tranches_bareme:
             tranches_bareme = list(BAREME_CGI_REFERENCE)

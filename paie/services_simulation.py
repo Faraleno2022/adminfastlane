@@ -7,7 +7,7 @@ Algorithme validé par les tests T01–T17 (cf. _test_rts_tmp.py)
 from decimal import Decimal, ROUND_HALF_UP, ROUND_FLOOR
 from datetime import date
 
-from .models import TrancheRTS, Constante
+from .models import TrancheRTS
 
 
 # ---------------------------------------------------------------------------
@@ -75,14 +75,16 @@ def _charger_tranches_db(annee: int, type_bareme: str = 'officiel') -> list:
     return result
 
 
-def _charger_constantes() -> dict:
+def _charger_constantes(date_reference=None) -> dict:
     """
     Charge les constantes fiscales actives.
     Complète avec des valeurs par défaut si absentes de la DB.
     """
-    constantes = {}
-    for c in Constante.objects.filter(actif=True):
-        constantes[c.code] = c.valeur
+    from .cache_service import PayrollCacheService
+
+    constantes = dict(PayrollCacheService.get_constantes(
+        date_reference=date_reference
+    ))
 
     defaults = {
         'TAUX_CNSS_EMPLOYE':   Decimal('5'),
@@ -395,7 +397,6 @@ def simuler_multi_baremes(
 
     brut             = Decimal(str(brut))
     total_indemnites = Decimal(str(max(0, total_indemnites)))
-    constantes       = _charger_constantes()
     resultats        = []
     type_labels      = {'officiel': 'Officiel', 'simulation': 'Simulation', 'test': 'Test'}
 
@@ -421,6 +422,9 @@ def simuler_multi_baremes(
                 label    = f'Barème {annee} {type_b} (fallback référence)'
             else:
                 label = f'Barème {annee} — {type_labels.get(type_b, type_b)}'
+
+        annee_constantes = annee if annee is not None else annee_ref
+        constantes = _charger_constantes(date(annee_constantes, 1, 1))
 
         result = calculer_un_bareme(
             brut, total_indemnites, tranches, constantes, nb_salaries
@@ -464,8 +468,6 @@ def optimiser_net(
         annee_ref = date.today().year
 
     enveloppe = Decimal(str(enveloppe_totale))
-    constantes = _charger_constantes()
-
     # Charger le barème
     if bareme_id and bareme_id != BAREME_FALLBACK_ID:
         parts = bareme_id.split('-', 1)
@@ -479,7 +481,10 @@ def optimiser_net(
         if not tranches:
             tranches = list(BAREME_CGI_REFERENCE)
     else:
+        annee = annee_ref
         tranches = list(BAREME_CGI_REFERENCE)
+
+    constantes = _charger_constantes(date(annee, 1, 1))
 
     # Scénario 1 : Tout en brut (indemnités = 0)
     r_brut_pur = calculer_un_bareme(enveloppe, Decimal('0'), tranches, constantes, nb_salaries)
@@ -580,7 +585,9 @@ def simuler_scenario_augmentation(
             'cout_total_apres': b['brut'] + b['total_charges_pat'],
         })
 
-    constantes = _charger_constantes()
+    if annee_ref is None:
+        annee_ref = date.today().year
+    constantes = _charger_constantes(date(annee_ref, 1, 1))
     return {
         'pourcentage': float(pct),
         'brut_actuel': int(brut),
