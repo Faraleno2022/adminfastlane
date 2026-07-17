@@ -44,6 +44,38 @@ def _to_json_safe(value):
     return value
 
 
+def _compter_salaries_a_la_periode(entreprise, periode):
+    """Effectif servant à la bascule TA/ONFPP pour le mois calculé."""
+    if not entreprise:
+        return 0
+
+    # Pour une période déjà calculée, les bulletins figés constituent la
+    # source historique la plus fiable et évitent d'utiliser l'effectif actuel.
+    if getattr(periode, 'statut_periode', '') in ('calculee', 'cloturee'):
+        nb_bulletins = BulletinPaie.objects.filter(
+            periode=periode,
+            employe__entreprise=entreprise,
+        ).values('employe_id').distinct().count()
+        if nb_bulletins:
+            return nb_bulletins
+
+    premier_jour = date(periode.annee, periode.mois, 1)
+    dernier_jour = date(
+        periode.annee,
+        periode.mois,
+        calendar.monthrange(periode.annee, periode.mois)[1],
+    )
+    return Employe.objects.filter(
+        entreprise=entreprise,
+    ).filter(
+        models.Q(date_embauche__isnull=True) |
+        models.Q(date_embauche__lte=dernier_jour)
+    ).filter(
+        models.Q(statut_employe='actif') |
+        models.Q(date_depart__gte=premier_jour)
+    ).count()
+
+
 def salaire_base_rubrique_q(prefix='rubrique__'):
     """Critere commun pour identifier une rubrique de salaire de base."""
     p = prefix
@@ -174,10 +206,10 @@ class MoteurCalculPaie:
             'bases_taxables': {},
         }
         # Nombre de salariés actifs de l'entreprise (pour TA vs ONFPP)
-        self.nb_salaries = Employe.objects.filter(
-            entreprise=employe.entreprise,
-            statut_employe='actif'
-        ).count() if employe.entreprise else 0
+        self.nb_salaries = _compter_salaries_a_la_periode(
+            employe.entreprise,
+            periode,
+        )
         self.constantes = self._charger_constantes()
         self._appliquer_config_entreprise()
         appliquer_constantes_cnss_legales(self.constantes)

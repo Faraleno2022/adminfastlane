@@ -126,6 +126,10 @@ def _net_depuis_brut(brut, constantes, tranches, pct_indem_exonerees=Decimal('0'
 
     cnss, base_cnss = _calculer_cnss(brut, plancher, plafond, taux_cnss)
 
+    pct_indem_exonerees = max(
+        Decimal('0'), min(Decimal('25'), _d(pct_indem_exonerees))
+    )
+
     # Exonération indemnités forfaitaires (CGI Guinée : max 25 % du brut)
     # ROUND_FLOOR pour cohérence avec services.py (plafond CGI arrondi vers le bas)
     exo = _d(brut * min(pct_indem_exonerees, Decimal('25')) / Decimal('100')).quantize(Decimal('1'), rounding=ROUND_FLOOR)
@@ -187,7 +191,9 @@ def retropaie_net_vers_brut(
     from .cache_service import PayrollCacheService
 
     net_cible = _arrondir(_d(net_cible))
-    pct_indem = _d(pct_indemnites_forfaitaires)
+    pct_indem = max(
+        Decimal('0'), min(Decimal('25'), _d(pct_indemnites_forfaitaires))
+    )
 
     if annee is None:
         annee = date.today().year
@@ -201,74 +207,64 @@ def retropaie_net_vers_brut(
     constantes.setdefault('PLAFOND_CNSS',      Decimal('2500000'))
     constantes.setdefault('TAUX_CNSS_EMPLOYE', Decimal('5'))
 
-    # ---- Dichotomie entière robuste (pas de float, binary search exact) ---
-    low  = int(net_cible)                          # Brut minimum = net cible
-    high = int(_arrondir(net_cible * Decimal('2')))  # Borne haute (généreux)
+    # La fonction brut->net baisse au seuil d'assujettissement CNSS. Une
+    # dichotomie unique peut donc ignorer la solution de brut minimale.
+    # Chercher séparément dans les deux segments monotones corrige ce cas.
+    cible = int(net_cible)
+    borne_haute = max(cible * 2, cible + int(constantes['PLAFOND_CNSS']))
+    seuil_cnss = int(_arrondir(
+        constantes['PLANCHER_CNSS'] * Decimal('0.10')
+    ))
+    segments = [(0, min(borne_haute, seuil_cnss - 1))]
+    if borne_haute >= seuil_cnss:
+        segments.append((seuil_cnss, borne_haute))
 
-    brut_opt  = high
+    candidats = set()
     iterations = 0
+    for debut, fin in segments:
+        if debut > fin:
+            continue
+        low, high = debut, fin
+        for _ in range(max_iterations):
+            if low > high:
+                break
+            iterations += 1
+            mid = (low + high) // 2
+            net_mid, *_ = _net_depuis_brut(
+                Decimal(mid), constantes, tranches, pct_indem
+            )
+            if int(net_mid) < cible:
+                low = mid + 1
+            else:
+                high = mid - 1
+        for brut_candidat in (low - 1, low, low + 1):
+            if debut <= brut_candidat <= fin:
+                candidats.add(brut_candidat)
 
-    # Phase 1 : binary search entier strict (convergence log2)
-    for _ in range(max_iterations):
-        iterations += 1
-        mid = (low + high) // 2
+    if not candidats:
+        candidats.add(borne_haute)
 
-        net_mid, *_ = _net_depuis_brut(Decimal(str(mid)), constantes, tranches, pct_indem)
-        net_mid = int(net_mid)
+    evaluations = []
+    for brut_candidat in candidats:
+        net_candidat, *_ = _net_depuis_brut(
+            Decimal(brut_candidat), constantes, tranches, pct_indem
+        )
+        evaluations.append((brut_candidat, int(net_candidat)))
 
-        if net_mid == int(net_cible):
-            brut_opt = Decimal(str(mid))
-            break
-        elif net_mid < int(net_cible):
-            low = mid + 1
-        else:
-            high = mid - 1
-
-        brut_opt = Decimal(str(mid))
-
-        if low > high:
-            # Pas de solution exacte à ce stade, prendre le plus proche
-            brut_opt = Decimal(str(mid))
-            break
-
-    # ---- Garantie du net minimum OU affinement net exact ------------------
     if garantir_net_minimum:
-        # Mode net_minimum : s'assurer que net >= net_cible
-        net_test, *_ = _net_depuis_brut(brut_opt, constantes, tranches, pct_indem)
-        while int(net_test) < int(net_cible):
-            brut_opt += Decimal('1')
-            net_test, *_ = _net_depuis_brut(brut_opt, constantes, tranches, pct_indem)
+        admissibles = [item for item in evaluations if item[1] >= cible]
+        if not admissibles:
+            admissibles = evaluations
+        brut_choisi, _ = min(admissibles, key=lambda item: item[0])
         mode = 'net_minimum'
     else:
-        # Mode net_exact : affiner au GNF près par balayage linéaire
-        net_test, *_ = _net_depuis_brut(brut_opt, constantes, tranches, pct_indem)
-        if int(net_test) > int(net_cible):
-            # Descendre d'1 GNF à la fois
-            while int(brut_opt) > int(net_cible):
-                brut_candidat = brut_opt - Decimal('1')
-                net_candidat, *_ = _net_depuis_brut(brut_candidat, constantes, tranches, pct_indem)
-                if int(net_candidat) < int(net_cible):
-                    ecart_actuel = abs(int(net_test) - int(net_cible))
-                    ecart_candidat = abs(int(net_candidat) - int(net_cible))
-                    if ecart_candidat < ecart_actuel:
-                        brut_opt = brut_candidat
-                    break
-                brut_opt = brut_candidat
-                net_test = net_candidat
-        elif int(net_test) < int(net_cible):
-            # Monter d'1 GNF
-            while True:
-                brut_candidat = brut_opt + Decimal('1')
-                net_candidat, *_ = _net_depuis_brut(brut_candidat, constantes, tranches, pct_indem)
-                if int(net_candidat) > int(net_cible):
-                    ecart_actuel = int(net_cible) - int(net_test)
-                    ecart_candidat = int(net_candidat) - int(net_cible)
-                    if ecart_candidat < ecart_actuel:
-                        brut_opt = brut_candidat
-                    break
-                brut_opt = brut_candidat
-                net_test = net_candidat
+        brut_choisi, _ = min(
+            evaluations,
+            key=lambda item: (abs(item[1] - cible), item[0]),
+        )
         mode = 'net_exact'
+
+    brut_opt = Decimal(brut_choisi)
 
     # ---- Résultat final + Assertion de sécurité ---------------------------
     net_final, cnss_f, base_cnss_f, base_rts_f, rts_f = _net_depuis_brut(
@@ -297,7 +293,7 @@ def retropaie_net_vers_brut(
         'precision_ok':    precision_ok,
         'meta': {
             'version_bareme': f'GN-{annee}-v1',
-            'methode_inverse': 'binary_search_int_v2',
+            'methode_inverse': 'binary_search_segments_cnss_v3',
             'max_iterations': max_iterations,
             'tolerance_gnf': int(tolerance),
         },
@@ -322,18 +318,31 @@ def verifier_monotonie(annee=None, pct_indemnites_forfaitaires=0, pas=500_000,
     constantes.setdefault('PLAFOND_CNSS',      Decimal('2500000'))
     constantes.setdefault('TAUX_CNSS_EMPLOYE', Decimal('5'))
 
-    pct_indem = _d(pct_indemnites_forfaitaires)
+    pct_indem = max(
+        Decimal('0'), min(Decimal('25'), _d(pct_indemnites_forfaitaires))
+    )
+    seuil_cnss = int(_arrondir(
+        constantes['PLANCHER_CNSS'] * Decimal('0.10')
+    ))
+    points = set(range(0, brut_max + 1, pas))
+    points.update(
+        point for point in (seuil_cnss - 1, seuil_cnss, seuil_cnss + 1)
+        if 0 <= point <= brut_max
+    )
     prev_net = 0
+    prev_brut = 0
 
-    for brut in range(0, brut_max + 1, pas):
+    for brut in sorted(points):
         net, *_ = _net_depuis_brut(Decimal(str(brut)), constantes, tranches, pct_indem)
         net = int(net)
-        if net < prev_net:
+        saut_cnss_legal = prev_brut == seuil_cnss - 1 and brut == seuil_cnss
+        if net < prev_net and not saut_cnss_legal:
             raise ValueError(
                 f"Anomalie de monotonicité : brut={brut:,} → net={net:,} "
-                f"< précédent net={prev_net:,} (brut={brut - pas:,})"
+                f"< précédent net={prev_net:,} (brut={prev_brut:,})"
             )
         prev_net = net
+        prev_brut = brut
 
     return True
 
@@ -435,7 +444,9 @@ def cout_total_vers_brut(
     from .cache_service import PayrollCacheService
 
     cout_total = _arrondir(_d(cout_total))
-    pct_indem = _d(pct_indemnites_forfaitaires)
+    pct_indem = max(
+        Decimal('0'), min(Decimal('25'), _d(pct_indemnites_forfaitaires))
+    )
 
     if annee is None:
         annee = date.today().year

@@ -848,6 +848,7 @@ class ChargesPatronalesTests(SimpleTestCase):
             def aggregate(self, **kwargs):
                 return {
                     'nb': len(self),
+                    'nb_employes': len(self),
                     'brut': sum((b.salaire_brut for b in self), Decimal('0')),
                     'cnss_sal': sum((b.cnss_employe for b in self), Decimal('0')),
                     'cnss_emp': sum((b.cnss_employeur for b in self), Decimal('0')),
