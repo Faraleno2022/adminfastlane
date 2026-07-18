@@ -116,7 +116,7 @@ class LicenceMiddleware:
             # Licence/essai expiré → page de blocage HTTP 403
             days = status.get('days_left', 0)
             if status.get('trial'):
-                reason = "Votre période d'essai gratuit de 30 jours est expirée."
+                reason = "Votre période d'essai gratuit de 3 mois est expirée."
             else:
                 reason = "Votre licence a expiré ou est invalide."
             html = _BLOCKED_HTML.format(reason=reason)

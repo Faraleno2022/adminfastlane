@@ -1,7 +1,7 @@
 ; GestionnaireRH - Inno Setup Installer Script
 ; ===============================================
 ; Auteur  : Guinée RH
-; Version : 1.2.4
+; Version : 1.2.5
 ;
 ; Prérequis : Inno Setup 6+ (https://jrsoftware.org/isinfo.php)
 ;
@@ -15,8 +15,8 @@
 ; ── Identification ─────────────────────────────────────────────────────────────
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 AppName=GestionnaireRH
-AppVersion=1.2.4
-AppVerName=GestionnaireRH 1.2.4
+AppVersion=1.2.5
+AppVerName=GestionnaireRH 1.2.5
 AppPublisher=Guinée RH
 AppPublisherURL=https://www.guineerh.space
 AppSupportURL=https://www.guineerh.space
@@ -37,7 +37,7 @@ RestartApplications=no
 
 ; ── Sortie ─────────────────────────────────────────────────────────────────────
 OutputDir=Output
-OutputBaseFilename=GestionnaireRH_Setup_v1.2.4
+OutputBaseFilename=GestionnaireRH_Setup_v1.2.5
 
 ; ── Icône ───────────────────────────────────────────────────────────────────────
 SetupIconFile=static\img\logo.ico
@@ -58,7 +58,7 @@ UninstallDisplayIcon={app}\GestionnaireRH.exe
 CreateUninstallRegKey=yes
 
 ; ── Version info (visible dans Programmes et fonctionnalités) ──────────────────
-VersionInfoVersion=1.2.4.0
+VersionInfoVersion=1.2.5.0
 VersionInfoCompany=Guinée RH
 VersionInfoDescription=GestionnaireRH - Système de Gestion des Ressources Humaines
 VersionInfoCopyright=Copyright © 2024-2026 Guinée RH
@@ -129,7 +129,7 @@ Name: "{userstartup}\GestionnaireRH"; Filename: "{app}\GestionnaireRH.exe"; Work
 
 [Registry]
 ; Enregistrement pour le panneau "Programmes et fonctionnalités"
-Root: HKCU; Subkey: "Software\Guinée RH\GestionnaireRH"; ValueType: string; ValueName: "Version";    ValueData: "1.2.4"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Guinée RH\GestionnaireRH"; ValueType: string; ValueName: "Version";    ValueData: "1.2.5"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Guinée RH\GestionnaireRH"; ValueType: string; ValueName: "InstallDir"; ValueData: "{app}";  Flags: uninsdeletevalue
 
 [Run]
@@ -252,7 +252,7 @@ begin
   begin
     if MsgBox(
       'GestionnaireRH version ' + PrevVersion + ' est déjà installé.' + #13#10 +
-      'Voulez-vous mettre à jour vers la version 1.2.4 ?' + #13#10 + #13#10 +
+      'Voulez-vous mettre à jour vers la version 1.2.5 ?' + #13#10 + #13#10 +
       'Vos données (base de données, licences, médias) seront conservées.',
       mbConfirmation, MB_YESNO
     ) = IDNO then
@@ -283,12 +283,12 @@ begin
     'Activation de licence',
     'Choisissez le mode d''activation de GestionnaireRH.',
     'Si vous avez deja recu un fichier de licence, vous pouvez l''ajouter maintenant. ' +
-    'Sinon, l''application demarrera en version d''essai de 30 jours.',
+    'Sinon, l''application demarrera en version d''essai de 3 mois.',
     True,
     False
   );
   LicenseChoicePage.Add('J''ai un fichier de licence (.lic ou license.dat)');
-  LicenseChoicePage.Add('Continuer avec la version d''essai de 30 jours');
+  LicenseChoicePage.Add('Continuer avec la version d''essai de 3 mois');
   LicenseChoicePage.SelectedValueIndex := 1;
 
   LicenseFilePage := CreateInputFilePage(
@@ -497,7 +497,7 @@ begin
             MemoTasksInfo + NewLine + NewLine +
             '─────────────────────────────────────────' + NewLine +
             'ACTIVATION DE LICENCE' + NewLine +
-            'Une période d''essai de 30 jours démarre automatiquement.' + NewLine +
+            'Une période d''essai de 3 mois démarre automatiquement.' + NewLine +
             'Pour activer votre licence permanente, notez votre ID Machine' + NewLine +
             'et contactez Guinée RH.' + NewLine +
             '─────────────────────────────────────────';

@@ -125,7 +125,7 @@ def show_activation_window(mid: str, trial_days_left: int = 0) -> bool:
     body.pack(fill='both', expand=True)
 
     if trial_days_left <= 0:
-        status_txt = ("Votre période d'essai de 30 jours est expirée.\n"
+        status_txt = ("Votre période d'essai de 3 mois est expirée.\n"
                       "Veuillez activer votre licence pour continuer.")
         status_col = '#c0392b'
     else:

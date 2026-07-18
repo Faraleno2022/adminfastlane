@@ -86,28 +86,32 @@ def get_machine_id_short() -> str:
 
 # ─── Génération de fichier d'activation ───────────────────────────────────────
 def generate_activation_file(machine_id: str, expiry_days: int = 365,
-                               company_name: str = '', edition: str = 'Standard') -> dict:
+                               company_name: str = '', edition: str = 'Standard',
+                               universal: bool = False) -> dict:
     """
     Génère un fichier d'activation complet (à envoyer au client).
-    PROTÉGÉ : Seule la machine propriétaire peut exécuter cette fonction.
+    Si universal=True, la licence signée est valable sur toutes les machines.
     """
-    # Vérification anti-vol : seule la machine propriétaire peut générer
-    try:
-        from project_guardian import guard_license_generation
-        guard_license_generation()
-    except ImportError:
-        raise PermissionError(
-            "Module de protection introuvable. "
-            "Génération de licence bloquée."
-        )
+    # La génération machine reste réservée au poste propriétaire.
+    # La licence universelle est volontairement distribuable.
+    if not universal:
+        try:
+            from project_guardian import guard_license_generation
+            guard_license_generation()
+        except ImportError:
+            raise PermissionError(
+                "Module de protection introuvable. "
+                "Génération de licence bloquée."
+            )
 
     payload = {
-        'mid': machine_id,
+        'mid': '*' if universal else machine_id,
         'exp': (_now_utc() + timedelta(days=expiry_days)).strftime('%Y%m%d'),
         'company': company_name[:60],
         'edition': edition,
         'issued': _now_utc().strftime('%Y-%m-%d'),
         'issuer': 'ICG Guinea',
+        'scope': 'universal' if universal else 'machine',
     }
     payload_str = json.dumps(payload, separators=(',', ':'))
     payload_b64 = base64.b64encode(payload_str.encode()).decode()
@@ -145,8 +149,9 @@ def _validate_license_data(license_dict: dict) -> dict:
         payload = json.loads(base64.b64decode(payload_b64).decode())
         machine_id = get_machine_id()
 
-        # Vérifier la machine (tolérance : 16 premiers chars)
-        if payload.get('mid', '')[:16] != machine_id[:16]:
+        # Vérifier la machine, sauf licence universelle signée.
+        is_universal = payload.get('scope') == 'universal' or payload.get('mid') == '*'
+        if not is_universal and payload.get('mid', '')[:16] != machine_id[:16]:
             return {'valid': False, 'reason': 'Cette licence appartient à une autre machine.'}
 
         # Vérifier l'expiration
@@ -226,7 +231,8 @@ def activate_from_file(activation_file_path: str) -> dict:
         return {'valid': False, 'reason': f'Erreur lecture du fichier : {e}'}
 
 
-# ─── Mode essai (30 jours sans licence) ───────────────────────────────────────
+# ─── Mode essai (3 mois sans licence) ─────────────────────────────────────────
+TRIAL_DAYS = 90  # durée de la période d'essai gratuite (3 mois)
 _TRIAL_FILE_NAME = '.trial_start'
 
 
@@ -266,7 +272,7 @@ def _trial_write(tp: Path, trial_start: datetime):
 
 
 def get_or_create_trial() -> dict:
-    """Gère une période d'essai de 30 jours sans licence."""
+    """Gère une période d'essai de 3 mois (TRIAL_DAYS jours) sans licence."""
     trial_paths = [
         _get_license_path().parent / _TRIAL_FILE_NAME,
         _get_appdata_license_path().parent / _TRIAL_FILE_NAME,
@@ -297,11 +303,11 @@ def get_or_create_trial() -> dict:
             'trial': True,
             'valid': False,
             'days_left': 0,
-            'days_elapsed': 30,
+            'days_elapsed': TRIAL_DAYS,
             'reason': "Manipulation de l'horloge détectée. Période d'essai révoquée.",
         }
 
-    days_left = max(0, 30 - days_elapsed)
+    days_left = max(0, TRIAL_DAYS - days_elapsed)
 
     return {
         'trial': True,
@@ -341,6 +347,7 @@ if __name__ == '__main__':
         print("\nUsages :")
         print("  python license_manager.py info")
         print("  python license_manager.py generate <machine_id> <jours> <entreprise> <edition>")
+        print("  python license_manager.py generate-universal <jours> <entreprise> <edition>")
         print("  python license_manager.py activate <fichier.lic>")
         print("  python license_manager.py check")
         sys.exit(0)
@@ -368,6 +375,24 @@ if __name__ == '__main__':
             json.dump(lic_data, f, indent=2)
         print(f"\nLicence générée : {output_file}")
         print(f"  Machine    : {machine_id}")
+        print(f"  Entreprise : {company}")
+        print(f"  Édition    : {edition}")
+        print(f"  Durée      : {days} jours")
+
+    elif cmd == 'generate-universal':
+        if len(sys.argv) < 3:
+            print("Usage: python license_manager.py generate-universal <jours> [entreprise] [edition]")
+            sys.exit(1)
+        days = int(sys.argv[2])
+        company = sys.argv[3] if len(sys.argv) > 3 else 'Licence universelle'
+        edition = sys.argv[4] if len(sys.argv) > 4 else 'Enterprise'
+
+        lic_data = generate_activation_file('*', days, company, edition, universal=True)
+        output_file = 'licence_universelle_1_an.lic' if days == 365 else f'licence_universelle_{days}j.lic'
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(lic_data, f, indent=2)
+        print(f"\nLicence universelle générée : {output_file}")
+        print("  Machines   : toutes")
         print(f"  Entreprise : {company}")
         print(f"  Édition    : {edition}")
         print(f"  Durée      : {days} jours")
