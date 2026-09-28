@@ -1,10 +1,10 @@
 @echo off
-title Build Auto GestionnaireRH_Setup_v1.1.0
+title Build Auto GestionnaireRH_Setup_v1.2.5
 chcp 65001 >nul 2>nul
 cd /d "%~dp0"
 
 echo ============================================================
-echo   BUILD AUTO — GestionnaireRH_Setup_v1.1.0
+echo   BUILD AUTO — GestionnaireRH_Setup_v1.2.5
 echo   Etapes: Nuitka → PyInstaller → Inno Setup
 echo ============================================================
 echo.
@@ -87,8 +87,8 @@ echo.
 echo ============================================================
 echo   SETUP COMPILE AVEC SUCCES!
 echo ============================================================
-if exist Output\GestionnaireRH_Setup_v1.1.0.exe (
-    echo   Fichier: Output\GestionnaireRH_Setup_v1.1.0.exe
-    for %%A in (Output\GestionnaireRH_Setup_v1.1.0.exe) do echo   Taille : %%~zA octets
+if exist Output\GestionnaireRH_Setup_v1.2.5.exe (
+    echo   Fichier: Output\GestionnaireRH_Setup_v1.2.5.exe
+    for %%A in (Output\GestionnaireRH_Setup_v1.2.5.exe) do echo   Taille : %%~zA octets
 )
 echo.

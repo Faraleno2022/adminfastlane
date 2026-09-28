@@ -24,7 +24,7 @@ from .models import (
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
     LigneLivraison, PaiementClient, ProfilStock, JournalAudit,
     Lot, NumeroSerie,
-    BesoinAchat, LigneBesoinAchat, DemandeVente, LigneDemandeVente,
+    BesoinAchat, LigneBesoinAchat, DemandeVente, LigneDemandeVente, ParametresCommerciaux,
 )
 from .forms import (
     CategorieArticleForm, FournisseurForm, ArticleForm,
@@ -33,7 +33,7 @@ from .forms import (
     FactureFournisseurForm, PaiementFournisseurForm,
     ClientForm, DocumentVenteForm, LigneVenteForm, BonLivraisonForm,
     PaiementClientForm, PrixSpecialClientForm, LotForm, NumeroSerieForm,
-    BesoinAchatForm, LigneBesoinAchatForm, DemandeVenteForm, LigneDemandeVenteForm,
+    BesoinAchatForm, LigneBesoinAchatForm, DemandeVenteForm, LigneDemandeVenteForm, ParametresCommerciauxForm,
 )
 from .permissions import require_perm, a_permission, get_role
 from . import exports
@@ -74,6 +74,10 @@ def get_depot_defaut(entreprise):
     """Renvoie le dépôt par défaut de l'entreprise (ou le premier actif)."""
     return (Depot.objects.filter(entreprise=entreprise, par_defaut=True, actif=True).first()
             or Depot.objects.filter(entreprise=entreprise, actif=True).first())
+
+
+def get_parametres_commerciaux(entreprise):
+    return ParametresCommerciaux.objects.get_or_create(entreprise=entreprise)[0]
 
 
 def maj_cmup(article, quantite_entree, prix_unitaire, stock_avant):
@@ -1104,6 +1108,9 @@ def besoin_achat_detail(request, pk):
         messages.error(request, "Vous ne pouvez pas consulter ce besoin.")
         return redirect('stock:besoin_achat_list')
     lignes = besoin.lignes.select_related('article', 'ligne_commande__commande')
+    # Sans article actif au catalogue, le formulaire d'ajout de ligne serait
+    # impossible à soumettre (champ « article » obligatoire, liste vide).
+    aucun_article = not Article.objects.filter(entreprise=entreprise, actif=True).exists()
 
     if request.method == 'POST':
         if not besoin.modifiable:
@@ -1121,6 +1128,7 @@ def besoin_achat_detail(request, pk):
 
     return render(request, 'stock/besoin_achat_detail.html', {
         'besoin': besoin, 'lignes': lignes, 'form': form, 'peut_gerer': peut_gerer,
+        'aucun_article': aucun_article,
     })
 
 
@@ -1232,6 +1240,11 @@ def reception_create(request, pk):
     if not commande.receptionnable:
         messages.error(request, "Cette commande n'est pas en attente de réception.")
         return redirect('stock:commande_detail', pk=pk)
+    # Le dépôt de réception est obligatoire : sans dépôt actif, le formulaire
+    # n'offrirait aucun choix et resterait impossible à enregistrer.
+    if not Depot.objects.filter(entreprise=entreprise, actif=True).exists():
+        messages.warning(request, "Créez d'abord un dépôt avant de réceptionner une commande.")
+        return redirect('stock:depot_create')
     lignes = commande.lignes.select_related('article')
 
     if request.method == 'POST':
@@ -1600,6 +1613,9 @@ def demande_vente_detail(request, pk):
         messages.error(request, "Vous ne pouvez pas consulter cette demande.")
         return redirect('stock:demande_vente_list')
     lignes = demande.lignes.select_related('article')
+    # Même protection que pour les besoins d'achat : liste d'articles vide =
+    # formulaire d'ajout de ligne impossible à soumettre.
+    aucun_article = not Article.objects.filter(entreprise=entreprise, actif=True).exists()
 
     if request.method == 'POST':
         if not demande.modifiable:
@@ -1617,6 +1633,7 @@ def demande_vente_detail(request, pk):
 
     return render(request, 'stock/demande_vente_detail.html', {
         'demande': demande, 'lignes': lignes, 'form': form, 'peut_gerer': peut_gerer,
+        'aucun_article': aucun_article,
     })
 
 
@@ -1747,7 +1764,8 @@ def vente_create(request):
             messages.success(request, f"{doc.get_type_document_display()} {doc.reference} créé. Ajoutez les articles.")
             return redirect('stock:vente_detail', pk=doc.pk)
     else:
-        form = DocumentVenteForm(entreprise=entreprise, initial={'type_document': type_initial})
+        params = get_parametres_commerciaux(entreprise)
+        form = DocumentVenteForm(entreprise=entreprise, initial={'type_document': type_initial, 'taux_tva': params.taux_tva_defaut})
     return render(request, 'stock/form.html', {
         'form': form, 'titre': 'Nouveau document de vente', 'retour': 'stock:vente_list',
     })
@@ -1776,6 +1794,15 @@ def vente_detail(request, pk):
             # Remise : celle saisie, sinon remise habituelle du client.
             if form.cleaned_data.get('remise_pct') in (None, ''):
                 ligne.remise_pct = doc.client.remise_defaut or Decimal('0')
+            plafond = get_parametres_commerciaux(entreprise).remise_maximale(get_role(request.user))
+            if ligne.remise_pct > plafond:
+                form.add_error('remise_pct', f"Votre rôle autorise une remise maximale de {plafond} %.")
+                return render(request, 'stock/vente_detail.html', {
+                    'doc': doc, 'lignes': lignes, 'form': form,
+                    'paiement_form': PaiementClientForm(initial={'montant': doc.montant_du}) if doc.est_facture else None,
+                    'livraisons': doc.livraisons.select_related('depot'),
+                    'paiements': doc.paiements.all() if doc.est_facture else [],
+                })
             ligne.save()
             messages.success(request, "Article ajouté.")
             return redirect('stock:vente_detail', pk=pk)
@@ -1939,6 +1966,11 @@ def livraison_create(request, pk):
     if not doc.lignes.exists():
         messages.error(request, "Aucun article à livrer.")
         return redirect('stock:vente_detail', pk=pk)
+    # Le dépôt d'expédition est obligatoire : sans dépôt actif, le formulaire
+    # n'offrirait aucun choix et resterait impossible à enregistrer.
+    if not Depot.objects.filter(entreprise=entreprise, actif=True).exists():
+        messages.warning(request, "Créez d'abord un dépôt avant d'établir un bon de livraison.")
+        return redirect('stock:depot_create')
     lignes = doc.lignes.select_related('article')
 
     if request.method == 'POST':
@@ -2063,6 +2095,20 @@ def roles_list(request):
     return render(request, 'stock/roles_list.html', {
         'lignes': lignes, 'roles': ProfilStock.ROLES,
     })
+
+
+@reauth_required
+@login_required
+@stock_required
+@require_perm('admin')
+def parametres_commerciaux(request):
+    params = get_parametres_commerciaux(request.user.entreprise)
+    form = ParametresCommerciauxForm(request.POST or None, instance=params)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, "Paramètres commerciaux enregistrés.")
+        return redirect('stock:parametres_commerciaux')
+    return render(request, 'stock/parametres_commerciaux.html', {'form': form})
 
 
 # ===========================================================================
@@ -2191,6 +2237,11 @@ def lot_list(request):
 @require_perm('stock')
 def lot_create(request):
     entreprise = request.user.entreprise
+    # Sans article actif, le champ obligatoire « article » n'offrirait aucun choix :
+    # le formulaire serait impossible à enregistrer. On oriente l'utilisateur.
+    if not Article.objects.filter(entreprise=entreprise, actif=True).exists():
+        messages.warning(request, "Créez d'abord un article avant d'enregistrer un lot.")
+        return redirect('stock:article_create')
     if request.method == 'POST':
         form = LotForm(request.POST, entreprise=entreprise)
         if form.is_valid():
@@ -2266,6 +2317,10 @@ def serie_list(request):
 @require_perm('stock')
 def serie_create(request):
     entreprise = request.user.entreprise
+    # Même protection que pour les lots : pas d'article actif = formulaire insoumettable.
+    if not Article.objects.filter(entreprise=entreprise, actif=True).exists():
+        messages.warning(request, "Créez d'abord un article avant d'enregistrer un numéro de série.")
+        return redirect('stock:article_create')
     if request.method == 'POST':
         form = NumeroSerieForm(request.POST, entreprise=entreprise)
         if form.is_valid():

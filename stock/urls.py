@@ -127,6 +127,7 @@ urlpatterns = [
     # Traçabilité & rôles
     path('journal/', views.journal_audit, name='journal_audit'),
     path('roles/', views.roles_list, name='roles_list'),
+    path('parametres/', views.parametres_commerciaux, name='parametres_commerciaux'),
     path('api-info/', views.api_info, name='api_info'),
 
     # API REST

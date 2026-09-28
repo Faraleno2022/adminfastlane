@@ -72,7 +72,13 @@
             </div>
         </div>
 
-        {% if besoin.modifiable %}
+        {% if besoin.modifiable and aucun_article %}
+        <div class="alert alert-warning mt-3">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Aucun article n'est encore enregistré au catalogue : impossible d'ajouter une ligne à ce besoin.
+            <a href="{% url 'stock:article_create' %}" class="alert-link">Créez d'abord un article</a>.
+        </div>
+        {% elif besoin.modifiable %}
         <div class="card mt-3">
             <div class="card-header bg-white fw-bold"><i class="bi bi-plus-circle me-1"></i>Ajouter un article</div>
             <div class="card-body">

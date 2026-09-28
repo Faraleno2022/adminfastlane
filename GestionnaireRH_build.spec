@@ -7,7 +7,7 @@ Génère un exécutable Windows standalone avec icône
 import os
 import sys
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_all, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 # Répertoire du projet
 PROJECT_DIR = Path(r'C:\Users\LENO\Desktop\GestionnaireRHofline')
@@ -21,10 +21,17 @@ DJANGO_DIR = Path(django.__file__).parent
 AXES_DIR = Path(axes.__file__).parent
 
 # ── pywebview + pythonnet (fenêtre native WebView2) ──────────────────────────
-# Collecte complète : binaires .NET (Python.Runtime.dll), data et sous-modules.
-_webview_datas, _webview_binaries, _webview_hidden = collect_all('webview')
-_clr_datas, _clr_binaries, _clr_hidden = collect_all('clr_loader')
-_pythonnet_datas, _pythonnet_binaries, _pythonnet_hidden = collect_all('pythonnet')
+# Ne pas utiliser collect_all() ici : pywebview contient notamment un gros
+# backend Android qui n'est ni importable ni utile dans l'application Windows.
+# Son exploration pouvait immobiliser PyInstaller pendant des dizaines de
+# minutes. Les données et DLL sont collectées, tandis que les sous-modules
+# Windows requis sont déclarés explicitement dans hiddenimports ci-dessous.
+_webview_datas = collect_data_files('webview')
+_webview_binaries = collect_dynamic_libs('webview')
+_clr_datas = collect_data_files('clr_loader')
+_clr_binaries = collect_dynamic_libs('clr_loader')
+_pythonnet_datas = collect_data_files('pythonnet')
+_pythonnet_binaries = collect_dynamic_libs('pythonnet')
 
 # Collecter tous les fichiers de données
 datas = [
@@ -177,12 +184,16 @@ hiddenimports = [
     'webview.platforms.winforms',
     'clr',
     'clr_loader',
+    'clr_loader.ffi',
+    'clr_loader.hostfxr',
+    'clr_loader.mono',
+    'clr_loader.netfx',
+    'clr_loader.types',
+    'pythonnet',
+    'pythonnet.runtime',
     'bottle',
     'proxy_tools',
 ]
-
-# Sous-modules + imports cachés collectés pour pywebview / pythonnet
-hiddenimports += _webview_hidden + _clr_hidden + _pythonnet_hidden
 
 a = Analysis(
     [str(PROJECT_DIR / 'run_server.py')],

@@ -666,6 +666,40 @@ class ProfilStock(models.Model):
         return f"{self.utilisateur} - {self.get_role_display()}"
 
 
+class ParametresCommerciaux(models.Model):
+    """Règles commerciales configurables, propres à chaque entreprise."""
+    METHODES_VALORISATION = (('cmup', 'Coût moyen pondéré (CMUP)'), ('fifo', 'FIFO'))
+
+    entreprise = models.OneToOneField(Entreprise, on_delete=models.CASCADE, related_name='parametres_commerciaux')
+    devise = models.CharField(max_length=3, default='GNF', verbose_name='Devise principale')
+    taux_tva_defaut = models.DecimalField(max_digits=5, decimal_places=2, default=18,
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))], verbose_name='TVA par défaut (%)')
+    methode_valorisation = models.CharField(max_length=10, choices=METHODES_VALORISATION, default='cmup', verbose_name='Méthode de valorisation')
+    stock_negatif_autorise = models.BooleanField(default=False, verbose_name='Autoriser le stock négatif')
+    remise_max_vendeur = models.DecimalField(max_digits=5, decimal_places=2, default=5,
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))], verbose_name='Remise maximale vendeur (%)')
+    remise_max_responsable = models.DecimalField(max_digits=5, decimal_places=2, default=20,
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))], verbose_name='Remise maximale responsable (%)')
+    vente_credit_autorisee = models.BooleanField(default=True, verbose_name='Autoriser les ventes à crédit')
+    delai_credit_jours = models.PositiveIntegerField(default=30, verbose_name='Délai de crédit par défaut (jours)')
+    prefixe_facture = models.CharField(max_length=12, default='FAC', verbose_name='Préfixe des factures')
+    numerotation_annuelle = models.BooleanField(default=True, verbose_name='Réinitialiser la numérotation chaque année')
+    alerte_stock_faible = models.BooleanField(default=True, verbose_name='Alerte de stock faible')
+    alerte_peremption_jours = models.PositiveIntegerField(default=30, verbose_name='Alerte avant péremption (jours)')
+    conditions_vente = models.TextField(blank=True, verbose_name='Conditions générales de vente')
+    date_modification = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'stock_parametres_commerciaux'
+        verbose_name = 'Paramètres commerciaux'
+
+    def __str__(self):
+        return f"Paramètres commerciaux - {self.entreprise}"
+
+    def remise_maximale(self, role):
+        return self.remise_max_responsable if role in ('administrateur', 'directeur') else self.remise_max_vendeur
+
+
 class JournalAudit(models.Model):
     """Journal d'audit : trace chaque action sur les données du module."""
     ACTIONS = (

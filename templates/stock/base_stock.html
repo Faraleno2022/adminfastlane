@@ -212,6 +212,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if 'parametres' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:parametres_commerciaux' %}">
+                                <i class="bi bi-sliders"></i> Paramètres commerciaux
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if 'api' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:api_info' %}">
                                 <i class="bi bi-plug"></i> API REST
                             </a>

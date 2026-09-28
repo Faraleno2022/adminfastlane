@@ -86,8 +86,38 @@
                     Le matricule sera généré automatiquement si vous le laissez vide.
                 </div>
 
-                <form method="post" enctype="multipart/form-data" id="employe-form">
+                <form method="post" enctype="multipart/form-data" id="employe-form" novalidate>
                     {% csrf_token %}
+
+                    {% if form.errors %}
+                    <div class="alert alert-danger" id="form-error-summary" role="alert" tabindex="-1">
+                        <h6 class="alert-heading mb-2">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            Enregistrement impossible
+                        </h6>
+                        <p class="mb-2">Veuillez corriger les informations suivantes :</p>
+                        <ul class="mb-0">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                <li><strong>{{ field.label }} :</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if not form.fields.poste.required %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-circle"></i>
+                        Aucun poste n'est configuré pour cette entreprise. L'employé peut être
+                        enregistré sans poste, puis affecté ultérieurement depuis
+                        <a href="{% url 'core:gestion_structure' %}" class="alert-link">la structure de l'entreprise</a>.
+                    </div>
+                    {% endif %}
+
                     {% crispy form %}
                     
                     <hr>
@@ -99,23 +129,25 @@
                             <i class="bi bi-x-lg"></i> Annuler
                         </button>
                     </div>
-                </form>
 
-<!-- Barre de sauvegarde fixe en bas -->
-<div class="fixed-bottom bg-white border-top shadow-lg py-2 px-4 d-flex justify-content-between align-items-center" style="z-index: 1020;">
-    <span class="text-muted">
-        <i class="bi bi-file-earmark-person"></i>
-        {% if object %}{{ object.matricule }} - {{ object.nom }} {{ object.prenoms }}{% else %}Nouvel employé{% endif %}
-    </span>
-    <div>
-        <a href="{% url 'employes:list' %}" class="btn btn-outline-secondary me-2">
-            <i class="bi bi-arrow-left"></i> Retour
-        </a>
-        <button type="submit" form="employe-form" class="btn btn-primary">
-            <i class="bi bi-save"></i> Enregistrer
-        </button>
-    </div>
-</div>
+                    <!-- Barre de sauvegarde fixe en bas. Elle reste dans le
+                         formulaire afin que le bouton fonctionne dans tous
+                         les moteurs WebView de la version desktop. -->
+                    <div class="fixed-bottom bg-white border-top shadow-lg py-2 px-4 d-flex justify-content-between align-items-center" style="z-index: 1020;">
+                        <span class="text-muted">
+                            <i class="bi bi-file-earmark-person"></i>
+                            {% if object %}{{ object.matricule }} - {{ object.nom }} {{ object.prenoms }}{% else %}Nouvel employé{% endif %}
+                        </span>
+                        <div>
+                            <a href="{% url 'employes:list' %}" class="btn btn-outline-secondary me-2">
+                                <i class="bi bi-arrow-left"></i> Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Enregistrer
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -138,10 +170,10 @@ $(document).ready(function() {
         let mode = $(this).val();
         
         // Afficher/masquer les champs selon le mode
-        if (mode === 'Virement') {
+        if (mode === 'virement') {
             $('.field-nom_banque, .field-agence_banque, .field-numero_compte, .field-rib').show();
             $('.field-operateur_mobile_money, .field-numero_mobile_money').hide();
-        } else if (mode === 'Mobile Money') {
+        } else if (mode === 'mobile_money') {
             $('.field-nom_banque, .field-agence_banque, .field-numero_compte, .field-rib').hide();
             $('.field-operateur_mobile_money, .field-numero_mobile_money').show();
         } else {
@@ -149,6 +181,16 @@ $(document).ready(function() {
             $('.field-operateur_mobile_money, .field-numero_mobile_money').hide();
         }
     }).trigger('change');
+
+    // Après une validation Django, Crispy ouvre l'onglet qui contient la
+    // première erreur. Placer aussi le résumé dans la zone visible de la
+    // fenêtre desktop pour expliquer immédiatement pourquoi l'enregistrement
+    // n'a pas abouti.
+    const errorSummary = document.getElementById('form-error-summary');
+    if (errorSummary) {
+        errorSummary.focus();
+        errorSummary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     
     // Calcul automatique de l'âge
     $('#id_date_naissance').on('change', function() {

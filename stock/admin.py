@@ -8,8 +8,10 @@ from .models import (
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
     LigneLivraison, PaiementClient, ProfilStock, JournalAudit,
     Lot, NumeroSerie,
-    BesoinAchat, LigneBesoinAchat, DemandeVente, LigneDemandeVente,
+    BesoinAchat, LigneBesoinAchat, DemandeVente, LigneDemandeVente, ParametresCommerciaux,
 )
+
+admin.site.register(ParametresCommerciaux)
 
 
 @admin.register(Lot)

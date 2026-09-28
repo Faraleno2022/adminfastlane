@@ -3,9 +3,9 @@ Vérification des calculs de paie avec les salaires du tableau Page 1.
 Formules corrigées:
   - Base RTS = Imposable (soumis_irg) - CNSS 5%
   - RTS = barème progressif 6 tranches
-  - VF = (Brut - min(Brut, 2 500 000) × 6%) × 6%
+  - VF = (Brut - exonération indemnités forfaitaires plafonnée 25%) × 6%
 """
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_FLOOR
 
 def arrondir(val):
     return val.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
@@ -45,13 +45,18 @@ def calculer_rts_progressif(base):
             details.append((bi, bs, taux, Decimal('0'), Decimal('0')))
     return arrondir(total), details
 
-def calculer_vf(brut, seuil=Decimal('2500000'), taux=Decimal('6')):
-    """VF = (Brut - Déduction) × 6%, Déduction = min(Brut, Seuil) × 6%"""
-    base_ded = min(brut, seuil)
-    deduction = arrondir(base_ded * taux / Decimal('100'))
-    base_vf = brut - deduction
+def calculer_vf(brut, indemnites_forfaitaires=Decimal('0'), taux=Decimal('6')):
+    """VF = Base VF × 6%.
+
+    Base VF = Brut - exonération des indemnités forfaitaires, plafonnée à 25%
+    du brut (mode par défaut 'brut_moins_deduction' de paie/services.py).
+    Le plafond est arrondi ROUND_FLOOR comme en production.
+    """
+    plafond = (brut * Decimal('25') / Decimal('100')).quantize(Decimal('1'), rounding=ROUND_FLOOR)
+    exoneration = min(indemnites_forfaitaires, plafond)
+    base_vf = brut - exoneration
     vf = arrondir(base_vf * taux / Decimal('100'))
-    return vf, deduction, base_vf
+    return vf, exoneration, base_vf
 
 def calculer_onfpp(brut, taux=Decimal('1.5')):
     return arrondir(brut * taux / Decimal('100'))
@@ -160,10 +165,11 @@ def main():
         
         # Net = Brut - CNSS - RTS
         net = brut - cnss_emp - rts
-        
-        # VF
-        vf, ded_vf, base_vf = calculer_vf(brut)
-        
+
+        # VF — indemnités forfaitaires = primes non imposables (transport, logement, cherté, autres)
+        indemnites = emp['transport'] + emp['logement'] + emp['cherte'] + emp['autres']
+        vf, ded_vf, base_vf = calculer_vf(brut, indemnites)
+
         # ONFPP
         onfpp = calculer_onfpp(brut)
         
@@ -181,7 +187,8 @@ def main():
         cnss_emp, _, _ = calculer_cnss(brut)
         base_rts = calculer_base_rts(sb, cnss_emp)
         rts, details = calculer_rts_progressif(base_rts)
-        vf, ded_vf, base_vf = calculer_vf(brut)
+        indemnites = emp['transport'] + emp['logement'] + emp['cherte'] + emp['autres']
+        vf, ded_vf, base_vf = calculer_vf(brut, indemnites)
         
         print(f"\n--- {emp['nom']} | SBase: {sb:,.0f} | Brut: {brut:,.0f} ---")
         print(f"  CNSS 5% = min({brut:,.0f}, 2,500,000) × 5% = {cnss_emp:,.0f}")
@@ -197,7 +204,8 @@ def main():
         taux_eff = arrondir(rts * Decimal('100') / base_rts) if base_rts > 0 else Decimal('0')
         print(f"  Taux effectif: {taux_eff}%")
         
-        print(f"  VF: déduction = min({brut:,.0f}, 2,500,000) × 6% = {ded_vf:,.0f}")
+        plafond_25 = (brut * Decimal('25') / Decimal('100')).quantize(Decimal('1'), rounding=ROUND_FLOOR)
+        print(f"  VF: exonération indemnités = min({indemnites:,.0f}, 25%×{brut:,.0f}={plafond_25:,.0f}) = {ded_vf:,.0f}")
         print(f"       base VF = {brut:,.0f} - {ded_vf:,.0f} = {base_vf:,.0f}")
         print(f"       VF = {base_vf:,.0f} × 6% = {vf:,.0f}")
         

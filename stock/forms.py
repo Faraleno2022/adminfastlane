@@ -13,6 +13,7 @@ from .models import (
     Client, PrixSpecialClient, DocumentVente, LigneVente, BonLivraison,
     PaiementClient, Lot, NumeroSerie,
     BesoinAchat, LigneBesoinAchat, DemandeVente, LigneDemandeVente,
+    ParametresCommerciaux,
 )
 
 
@@ -439,6 +440,13 @@ class PrixSpecialClientForm(BootstrapModelForm):
         super().__init__(*args, **kwargs)
         if entreprise is not None:
             self.fields['article'].queryset = Article.objects.filter(entreprise=entreprise, actif=True)
+
+
+class ParametresCommerciauxForm(BootstrapModelForm):
+    class Meta:
+        model = ParametresCommerciaux
+        exclude = ['entreprise', 'date_modification']
+        widgets = {'conditions_vente': forms.Textarea(attrs={'rows': 4})}
 
 
 # ---------------------------------------------------------------------------

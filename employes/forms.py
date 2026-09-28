@@ -115,8 +115,21 @@ class EmployeForm(forms.ModelForm):
                 entreprise=entreprise)
             self.fields['superieur_hierarchique'].queryset = Employe.objects.filter(
                 entreprise=entreprise)
-        self.fields['poste'].required = True
-        self.fields['poste'].empty_label = "Choisir un poste (obligatoire)"
+        # Un poste reste obligatoire lorsqu'il existe une liste de choix.
+        # Sur une nouvelle installation desktop, la structure peut toutefois
+        # ne contenir encore aucun poste. Rendre alors ce champ optionnel évite
+        # de créer un formulaire impossible à soumettre ; l'affectation pourra
+        # être complétée après la création du premier poste.
+        poste_field = self.fields['poste']
+        poste_field.required = poste_field.queryset.exists()
+        if poste_field.required:
+            poste_field.empty_label = "Choisir un poste (obligatoire)"
+        else:
+            poste_field.empty_label = "Aucun poste configuré"
+            poste_field.help_text = (
+                "Aucun poste n'est encore configuré pour cette entreprise. "
+                "Vous pourrez affecter l'employé après avoir créé un poste."
+            )
         
         # Helper Crispy Forms
         self.helper = FormHelper()
