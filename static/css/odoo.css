@@ -502,3 +502,54 @@ hr { border-color: var(--o-border); opacity: 1; }
     body { padding-top: 0; background: #fff; }
     main.o_content { padding: 0; }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Palette sobre : en-têtes de cartes et boutons neutres (comme Odoo) */
+/* ------------------------------------------------------------------ */
+.card-header[class*="bg-"], .card-header[class*="table-"] {
+    background: #f9fafb !important;
+    color: #212529 !important;
+    border-bottom: 1px solid var(--o-border) !important;
+    box-shadow: inset 0 3px 0 var(--o-hdr, #9aa0a6);
+}
+.card-header.bg-primary   { --o-hdr: #714b67; }
+.card-header.bg-success   { --o-hdr: #28a745; }
+.card-header.bg-info      { --o-hdr: #017e84; }
+.card-header.bg-warning   { --o-hdr: #f0ad4e; }
+.card-header.bg-danger    { --o-hdr: #dc3545; }
+.card-header.bg-secondary { --o-hdr: #6c757d; }
+.card-header.bg-dark      { --o-hdr: #374151; }
+.card-header[class*="bg-"] .text-white,
+.card-header[class*="bg-"] h1, .card-header[class*="bg-"] h2, .card-header[class*="bg-"] h3,
+.card-header[class*="bg-"] h4, .card-header[class*="bg-"] h5, .card-header[class*="bg-"] h6,
+.card-header[class*="bg-"] i:not(.btn *) { color: #212529 !important; }
+.card-header[class*="bg-"] .btn-light, .card-header[class*="bg-"] .btn-outline-light { color: #212529 !important; background: #fff; border-color: var(--o-border); }
+.card-header[class*="bg-"] .badge { color: #fff !important; }
+
+/* Boutons contour : neutres, avec texte sombre ; seuls primaire et danger gardent leur teinte */
+.btn-outline-success, .btn-outline-info, .btn-outline-warning, .btn-outline-secondary, .btn-outline-dark {
+    background: #fff; color: #374151; border-color: var(--o-border);
+}
+.btn-outline-success:hover, .btn-outline-info:hover, .btn-outline-warning:hover,
+.btn-outline-secondary:hover, .btn-outline-dark:hover,
+.btn-outline-success:active, .btn-outline-info:active, .btn-outline-warning:active {
+    background: #efeff1; color: #212529; border-color: #c4c8cd;
+}
+.btn-outline-danger { background: #fff; color: #dc3545; border-color: var(--o-border); }
+.btn-outline-danger:hover { background: #dc3545; color: #fff; border-color: #dc3545; }
+
+/* Boutons pleins : secondaires gris, info = bleu-vert Odoo */
+.btn-info { background: #017e84 !important; border: 1px solid #017e84 !important; color: #fff !important; }
+.btn-info:hover { background: #015a5e !important; border-color: #015a5e !important; }
+.btn-warning { background: #f0ad4e; border: 1px solid #f0ad4e; color: #212529; }
+.btn-warning:hover { background: #e19b36; border-color: #e19b36; color: #212529; }
+.btn-dark { background: #374151; border: 1px solid #374151; }
+.btn-dark:hover { background: #1f2937; border-color: #1f2937; }
+.card[class*="border-primary"], .card[class*="border-success"], .card[class*="border-info"],
+.card[class*="border-warning"], .card[class*="border-danger"] { border-color: var(--o-border) !important; }
+.card.border-primary, .card.border-success, .card.border-info, .card.border-warning, .card.border-danger { border-top: 3px solid var(--o-border); }
+.card.border-primary { border-top-color: #714b67 !important; }
+.card.border-success { border-top-color: #28a745 !important; }
+.card.border-info { border-top-color: #017e84 !important; }
+.card.border-warning { border-top-color: #f0ad4e !important; }
+.card.border-danger { border-top-color: #dc3545 !important; }
