@@ -60,375 +60,123 @@
         "sameAs": []
     }
     </script>
-    
-    <!-- Bootstrap 5 CSS - LOCAL -->
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
-    
-    <!-- Bootstrap Icons - LOCAL -->
     <link rel="stylesheet" href="{% static 'css/bootstrap-icons.css' %}">
-    
-    <!-- Font Awesome - LOCAL -->
-    <link rel="stylesheet" href="{% static 'css/fontawesome.min.css' %}">
-    
-    <!-- AOS CSS - LOCAL -->
-    <link rel="stylesheet" href="{% static 'css/aos.css' %}">
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static 'css/custom.css' %}">
-    
-    <!-- Landing CSS -->
-    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Roboto:wght@400;500;700&display=swap">
+    <link rel="stylesheet" href="{% static 'css/landing_odoo.css' %}">
 </head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top navbar-glass">
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <img src="{% static 'img/logo.png' %}" alt="ICG Logo" style="height: 40px; max-width: 140px; object-fit: contain; background-color: rgba(45, 45, 55, 0.95); padding: 4px; border-radius: 4px;">
-            </a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#ffffff" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
-                </svg>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item"><a class="nav-link" href="#">Accueil</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#features">Fonctionnalités</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#modules">Modules</a></li>
-                    {% if offres_emploi %}<li class="nav-item"><a class="nav-link" href="#jobs">Offres d'Emploi</a></li>{% endif %}
-                    {% if formations %}<li class="nav-item"><a class="nav-link" href="#formations">Formations</a></li>{% endif %}
-                    <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
-                    <li class="nav-item ms-lg-3">
-                        <a class="btn btn-login" href="{% url 'core:login' %}">
-                            <i class="bi bi-box-arrow-in-right me-2"></i>Connexion
-                        </a>
-                    </li>
-                </ul>
-            </div>
+<body class="lo">
+    <header class="lo-topbar" id="loNav">
+        <a class="lo-grid-btn" href="#apps" aria-label="Applications">
+            <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><g fill="currentColor">
+                <rect x="1" y="1" width="4.4" height="4.4" rx="1"/><rect x="7.8" y="1" width="4.4" height="4.4" rx="1"/><rect x="14.6" y="1" width="4.4" height="4.4" rx="1"/>
+                <rect x="1" y="7.8" width="4.4" height="4.4" rx="1"/><rect x="7.8" y="7.8" width="4.4" height="4.4" rx="1"/><rect x="14.6" y="7.8" width="4.4" height="4.4" rx="1"/>
+                <rect x="1" y="14.6" width="4.4" height="4.4" rx="1"/><rect x="7.8" y="14.6" width="4.4" height="4.4" rx="1"/><rect x="14.6" y="14.6" width="4.4" height="4.4" rx="1"/>
+            </g></svg>
+        </a>
+        <span class="lo-top-brand">GuinéeRH</span>
+        <nav class="lo-top-links">
+            <a href="#fonctionnalites">Fonctionnalités</a>
+            <a href="#apropos">À propos</a>
+            {% if offres_emploi %}<a href="#jobs">Offres d'emploi</a>{% endif %}
+            {% if formations %}<a href="#formations">Formations</a>{% endif %}
+            <a href="#contact">Contact</a>
+        </nav>
+        <div class="lo-top-right">
+            <a class="lo-top-link" href="{% url 'core:login' %}"><i class="bi bi-box-arrow-in-right"></i> Se connecter</a>
+            <a class="lo-top-cta" href="{% url 'core:demande_partenariat' %}">Essai gratuit</a>
         </div>
-    </nav>
+    </header>
 
-    <!-- Hero Slider plein écran -->
-    <section class="hero-slider">
-        <div class="slide active">
-            <picture>
-                <source srcset="{% static 'img/home3.webp' %}" type="image/webp">
-                <img src="{% static 'img/home3.png' %}" alt="International Consulting Guinea - solution de gestion RH en Guinée" fetchpriority="high" decoding="async">
-            </picture>
-            <div class="slide-overlay"></div>
+    <main>
+    <section class="lo-launcher" id="apps">
+        <div class="lo-l-search">
+            <i class="bi bi-search"></i>
+            <input type="search" id="loSearch" placeholder="Rechercher une application…" autocomplete="off" aria-label="Rechercher une application">
         </div>
-        <div class="slide">
-            <picture>
-                <source srcset="{% static 'img/home4.webp' %}" type="image/webp">
-                <img src="{% static 'img/home4.png' %}" alt="GuinéeRH - logiciel paie et ressources humaines" loading="lazy" decoding="async">
-            </picture>
-            <div class="slide-overlay"></div>
+        <div class="lo-l-grid" id="loGrid">
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/employes/" data-name="employés"><span class="lo-l-ico" style="background:linear-gradient(145deg,#00a09d,#007f7d);"><i class="bi bi-people-fill"></i></span><span class="lo-l-cap">Employés</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/temps/" data-name="temps de travail"><span class="lo-l-ico" style="background:linear-gradient(145deg,#f0a30a,#d18400);"><i class="bi bi-clock-history"></i></span><span class="lo-l-cap">Temps de travail</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/paie/" data-name="paie"><span class="lo-l-ico" style="background:linear-gradient(145deg,#28a745,#1e7e34);"><i class="bi bi-cash-coin"></i></span><span class="lo-l-cap">Paie</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/recrutement/" data-name="recrutement"><span class="lo-l-ico" style="background:linear-gradient(145deg,#875a7b,#6a4660);"><i class="bi bi-briefcase-fill"></i></span><span class="lo-l-cap">Recrutement</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/formation/" data-name="formation"><span class="lo-l-ico" style="background:linear-gradient(145deg,#e8590c,#c2410c);"><i class="bi bi-mortarboard-fill"></i></span><span class="lo-l-cap">Formation</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/comptabilite/" data-name="comptabilité"><span class="lo-l-ico" style="background:linear-gradient(145deg,#2f80ed,#1c5fba);"><i class="bi bi-calculator-fill"></i></span><span class="lo-l-cap">Comptabilité</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/stock/" data-name="stock"><span class="lo-l-ico" style="background:linear-gradient(145deg,#20a36a,#146c43);"><i class="bi bi-boxes"></i></span><span class="lo-l-cap">Stock</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/secretariat/" data-name="secrétariat"><span class="lo-l-ico" style="background:linear-gradient(145deg,#e5588b,#b8386a);"><i class="bi bi-folder-fill"></i></span><span class="lo-l-cap">Secrétariat</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/cnss/" data-name="conformité"><span class="lo-l-ico" style="background:linear-gradient(145deg,#5b6bbf,#3f4d99);"><i class="bi bi-shield-check"></i></span><span class="lo-l-cap">Conformité</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/portail/" data-name="portail employé"><span class="lo-l-ico" style="background:linear-gradient(145deg,#17a2b8,#117a8b);"><i class="bi bi-person-workspace"></i></span><span class="lo-l-cap">Portail employé</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/payments/plans/" data-name="abonnements"><span class="lo-l-ico" style="background:linear-gradient(145deg,#9b59b6,#7d3c98);"><i class="bi bi-gem"></i></span><span class="lo-l-cap">Abonnements</span></a>
+            <a class="lo-l-app" href="{% url 'core:login' %}?next=/profile/" data-name="paramètres"><span class="lo-l-ico" style="background:linear-gradient(145deg,#6c757d,#495057);"><i class="bi bi-gear-fill"></i></span><span class="lo-l-cap">Paramètres</span></a>
         </div>
-        <div class="slide">
-            <picture>
-                <source srcset="{% static 'img/home5.webp' %}" type="image/webp">
-                <img src="{% static 'img/home5.png' %}" alt="Plateforme RH pour recrutement, paie et formation en Guinée" loading="lazy" decoding="async">
-            </picture>
-            <div class="slide-overlay"></div>
-        </div>
-
-        <div class="hero-slider-content">
-            <div class="container">
-                <div class="hero-copy" data-aos="fade-up">
-                    <span class="hero-kicker">Gestion RH Guinée</span>
-                    <h1>International Consulting Guinea</h1>
-                    <p>Une solution RH complète pour piloter la paie, le recrutement, les formations et la conformité locale.</p>
-                    <div class="hero-actions">
-                        <a href="{% url 'core:demande_partenariat' %}" class="btn btn-primary-gradient">
-                            <i class="bi bi-calendar-check me-2"></i>Demander une démo
-                        </a>
-                        <a href="#contact" class="btn btn-outline-light">
-                            <i class="bi bi-envelope me-2"></i>Nous contacter
-                        </a>
-                        {% if offres_emploi %}
-                        <a href="#jobs" class="btn btn-outline-light">
-                            <i class="bi bi-briefcase me-2"></i>Voir les offres
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <button class="slider-nav prev" onclick="changeSlide(-1)">
-            <i class="bi bi-chevron-left"></i>
-        </button>
-        <button class="slider-nav next" onclick="changeSlide(1)">
-            <i class="bi bi-chevron-right"></i>
-        </button>
-        
-        <div class="slider-dots">
-            <span class="dot active" onclick="goToSlide(0)"></span>
-            <span class="dot" onclick="goToSlide(1)"></span>
-            <span class="dot" onclick="goToSlide(2)"></span>
-        </div>
+        <p class="lo-l-empty" id="loEmpty" hidden>Aucune application ne correspond à votre recherche.</p>
+        <p class="lo-l-hint">Connectez-vous pour ouvrir une application &middot; <a href="{% url 'core:demande_partenariat' %}">Demander un essai gratuit</a></p>
+        <a class="lo-l-down" href="#fonctionnalites" aria-label="En savoir plus"><i class="bi bi-chevron-down"></i></a>
     </section>
 
-    <!-- Section QUI SOMMES-NOUS -->
-    <section class="about-us-section">
+    <section class="lo-section alt" id="fonctionnalites">
         <div class="container">
-            <h2 class="section-title" data-aos="fade-up">QUI SOMMES-<span class="orange-text">NOUS</span> ?</h2>
-            <p class="section-subtitle" data-aos="fade-up" data-aos-delay="100">International Consulting Guinea : Votre partenaire de confiance pour un développement qui fait du bien à tous.</p>
-            
-            <div class="about-intro-content">
-                <div class="about-intro-text" data-aos="fade-right" data-aos-delay="200">
-                    <p>
-                        Chez International Consulting Guinea (ICG), nous ne sommes pas juste des conseillers. Nous sommes des bâtisseurs de liens, unissant les envies des personnes aux besoins des entreprises, pour de très bons résultats partout dans le monde. Notre rôle est d'accompagner les entreprises, les organisations et les institutions pour qu'elles grandissent, en leur donnant des solutions simples et faites pour leurs besoins précis.
-                    </p>
-                    <p>
-                        Depuis le début, nous transformons les défis en de belles occasions de développement qui durent. Nous sommes convaincus qu'une entreprise qui marche bien fait attention à ses équipes, travaille en sécurité, prend soin de notre planète et s'implique vraiment pour le bien de tous. C'est pourquoi nos services couvrent tous ces points importants, toujours avec une approche humaine et respectueuse.
-                    </p>
-                </div>
-                <div class="about-right-column" data-aos="fade-left" data-aos-delay="300">
-                    <div class="about-image">
-                        <img src="{% static 'img/rse2.jpeg' %}" alt="Equipe ICG en accompagnement ressources humaines et RSE" loading="lazy" decoding="async">
-                    </div>
-                    <div class="about-services-list">
-                        <h3>Nos domaines d'aide pour vous :</h3>
-                        <ul>
-                            <li><i class="bi bi-check-circle-fill"></i> Ressources Humaines : pour le recrutement, la formation et la gestion des parcours de travail</li>
-                            <li><i class="bi bi-check-circle-fill"></i> Hygiène, Sécurité et Environnement (HSE) : pour un cadre de travail sain et sécurisé</li>
-                            <li><i class="bi bi-check-circle-fill"></i> Responsabilité Sociétale de l'Entreprise (RSE) : pour un impact positif sur la société</li>
-                            <li><i class="bi bi-check-circle-fill"></i> Accompagnement et Conseil : pour vous guider dans vos grandes décisions</li>
-                            <li><i class="bi bi-check-circle-fill"></i> Systèmes de Gestion de la Qualité : pour que ce que vous faites soit toujours de la meilleure qualité</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="lo-center">
+                <div class="lo-eyebrow">Optimisé pour la productivité</div>
+                <h2 class="lo-h2">Améliorez la qualité de votre travail</h2>
+                <p class="lo-lead">Moins de saisies, des calculs automatiques et une interface ultra claire, pensée pour le contexte guinéen.</p>
             </div>
-            
-            <div class="mission-vision-grid">
-                <div class="mv-card" data-aos="fade-up" data-aos-delay="400">
-                    <h4>NOTRE <span class="orange-text">MISSION</span></h4>
-                    <p>
-                        Notre mission est de vous donner les outils, les idées et l'aide qu'il vous faut pour avancer et bien réussir dans le monde des affaires. Que ce soit en améliorant votre capital humain, en assurant un environnement de travail sûr et bon pour la nature, en intégrant le bien-être social à votre activité ou en atteignant le meilleur niveau de qualité, nous sommes là pour vous.
-                    </p>
-                </div>
-                <div class="mv-card" data-aos="fade-up" data-aos-delay="500">
-                    <h4>NOTRE <span class="orange-text">VISION</span></h4>
-                    <p>
-                        Nous voulons être un cabinet de conseil reconnu dans le monde entier, grâce aux résultats positifs que nous apportons à nos clients et à notre participation au développement des pays où nous travaillons. Nous rêvons d'un futur où chaque entreprise, petite ou grande, peut obtenir l'aide nécessaire pour bien fonctionner de façon juste et sur le long terme, partout dans le monde.
-                    </p>
-                </div>
+            <div class="lo-cards">
+                <div class="lo-card"><div class="ico"><i class="bi bi-people"></i></div><h3>Gestion des employés</h3><p>Contrats, documents, historique de carrière et informations personnelles centralisés au même endroit.</p></div>
+                <div class="lo-card"><div class="ico"><i class="bi bi-cash-coin"></i></div><h3>Paie &amp; bulletins</h3><p>Calcul automatique des salaires, CNSS et RTS selon la législation guinéenne. Envoi par e-mail et WhatsApp.</p></div>
+                <div class="lo-card"><div class="ico"><i class="bi bi-calendar-check"></i></div><h3>Congés &amp; absences</h3><p>Demandes en ligne, validation hiérarchique, suivi des soldes et calendrier partagé.</p></div>
+                <div class="lo-card"><div class="ico"><i class="bi bi-clock-history"></i></div><h3>Pointage &amp; temps</h3><p>Suivi des heures, heures supplémentaires et retards, avec des rapports détaillés.</p></div>
+                <div class="lo-card"><div class="ico"><i class="bi bi-file-earmark-text"></i></div><h3>Déclarations sociales</h3><p>Génération des déclarations CNSS et suivi des cotisations sociales.</p></div>
+                <div class="lo-card"><div class="ico"><i class="bi bi-calculator"></i></div><h3>Comptabilité &amp; stock</h3><p>Écritures, factures, trésorerie, états financiers, ainsi que la gestion complète des stocks.</p></div>
             </div>
         </div>
     </section>
 
-    <!-- Features Section -->
-    <section class="features" id="features">
+    <section class="lo-dark">
         <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <div class="section-badge">Fonctionnalités</div>
-                <h2>Tout ce dont vous avez besoin</h2>
-                <p>Une suite complète d'outils pour gérer efficacement vos ressources humaines</p>
+            <div class="lo-center" style="margin-bottom:0">
+                <h2 class="lo-h2">Un logiciel d'entreprise conçu pour faire la différence.</h2>
+                <p style="color:rgba(255,255,255,.85);font-size:1.08rem">Des données qui vous appartiennent, un prix équitable et aucune complexité inutile : une solution accessible partout, à tout moment.</p>
             </div>
-            <div class="row g-4">
-                <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="100">
-                    <div class="feature-card">
-                        <div class="feature-icon red">
-                            <i class="bi bi-people-fill"></i>
-                        </div>
-                        <h4>Gestion des Employés</h4>
-                        <p>Centralisez toutes les informations de vos employés : contrats, documents, historique de carrière et informations personnelles.</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="200">
-                    <div class="feature-card">
-                        <div class="feature-icon yellow">
-                            <i class="bi bi-cash-stack"></i>
-                        </div>
-                        <h4>Paie & Bulletins</h4>
-                        <p>Calcul automatique des salaires, CNSS et IRPP selon la législation guinéenne. Envoi par email et WhatsApp.</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="300">
-                    <div class="feature-card">
-                        <div class="feature-icon green">
-                            <i class="bi bi-calendar-check-fill"></i>
-                        </div>
-                        <h4>Congés & Absences</h4>
-                        <p>Gestion complète des demandes de congés, suivi des soldes, validation hiérarchique et calendrier partagé.</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="400">
-                    <div class="feature-card">
-                        <div class="feature-icon blue">
-                            <i class="bi bi-clock-history"></i>
-                        </div>
-                        <h4>Pointage & Temps</h4>
-                        <p>Suivi des heures de travail, gestion des heures supplémentaires et des retards. Rapports détaillés.</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="500">
-                    <div class="feature-card">
-                        <div class="feature-icon purple">
-                            <i class="bi bi-file-earmark-ruled-fill"></i>
-                        </div>
-                        <h4>Déclarations Sociales</h4>
-                        <p>Génération automatique des déclarations CNSS, télédéclaration et suivi des cotisations sociales.</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="600">
-                    <div class="feature-card">
-                        <div class="feature-icon orange">
-                            <i class="bi bi-graph-up-arrow"></i>
-                        </div>
-                        <h4>Tableaux de Bord</h4>
-                        <p>Visualisez vos indicateurs RH clés : effectifs, masse salariale, turnover et statistiques en temps réel.</p>
-                    </div>
-                </div>
+            <div class="lo-stats">
+                <div class="lo-stat"><b>100%</b><span>Conforme à la législation</span></div>
+                <div class="lo-stat"><b>24/7</b><span>Accessible partout</span></div>
+                <div class="lo-stat"><b>10+</b><span>Applications intégrées</span></div>
+                <div class="lo-stat"><b>&infin;</b><span>Employés gérés</span></div>
             </div>
         </div>
     </section>
 
-    <!-- Modules Section -->
-    <section class="modules" id="modules">
+    <section class="lo-section" id="apropos">
         <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <div class="section-badge">Modules</div>
-                <h2>Une suite complète d'outils</h2>
-                <p>Des modules puissants pour répondre à tous vos besoins RH</p>
-            </div>
-            <div class="row">
-                <div class="col-lg-6">
-                    <div class="module-card" data-aos="fade-right" data-aos-delay="100">
-                        <div class="module-icon" style="background: linear-gradient(135deg, rgba(206,17,38,0.2), rgba(206,17,38,0.05)); color: var(--orange-main);">
-                            <i class="bi bi-person-badge-fill"></i>
-                        </div>
-                        <div>
-                            <h5>Gestion du Personnel</h5>
-                            <p>Fiches employés complètes, contrats, documents administratifs et suivi des compétences.</p>
-                        </div>
-                    </div>
-                    <div class="module-card" data-aos="fade-right" data-aos-delay="200">
-                        <div class="module-icon" style="background: linear-gradient(135deg, rgba(252,209,22,0.2), rgba(252,209,22,0.05)); color: var(--orange-main);">
-                            <i class="bi bi-wallet2"></i>
-                        </div>
-                        <div>
-                            <h5>Module Paie</h5>
-                            <p>Calcul automatisé, rubriques personnalisables, barème IRPP progressif et simulateur fiscal.</p>
-                        </div>
-                    </div>
-                    <div class="module-card" data-aos="fade-right" data-aos-delay="300">
-                        <div class="module-icon" style="background: linear-gradient(135deg, rgba(0,154,73,0.2), rgba(0,154,73,0.05)); color: var(--gray-dark);">
-                            <i class="bi bi-building"></i>
-                        </div>
-                        <div>
-                            <h5>Interface CNSS</h5>
-                            <p>Télédéclaration, génération de fichiers (CSV, XML, JSON) et historique des déclarations.</p>
-                        </div>
-                    </div>
-                    <div class="module-card" data-aos="fade-right" data-aos-delay="400">
-                        <div class="module-icon" style="background: linear-gradient(135deg, rgba(0,123,255,0.2), rgba(0,123,255,0.05)); color: #4dabf7;">
-                            <i class="bi bi-airplane-fill"></i>
-                        </div>
-                        <div>
-                            <h5>Gestion des Expatriés</h5>
-                            <p>Suivi des visas et permis de travail, alertes d'expiration et conformité administrative.</p>
-                        </div>
-                    </div>
-                    <div class="module-card" data-aos="fade-right" data-aos-delay="500">
-                        <div class="module-icon" style="background: linear-gradient(135deg, rgba(23,162,184,0.2), rgba(23,162,184,0.05)); color: #17a2b8;">
-                            <i class="bi bi-briefcase-fill"></i>
-                        </div>
-                        <div>
-                            <h5>Recrutement</h5>
-                            <p>Publication d'offres, gestion des candidatures, suivi des entretiens et scoring automatisé.</p>
-                        </div>
-                    </div>
+            <div class="lo-about">
+                <div>
+                    <div class="lo-eyebrow">Qui sommes-nous ?</div>
+                    <h2 class="lo-h2">International Consulting Guinea</h2>
+                    <p class="lo-lead">Votre partenaire de confiance pour un développement qui fait du bien à tous. Nous accompagnons les entreprises, organisations et institutions avec des solutions simples, faites pour leurs besoins précis.</p>
+                    <ul class="lo-ticks">
+                        <li><i class="bi bi-check-circle-fill"></i><span>Ressources humaines : recrutement, formation et gestion des parcours</span></li>
+                        <li><i class="bi bi-check-circle-fill"></i><span>Hygiène, sécurité et environnement (HSE)</span></li>
+                        <li><i class="bi bi-check-circle-fill"></i><span>Responsabilité sociétale de l'entreprise (RSE)</span></li>
+                        <li><i class="bi bi-check-circle-fill"></i><span>Accompagnement, conseil et systèmes de gestion de la qualité</span></li>
+                    </ul>
                 </div>
-                <div class="col-lg-6">
-                    <div class="module-card" data-aos="fade-left" data-aos-delay="100">
-                        <div class="module-icon" style="background: linear-gradient(135deg, rgba(111,66,193,0.2), rgba(111,66,193,0.05)); color: #b197fc;">
-                            <i class="bi bi-calendar2-week-fill"></i>
-                        </div>
-                        <div>
-                            <h5>Gestion des Congés</h5>
-                            <p>Demandes en ligne, workflow de validation, calcul automatique des soldes et jours fériés.</p>
-                        </div>
-                    </div>
-                    <div class="module-card" data-aos="fade-left" data-aos-delay="200">
-                        <div class="module-icon" style="background: linear-gradient(135deg, rgba(253,126,20,0.2), rgba(253,126,20,0.05)); color: #ffa94d;">
-                            <i class="bi bi-clipboard2-check-fill"></i>
-                        </div>
-                        <div>
-                            <h5>Conformité Inspection</h5>
-                            <p>Checklist de conformité, registres obligatoires et rapports pour l'inspection du travail.</p>
-                        </div>
-                    </div>
-                    <div class="module-card" data-aos="fade-left" data-aos-delay="300">
-                        <div class="module-icon" style="background: linear-gradient(135deg, rgba(220,53,69,0.2), rgba(220,53,69,0.05)); color: #ff6b6b;">
-                            <i class="bi bi-send-fill"></i>
-                        </div>
-                        <div>
-                            <h5>Envoi Bulletins</h5>
-                            <p>Envoi des bulletins par email et WhatsApp, individuel ou en masse avec message personnalisé.</p>
-                        </div>
-                    </div>
-                    <div class="module-card" data-aos="fade-left" data-aos-delay="400">
-                        <div class="module-icon" style="background: linear-gradient(135deg, rgba(32,201,151,0.2), rgba(32,201,151,0.05)); color: #38d9a9;">
-                            <i class="bi bi-shield-lock-fill"></i>
-                        </div>
-                        <div>
-                            <h5>Sécurité & Audit</h5>
-                            <p>Gestion des utilisateurs, journal d'activité et traçabilité complète des actions.</p>
-                        </div>
-                    </div>
-                    <div class="module-card" data-aos="fade-left" data-aos-delay="500">
-                        <div class="module-icon" style="background: linear-gradient(135deg, rgba(102,16,242,0.2), rgba(102,16,242,0.05)); color: #6610f2;">
-                            <i class="bi bi-mortarboard-fill"></i>
-                        </div>
-                        <div>
-                            <h5>Formation et développement de compétence</h5>
-                            <p>Planification des formations, suivi des compétences, évaluations et certifications.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Stats Section -->
-    <section class="stats" id="stats">
-        <div class="container">
-            <div class="stats-grid">
-                <div class="stat-card" data-aos="zoom-in" data-aos-delay="100">
-                    <div class="stat-number">100%</div>
-                    <div class="stat-label">Conforme à la législation</div>
-                </div>
-                <div class="stat-card" data-aos="zoom-in" data-aos-delay="200">
-                    <div class="stat-number">24/7</div>
-                    <div class="stat-label">Accessible partout</div>
-                </div>
-                <div class="stat-card" data-aos="zoom-in" data-aos-delay="300">
-                    <div class="stat-number">10+</div>
-                    <div class="stat-label">Modules intégrés</div>
-                </div>
-                <div class="stat-card" data-aos="zoom-in" data-aos-delay="400">
-                    <div class="stat-number">∞</div>
-                    <div class="stat-label">Employés gérés</div>
-                </div>
+                <img src="{% static 'img/rse2.jpeg' %}" alt="Équipe ICG en accompagnement ressources humaines et RSE" loading="lazy" decoding="async">
             </div>
         </div>
     </section>
 
     <!-- Offres d'Emploi Section -->
     {% if offres_emploi %}
-    <section class="jobs" id="jobs">
+    <section class="lo-section" id="jobs">
         <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <div class="section-badge">Recrutement</div>
-                <h2>Offres d'Emploi</h2>
-                <p>Découvrez les opportunités de carrière disponibles auprès de nos entreprises partenaires</p>
+            <div class="lo-center">
+                <div class="lo-eyebrow">Recrutement</div>
+                <h2 class="lo-h2">Offres d'emploi</h2>
+                <p class="lo-lead">Découvrez les opportunités de carrière disponibles auprès de nos entreprises partenaires</p>
             </div>
             <div class="row g-3">
                 {% for offre in offres_emploi %}
-                <div class="col-12 col-md-6 col-lg-4" data-aos="fade-up">
+                <div class="col-12 col-md-6 col-lg-4">
                     <div class="job-card" style="padding:0.9rem;">
                         {% if offre.image %}
                         <div class="job-image" style="height:130px;overflow:hidden;border-radius:0.5rem 0.5rem 0 0;margin:-0.9rem -0.9rem 0.75rem -0.9rem;">
@@ -487,9 +235,9 @@
                 </div>
                 {% endfor %}
             </div>
-            <div class="text-center mt-5" data-aos="fade-up">
+            <div class="text-center mt-5">
                 <p class="text-muted mb-3">Vous êtes une entreprise et souhaitez publier vos offres ?</p>
-                <a href="{% url 'core:login' %}" class="btn btn-outline-glass">
+                <a href="{% url 'core:login' %}" class="lo-btn lo-btn-outline">
                     <i class="bi bi-box-arrow-in-right me-2"></i>Connectez-vous pour gérer vos recrutements
                 </a>
             </div>
@@ -499,16 +247,16 @@
 
     <!-- Formations Section -->
     {% if formations %}
-    <section class="jobs" id="formations" style="background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 50%, #f8f9fa 100%);">
+    <section class="lo-section alt" id="formations">
         <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <div class="section-badge">Formation</div>
-                <h2>Formations Disponibles</h2>
-                <p>Développez vos compétences avec nos formations professionnelles</p>
+            <div class="lo-center">
+                <div class="lo-eyebrow">Formation</div>
+                <h2 class="lo-h2">Formations disponibles</h2>
+                <p class="lo-lead">Développez vos compétences avec nos formations professionnelles</p>
             </div>
             <div class="row g-3">
                 {% for formation in formations %}
-                <div class="col-12 col-md-6 col-lg-6" data-aos="fade-up">
+                <div class="col-12 col-md-6 col-lg-6">
                     <div class="job-card" style="padding:1.5rem;">
                         {% if formation.image %}
                         <div class="job-image" style="height:200px;overflow:hidden;border-radius:0.5rem 0.5rem 0 0;margin:-1.5rem -1.5rem 1rem -1.5rem;">
@@ -565,9 +313,9 @@
                 </div>
                 {% endfor %}
             </div>
-            <div class="text-center mt-5" data-aos="fade-up">
+            <div class="text-center mt-5">
                 <p class="text-muted mb-3">Vous êtes une entreprise et souhaitez publier vos formations ?</p>
-                <a href="{% url 'core:login' %}" class="btn btn-outline-glass">
+                <a href="{% url 'core:login' %}" class="lo-btn lo-btn-outline">
                     <i class="bi bi-box-arrow-in-right me-2"></i>Connectez-vous pour gérer vos formations
                 </a>
             </div>
@@ -575,186 +323,66 @@
     </section>
     {% endif %}
 
-    <!-- CTA Section -->
-    <section class="cta" id="contact">
-        <div class="cta-bg"></div>
-        <div class="container position-relative">
-            <div class="cta-card" data-aos="zoom-in-up">
-                <h2>Prêt à transformer votre gestion RH ?</h2>
-                <p>Rejoignez les entreprises qui ont déjà simplifié leur gestion des ressources humaines</p>
-                <a href="{% url 'core:demande_partenariat' %}" class="btn btn-primary-gradient btn-lg">
-                    <i class="bi bi-handshake me-2"></i>Devenir Partenaire
-                </a>
-            </div>
+
+    <section class="lo-final" id="contact">
+        <div class="container">
+            <h2>Libérez votre potentiel de croissance</h2>
+            <p>Rejoignez les entreprises qui ont déjà simplifié leur gestion.</p>
+            <a class="lo-btn lo-btn-white lo-btn-lg" href="{% url 'core:demande_partenariat' %}">Lancez-vous - C'est gratuit !</a>
         </div>
     </section>
+    </main>
 
-
-    <!-- Footer -->
-    <footer>
+    <footer class="lo-footer">
         <div class="container">
-            <div class="row">
-                <div class="col-lg-4 mb-4 mb-lg-0" data-aos="fade-up">
-                    <img src="{% static 'img/logo.png' %}" alt="ICG Logo" style="height: 40px; max-width: 140px; object-fit: contain; margin: 10px 0; background-color: rgba(45, 45, 55, 0.95); padding: 4px; border-radius: 4px;">
-                    <p class="footer-text">
-                        Solution de gestion RH adaptée au contexte guinéen, respectant les normes locales et les spécificités administratives du pays.
-                    </p>
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <img src="{% static 'img/logo.png' %}" alt="ICG Logo" style="height:38px;max-width:150px;object-fit:contain;background:rgba(255,255,255,.95);padding:4px 8px;border-radius:6px;margin-bottom:14px">
+                    <p>Solution de gestion adaptée au contexte guinéen, respectant les normes locales et les spécificités administratives du pays.</p>
                 </div>
-                <div class="col-6 col-lg-2" data-aos="fade-up" data-aos-delay="100">
-                    <h5 class="footer-title">Modules</h5>
-                    <ul class="footer-links">
-                        <li><a href="#">Personnel</a></li>
-                        <li><a href="#">Paie</a></li>
-                        <li><a href="#">Congés</a></li>
-                        <li><a href="#">Pointage</a></li>
-                    </ul>
+                <div class="col-6 col-lg-2">
+                    <h5>Applications</h5>
+                    <ul><li><a href="#apps">Employés</a></li><li><a href="#apps">Paie</a></li><li><a href="#apps">Comptabilité</a></li><li><a href="#apps">Stock</a></li></ul>
                 </div>
-                <div class="col-6 col-lg-2" data-aos="fade-up" data-aos-delay="200">
-                    <h5 class="footer-title">Légal</h5>
-                    <ul class="footer-links">
-                        <li><a href="#">CNSS</a></li>
-                        <li><a href="#">IRPP</a></li>
-                        <li><a href="#">Inspection</a></li>
-                        <li><a href="#">Conformité</a></li>
-                    </ul>
+                <div class="col-6 col-lg-2">
+                    <h5>Légal</h5>
+                    <ul><li><a href="#fonctionnalites">CNSS</a></li><li><a href="#fonctionnalites">RTS</a></li><li><a href="#fonctionnalites">Inspection</a></li><li><a href="#fonctionnalites">Conformité</a></li></ul>
                 </div>
-                <div class="col-lg-4" data-aos="fade-up" data-aos-delay="300">
-                    <h5 class="footer-title">Contact</h5>
-                    <ul class="footer-contact list-unstyled">
-                        <li><i class="bi bi-geo-alt-fill"></i><span>Lambagny, en face de l'ISSEG, Conakry, Guinée</span></li>
-                        <li><i class="bi bi-envelope-fill"></i><span>contact@icguinea.com</span></li>
-                        <li><i class="bi bi-phone-fill"></i><span>+224 614 11 41 73</span></li>
-                    </ul>
+                <div class="col-lg-4">
+                    <h5>Contact</h5>
+                    <div class="fi"><i class="bi bi-geo-alt-fill"></i><span>Lambagny, en face de l'ISSEG, Conakry, Guinée</span></div>
+                    <div class="fi"><i class="bi bi-envelope-fill"></i><span>contact@icguinea.com</span></div>
+                    <div class="fi"><i class="bi bi-phone-fill"></i><span>+224 614 11 41 73</span></div>
                 </div>
             </div>
-            <div class="footer-bottom">
-                <p>© {% now "Y" %} International Consulting Guinea. Tous droits réservés.</p>
-            </div>
+            <div class="lo-footer-bottom">&copy; {% now "Y" %} International Consulting Guinea. Tous droits réservés.</div>
         </div>
     </footer>
 
-    <!-- Scripts - LOCAL -->
-    <script src="{% static 'js/jquery.min.js' %}"></script>
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
-    <script src="{% static 'js/aos.js' %}"></script>
     <script>
-        // Hero Slider
-        let currentSlide = 0;
-        const slides = document.querySelectorAll('.hero-slider .slide');
-        const dots = document.querySelectorAll('.slider-dots .dot');
-        
-        function showSlide(index) {
-            if (index >= slides.length) currentSlide = 0;
-            if (index < 0) currentSlide = slides.length - 1;
-            
-            slides.forEach(slide => slide.classList.remove('active'));
-            dots.forEach(dot => dot.classList.remove('active'));
-            
-            slides[currentSlide].classList.add('active');
-            dots[currentSlide].classList.add('active');
-        }
-        
-        function changeSlide(direction) {
-            currentSlide += direction;
-            showSlide(currentSlide);
-        }
-        
-        function goToSlide(index) {
-            currentSlide = index;
-            showSlide(currentSlide);
-        }
-        
-        // Auto-slide toutes les 5 secondes
-        setInterval(() => {
-            currentSlide++;
-            showSlide(currentSlide);
-        }, 5000);
-        
-        // Initialisation rapide dès que le DOM est prêt
-        document.addEventListener('DOMContentLoaded', function() {
-            // AOS - vérifier si chargé, sinon attendre
-            function initAOS() {
-                if (typeof AOS !== 'undefined') {
-                    document.body.classList.add('aos-initialized');
-                    AOS.init({
-                        duration: 500,
-                        easing: 'ease-out',
-                        once: true,
-                        offset: 20,
-                        delay: 0
-                    });
-                } else {
-                    setTimeout(initAOS, 50);
-                }
-            }
-            initAOS();
-            
-            // Navbar scroll effect
-            const navbar = document.querySelector('.navbar-glass');
-            if (navbar) {
-                let ticking = false;
-                window.addEventListener('scroll', () => {
-                    if (!ticking) {
-                        requestAnimationFrame(() => {
-                            navbar.classList.toggle('scrolled', window.scrollY > 50);
-                            ticking = false;
-                        });
-                        ticking = true;
-                    }
-                }, { passive: true });
-            }
-            
-            // Smooth scroll pour ancres
-            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-                anchor.addEventListener('click', function(e) {
-                    const target = document.querySelector(this.getAttribute('href'));
-                    if (target) {
-                        e.preventDefault();
-                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
+        (function () {
+            var input = document.getElementById('loSearch');
+            var grid = document.getElementById('loGrid');
+            var empty = document.getElementById('loEmpty');
+            function apps() { return Array.prototype.slice.call(grid.querySelectorAll('.lo-l-app')); }
+            input.addEventListener('input', function () {
+                var q = input.value.trim().toLowerCase();
+                var shown = 0;
+                apps().forEach(function (a) {
+                    var hide = q && a.getAttribute('data-name').indexOf(q) === -1;
+                    a.hidden = !!hide;
+                    if (!hide) { shown++; }
                 });
+                empty.hidden = shown > 0;
             });
-            
-            // Counter animation avec IntersectionObserver
-            const statObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const el = entry.target.querySelector('.stat-number');
-                        if (el) {
-                            const target = parseInt(el.textContent);
-                            if (!isNaN(target)) {
-                                let current = 0;
-                                const increment = target / 40;
-                                const timer = setInterval(() => {
-                                    current += increment;
-                                    if (current >= target) {
-                                        el.textContent = target;
-                                        clearInterval(timer);
-                                    } else {
-                                        el.textContent = Math.floor(current);
-                                    }
-                                }, 25);
-                            }
-                        }
-                        statObserver.unobserve(entry.target);
-                    }
-                });
-            }, { threshold: 0.5 });
-            
-            document.querySelectorAll('.stat-card').forEach(card => statObserver.observe(card));
-            
-            // Parallax particles (désactivé sur mobile pour performance)
-            if (window.innerWidth > 768) {
-                document.addEventListener('mousemove', (e) => {
-                    const particles = document.querySelectorAll('.particle');
-                    const x = e.clientX / window.innerWidth;
-                    const y = e.clientY / window.innerHeight;
-                    particles.forEach((p, i) => {
-                        p.style.transform = `translate(${x * (i + 1) * 20}px, ${y * (i + 1) * 20}px)`;
-                    });
-                }, { passive: true });
-            }
-        });
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    var first = apps().filter(function (a) { return !a.hidden; })[0];
+                    if (first) { window.location.href = first.getAttribute('href'); }
+                }
+            });
+        })();
     </script>
 </body>
 </html>

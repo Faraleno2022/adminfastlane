@@ -53,11 +53,20 @@ def guide_utilisateur(request):
     return render(request, 'documentation/guide_utilisateur.html')
 
 
+def _next_url_securisee(request):
+    """URL « next » (lanceur d'applications de la page d'accueil) si elle est interne au site."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.GET.get('next') or request.POST.get('next') or ''
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()},
+                                               require_https=request.is_secure()):
+        return nxt
+    return None
+
+
 def login_view(request):
     """Vue de connexion"""
     if request.user.is_authenticated:
-        # Rediriger selon le type de module
-        return redirect('core:home_menu')
+        return redirect(_next_url_securisee(request) or 'core:home_menu')
     
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -71,8 +80,7 @@ def login_view(request):
                 user.enregistrer_connexion()
                 log_activity(request, 'Connexion', 'core')
                 messages.success(request, f'Bienvenue {user.get_full_name()}!')
-                # Rediriger selon le type de module
-                return redirect('core:home_menu')
+                return redirect(_next_url_securisee(request) or 'core:home_menu')
             else:
                 messages.error(request, 'Votre compte est désactivé.')
         else:
