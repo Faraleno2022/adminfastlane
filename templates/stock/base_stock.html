@@ -11,253 +11,28 @@
     <link rel="stylesheet" href="{% static 'css/bootstrap-icons.css' %}">
     <link rel="stylesheet" href="{% static 'css/fontawesome.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+    <link rel="stylesheet" href="{% static 'css/odoo.css' %}">
 
     {% block extra_css %}{% endblock %}
 
     <style>
-        body { min-height: 100vh; background: #f8f9fa; }
-        .stock-header {
-            background: linear-gradient(90deg, #198754 0%, #20a36a 100%);
-            color: white; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem;
-        }
-        .stat-card-stock {
-            background: white; border-radius: 12px; padding: 1.25rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: transform 0.3s;
-        }
-        .stat-card-stock:hover { transform: translateY(-5px); }
-        .stat-card-stock .stat-icon {
-            width: 50px; height: 50px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
-        }
-        .card { border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-radius: 12px; }
-        #sidebar .nav-link { color: #333333; }
-        #sidebar .nav-link:hover { color: #198754; background: rgba(0,0,0,0.05); }
-        #sidebar .nav-link.active { color: #198754; background: rgba(25,135,84,0.15); border-left: 3px solid #198754; }
-        #sidebar .sidebar-heading { color: #198754; }
-        .table-stock-light th { background: rgba(25,135,84,0.1); }
+        /* Styles spécifiques : voir static/css/odoo.css */
     </style>
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background: linear-gradient(90deg, #198754 0%, #20a36a 100%); border-bottom: 3px solid #146c43;">
-        <div class="container-fluid">
-            <button class="btn btn-link d-md-none me-2" type="button" id="sidebarToggle" style="color: #FFFFFF;">
-                <i class="fas fa-bars fa-lg"></i>
-            </button>
-            <a class="navbar-brand d-flex align-items-center" href="{% url 'stock:dashboard' %}">
-                <i class="fas fa-boxes me-2" style="color: #FFFFFF;"></i>
-                <span style="color: #FFFFFF;">Gestion du Stock - {{ request.user.entreprise.nom_entreprise|default:"RH Guinée" }}</span>
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    {% if user.entreprise.has_rh %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:index' %}"><i class="fas fa-home"></i> Module RH</a>
-                    </li>
-                    {% endif %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle"></i> {{ user.get_full_name|default:user.username }}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{% url 'core:profile' %}"><i class="fas fa-user"></i> Mon profil</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'core:logout' %}"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+<body class="o_web_client">
+    {% include 'partials/odoo_navbar.html' %}
 
-    <div class="container-fluid">
-        <div class="row">
-            <nav id="sidebar" class="col-md-3 col-lg-2 sidebar" style="background: #e8e8e8; padding-top: 8px;">
-                <div class="position-sticky">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'stock:dashboard' %}">
-                                <i class="bi bi-speedometer2"></i> Tableau de bord
-                            </a>
-                        </li>
-
-                        {% if user.entreprise.has_rh %}
-                        <li class="nav-item mt-3">
-                            <h6 class="sidebar-heading px-3 text-muted"><span>AUTRES MODULES</span></h6>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'dashboard:index' %}"><i class="bi bi-house-door"></i> Retour Accueil RH</a>
-                        </li>
-                        {% endif %}
-
-                        <li class="nav-item mt-3">
-                            <h6 class="sidebar-heading px-3 text-muted"><span>STOCK</span></h6>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'article' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:article_list' %}">
-                                <i class="bi bi-box-seam"></i> Articles
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'categorie' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:categorie_list' %}">
-                                <i class="bi bi-tags"></i> Catégories
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'fournisseur' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:fournisseur_list' %}">
-                                <i class="bi bi-truck"></i> Fournisseurs
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'depot' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:depot_list' %}">
-                                <i class="bi bi-building"></i> Dépôts
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'mouvement' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:mouvement_list' %}">
-                                <i class="bi bi-arrow-left-right"></i> Mouvements
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'transfert' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:transfert_list' %}">
-                                <i class="bi bi-shuffle"></i> Transferts
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'inventaire' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:inventaire_list' %}">
-                                <i class="bi bi-clipboard-check"></i> Inventaires
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'lot' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:lot_list' %}">
-                                <i class="bi bi-box2"></i> Lots
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'serie' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:serie_list' %}">
-                                <i class="bi bi-upc"></i> N° de série
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'peremption' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:peremptions' %}">
-                                <i class="bi bi-calendar-x"></i> Péremptions
-                            </a>
-                        </li>
-
-                        <li class="nav-item mt-3">
-                            <h6 class="sidebar-heading px-3 text-muted"><span>ACHATS</span></h6>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'besoin_achat' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:besoin_achat_list' %}">
-                                <i class="bi bi-hand-index-thumb"></i> Besoins d'achat
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'reappro' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:reapprovisionnement' %}">
-                                <i class="bi bi-arrow-repeat"></i> Réapprovisionnement
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'commande' in request.resolver_match.url_name or 'reception' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:commande_list' %}">
-                                <i class="bi bi-cart-plus"></i> Commandes
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'facture' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:facture_list' %}">
-                                <i class="bi bi-receipt"></i> Factures fournisseur
-                            </a>
-                        </li>
-
-                        <li class="nav-item mt-3">
-                            <h6 class="sidebar-heading px-3 text-muted"><span>VENTES</span></h6>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'demande_vente' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:demande_vente_list' %}">
-                                <i class="bi bi-hand-index-thumb"></i> Demandes clients
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'client' in request.resolver_match.url_name or 'prix_special' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:client_list' %}">
-                                <i class="bi bi-people"></i> Clients
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'vente' in request.resolver_match.url_name or 'livraison' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:vente_list' %}">
-                                <i class="bi bi-cart-check"></i> Devis &amp; Factures
-                            </a>
-                        </li>
-
-                        <li class="nav-item mt-3">
-                            <h6 class="sidebar-heading px-3 text-muted"><span>RAPPORTS</span></h6>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'rapports' in request.resolver_match.url_name or 'export' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:rapports' %}">
-                                <i class="bi bi-graph-up"></i> Rapports &amp; exports
-                            </a>
-                        </li>
-
-                        <li class="nav-item mt-3">
-                            <h6 class="sidebar-heading px-3 text-muted"><span>ADMINISTRATION</span></h6>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'journal' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:journal_audit' %}">
-                                <i class="bi bi-shield-check"></i> Journal d'audit
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'roles' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:roles_list' %}">
-                                <i class="bi bi-person-gear"></i> Rôles utilisateurs
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'parametres' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:parametres_commerciaux' %}">
-                                <i class="bi bi-sliders"></i> Paramètres commerciaux
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'api' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'stock:api_info' %}">
-                                <i class="bi bi-plug"></i> API REST
-                            </a>
-                        </li>
-
-                        <li class="nav-item mt-4 border-top pt-3">
-                            <a class="nav-link" href="{% url 'core:profile' %}"><i class="bi bi-person-circle"></i> Mon Profil</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'core:logout' %}"><i class="bi bi-box-arrow-right"></i> Déconnexion</a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
-
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
-                {% if messages %}
-                <div class="mb-3">
-                    {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-                {% block stock_content %}{% endblock %}
-            </main>
-        </div>
+    <div class="o_action_manager">
+        <div class="o_control_panel" id="o_control_panel" data-section="{{ odoo_active_label }}" hidden></div>
+        <main class="o_content" id="o_content">
+            {% include 'partials/messages.html' %}
+            {% block stock_content %}{% endblock %}
+        </main>
     </div>
 
     <script src="{% static 'js/jquery.min.js' %}"></script>
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var t = document.getElementById('sidebarToggle');
-            var s = document.getElementById('sidebar');
-            if (t && s) { t.addEventListener('click', function () { s.classList.toggle('show'); }); }
-        });
-    </script>
+    <script src="{% static 'js/odoo.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

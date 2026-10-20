@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/licence/verifier/', views_licence.api_verifier_licence, name='api_verifier_licence'),
     
     path('', views.index_view, name='index'),
+    path('apps/', views.home_menu, name='home_menu'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('documentation-legale/', views.documentation_legale, name='documentation_legale'),

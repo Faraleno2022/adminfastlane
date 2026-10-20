@@ -129,6 +129,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.company_info',
+                'core.context_processors.odoo_shell',
             ],
             **(
                 {
@@ -270,7 +271,7 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Login URLs
 LOGIN_URL = 'core:login'
-LOGIN_REDIRECT_URL = 'dashboard:index'
+LOGIN_REDIRECT_URL = 'core:home_menu'
 LOGOUT_REDIRECT_URL = 'core:login'
 
 # Email Configuration

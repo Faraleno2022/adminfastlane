@@ -34,3 +34,13 @@ def company_info(request):
         # Affiche le bouton « Quitter l'application ».
         'DESKTOP_MODE': getattr(sys, 'frozen', False) or os.environ.get('GESTIONNAIRE_RH_DESKTOP') == '1',
     }
+
+
+def odoo_shell(request):
+    """Menus de la barre supérieure et lanceur d'applications (style Odoo)."""
+    try:
+        from .odoo_menu import build_shell
+        return build_shell(request)
+    except Exception:
+        # Ne jamais casser une page à cause du menu
+        return {'odoo_apps': [], 'odoo_app': None, 'odoo_menus': []}

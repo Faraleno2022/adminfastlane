@@ -1,0 +1,138 @@
+{% load static %}
+{# Barre de navigation façon Odoo : lanceur d'applications + menus de l'application courante + systray #}
+<header class="o_navbar{% if odoo_home %} o_home_menu_open{% endif %}" id="o_navbar">
+    <nav class="o_main_navbar">
+        <button type="button" class="o_menu_toggle" id="o_menu_toggle" title="Applications" aria-label="Applications">
+            <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+                <g fill="currentColor">
+                    <rect x="1" y="1" width="4.4" height="4.4" rx="1"/><rect x="7.8" y="1" width="4.4" height="4.4" rx="1"/><rect x="14.6" y="1" width="4.4" height="4.4" rx="1"/>
+                    <rect x="1" y="7.8" width="4.4" height="4.4" rx="1"/><rect x="7.8" y="7.8" width="4.4" height="4.4" rx="1"/><rect x="14.6" y="7.8" width="4.4" height="4.4" rx="1"/>
+                    <rect x="1" y="14.6" width="4.4" height="4.4" rx="1"/><rect x="7.8" y="14.6" width="4.4" height="4.4" rx="1"/><rect x="14.6" y="14.6" width="4.4" height="4.4" rx="1"/>
+                </g>
+            </svg>
+        </button>
+
+        {% if odoo_app %}
+        <a class="o_menu_brand" href="{{ odoo_app.url }}">{{ odoo_app.name }}</a>
+        <button class="o_menu_collapse_btn" type="button" data-bs-toggle="collapse" data-bs-target="#o_menu_sections" aria-label="Menu">
+            <i class="bi bi-list"></i>
+        </button>
+        <div class="collapse o_menu_collapse" id="o_menu_sections">
+            <ul class="o_menu_sections">
+                {% for m in odoo_menus %}
+                    {% if m.type == 'link' %}
+                    <li><a class="o_nav_entry{% if m.active %} active{% endif %}" href="{{ m.url }}">{{ m.label }}</a></li>
+                    {% elif m.type == 'dropdown' %}
+                    <li class="dropdown">
+                        <a class="o_nav_entry dropdown-toggle{% if m.active %} active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ m.label }}</a>
+                        <ul class="dropdown-menu o_dropdown_menu">
+                            {% for c in m.children %}
+                                {% if c.type == 'link' %}
+                                <li><a class="dropdown-item{% if c.active %} active{% endif %}" href="{{ c.url }}">{{ c.label }}</a></li>
+                                {% elif c.type == 'section' %}
+                                <li><h6 class="dropdown-header">{{ c.label }}</h6></li>
+                                {% elif c.type == 'sep' %}
+                                <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% else %}
+        <span class="o_menu_brand o_menu_brand_static">{{ entreprise_nom|default:"GuinéeRH" }}</span>
+        {% endif %}
+
+        <ul class="o_systray">
+            {% if DESKTOP_MODE %}
+            <li>
+                <a class="o_systray_item" href="#" onclick="return quitterApplicationRH();" title="Fermer complètement l'application">
+                    <i class="bi bi-power"></i>
+                </a>
+            </li>
+            {% endif %}
+            {% if user.est_admin_entreprise or user.is_superuser %}
+            <li>
+                <a class="o_systray_item" href="{% url 'core:admin_dashboard' %}" title="Tableau de bord administrateur">
+                    <i class="bi bi-speedometer2"></i>
+                </a>
+            </li>
+            {% endif %}
+            <li>
+                <a class="o_systray_item o_company_switcher" href="{% url 'core:changer_societe' %}" title="Changer de société">
+                    <i class="bi bi-building"></i>
+                    <span class="d-none d-lg-inline">{{ entreprise_nom|default:"Société" }}</span>
+                </a>
+            </li>
+            <li class="dropdown">
+                <a class="o_systray_item o_user_menu dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="o_avatar">{{ user.get_full_name|default:user.username|slice:":1"|upper }}</span>
+                    <span class="d-none d-lg-inline">{{ user.get_full_name|default:user.username }}</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end o_dropdown_menu">
+                    <li><a class="dropdown-item" href="{% url 'core:profile' %}">Mon profil</a></li>
+                    <li><a class="dropdown-item" href="{% url 'core:changer_societe' %}">Changer de société</a></li>
+                    {% if user.est_admin_entreprise %}
+                    <li><a class="dropdown-item" href="{% url 'core:entreprise_settings' %}">Paramètres de l'entreprise</a></li>
+                    <li><a class="dropdown-item" href="{% url 'core:manage_users' %}">Gérer les utilisateurs</a></li>
+                    {% endif %}
+                    <li><a class="dropdown-item" href="{% url 'core:guide_utilisateur' %}">Documentation</a></li>
+                    <li><a class="dropdown-item" href="{% url 'payments:plans' %}">Plans &amp; tarifs</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'core:logout' %}">Se déconnecter</a></li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+
+    {# Lanceur d'applications (Home Menu) #}
+    <div class="o_home_menu" id="o_home_menu"{% if not odoo_home %} hidden{% endif %}>
+        <div class="o_home_menu_search">
+            <i class="bi bi-search"></i>
+            <input type="search" id="o_home_search" placeholder="Rechercher…" autocomplete="off" aria-label="Rechercher une application">
+        </div>
+        <div class="o_apps" id="o_apps">
+            {% for app in odoo_apps %}
+            <a class="o_app{% if odoo_app and odoo_app.key == app.key %} o_app_current{% endif %}" href="{{ app.url }}" data-name="{{ app.name|lower }}">
+                <span class="o_app_icon" style="background: linear-gradient(145deg, {{ app.g1 }}, {{ app.g2 }});">
+                    <i class="bi {{ app.icon }}"></i>
+                </span>
+                <span class="o_caption">{{ app.name }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        <p class="o_home_empty" id="o_home_empty" hidden>Aucune application ne correspond à votre recherche.</p>
+    </div>
+</header>
+
+{% if DESKTOP_MODE %}
+<form id="rhQuitForm" method="post" action="{% url 'quitter_application' %}" style="display:none;">{% csrf_token %}</form>
+<script>
+function quitterApplicationRH() {
+    if (!confirm("Fermer complètement GestionnaireRH ?\n\nLe serveur et la fenêtre de l'application vont s'arrêter. Vous pourrez ensuite lancer une autre application.")) {
+        return false;
+    }
+    document.body.insertAdjacentHTML('beforeend',
+        '<div style="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);' +
+        'display:flex;align-items:center;justify-content:center;color:#fff;' +
+        'font-family:sans-serif;font-size:1.3rem;text-align:center;">' +
+        '<div><i class="bi bi-power" style="font-size:2.5rem"></i><br><br>' +
+        'Fermeture de GestionnaireRH…<br>' +
+        '<span style="font-size:.9rem;opacity:.8">La fenêtre va se fermer automatiquement.</span></div></div>');
+    // POST via fetch (et NON un envoi de formulaire) : évite de naviguer vers la
+    // réponse JSON du serveur. Le processus s'arrête côté serveur (os._exit).
+    try {
+        var form = document.getElementById('rhQuitForm');
+        var tokenEl = form.querySelector('[name=csrfmiddlewaretoken]');
+        fetch(form.getAttribute('action'), {
+            method: 'POST',
+            headers: {'X-CSRFToken': tokenEl ? tokenEl.value : ''},
+            body: new FormData(form)
+        }).catch(function () {});
+    } catch (e) {}
+    return false;
+}
+</script>
+{% endif %}

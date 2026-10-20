@@ -2,63 +2,14 @@
 {% load static %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar -->
-        <nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse" style="min-height: calc(100vh - 56px);">
-            <div class="position-sticky pt-3">
-                <div class="text-center text-white mb-4">
-                    <i class="fas fa-user-circle fa-3x mb-2"></i>
-                    <h6>{{ employe.nom }} {{ employe.prenoms }}</h6>
-                    <small class="text-muted">{{ employe.matricule }}</small>
-                </div>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link text-white {% if request.resolver_match.url_name == 'accueil' %}active bg-primary{% endif %}" href="{% url 'portail:accueil' %}">
-                            <i class="fas fa-home me-2"></i>Accueil
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white {% if 'bulletin' in request.resolver_match.url_name %}active bg-primary{% endif %}" href="{% url 'portail:mes_bulletins' %}">
-                            <i class="fas fa-file-invoice-dollar me-2"></i>Mes bulletins
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white {% if 'conge' in request.resolver_match.url_name %}active bg-primary{% endif %}" href="{% url 'portail:mes_conges' %}">
-                            <i class="fas fa-calendar-alt me-2"></i>Mes congés
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white {% if 'pret' in request.resolver_match.url_name %}active bg-primary{% endif %}" href="{% url 'portail:mes_prets' %}">
-                            <i class="fas fa-hand-holding-usd me-2"></i>Mes prêts
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white {% if 'heures' in request.resolver_match.url_name %}active bg-primary{% endif %}" href="{% url 'portail:mes_heures_sup' %}">
-                            <i class="fas fa-clock me-2"></i>Heures sup.
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white {% if 'profil' in request.resolver_match.url_name %}active bg-primary{% endif %}" href="{% url 'portail:mon_profil' %}">
-                            <i class="fas fa-user me-2"></i>Mon profil
-                        </a>
-                    </li>
-                </ul>
-                <hr class="text-white">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'core:index' %}">
-                            <i class="fas fa-arrow-left me-2"></i>Retour RH
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-
-        <!-- Main content -->
-        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
-            {% block portail_content %}{% endblock %}
-        </main>
+{# La navigation du portail est dans la barre supérieure (application « Portail employé »). #}
+<div class="container-fluid px-0">
+    {% if employe %}
+    <div class="d-flex align-items-center gap-2 mb-3 text-muted">
+        <i class="bi bi-person-circle fs-4"></i>
+        <span><strong>{{ employe.nom }} {{ employe.prenoms }}</strong> &middot; {{ employe.matricule }}</span>
     </div>
+    {% endif %}
+    {% block portail_content %}{% endblock %}
 </div>
 {% endblock %}

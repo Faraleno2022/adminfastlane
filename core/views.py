@@ -57,9 +57,7 @@ def login_view(request):
     """Vue de connexion"""
     if request.user.is_authenticated:
         # Rediriger selon le type de module
-        if request.user.entreprise and request.user.entreprise.type_module == 'compta':
-            return redirect('comptabilite:dashboard')
-        return redirect('dashboard:index')
+        return redirect('core:home_menu')
     
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -74,9 +72,7 @@ def login_view(request):
                 log_activity(request, 'Connexion', 'core')
                 messages.success(request, f'Bienvenue {user.get_full_name()}!')
                 # Rediriger selon le type de module
-                if user.entreprise and user.entreprise.type_module == 'compta':
-                    return redirect('dashboard:index')
-                return redirect('dashboard:index')
+                return redirect('core:home_menu')
             else:
                 messages.error(request, 'Votre compte est désactivé.')
         else:
@@ -144,10 +140,16 @@ def profile_view(request):
     return render(request, 'core/profile.html')
 
 
+@login_required
+def home_menu(request):
+    """Lanceur d'applications façon Odoo (écran d'accueil après connexion)."""
+    return render(request, 'core/home_menu.html', {'odoo_home': True})
+
+
 def index_view(request):
-    """Page d'accueil - redirige vers le dashboard si connecté, sinon affiche landing page"""
+    """Page d'accueil - redirige vers le lanceur d'applications si connecté, sinon affiche landing page"""
     if request.user.is_authenticated:
-        return redirect('dashboard:index')
+        return redirect('core:home_menu')
     
     # Récupérer les offres d'emploi ouvertes et non expirées pour affichage public
     from recrutement.models import OffreEmploi

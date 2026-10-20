@@ -37,41 +37,28 @@
     <!-- Searchable Select CSS (listes déroulantes avec recherche et scrollbar) -->
     <link rel="stylesheet" href="{% static 'css/searchable_select.css' %}">
 
+    <!-- Thème Odoo (navbar, lanceur d'applications, vues liste/formulaire) -->
+    <link rel="stylesheet" href="{% static 'css/odoo.css' %}">
+
     {% block extra_css %}{% endblock %}
     
     <style>
         /* Styles de base pour éviter le FOUC (Flash of Unstyled Content) */
         body { min-height: 100vh; }
-        .form-control, .form-select { min-height: 38px; }
         .btn { cursor: pointer; }
-        /* Table header orange clair */
-        .table-orange-light, .table-orange-light > tr > th, .table-orange-light > tr > td {
-            background-color: #FFD699 !important;
-            color: #333 !important;
-        }
     </style>
 </head>
-<body>
-    {% include 'partials/navbar.html' %}
-    
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <nav id="sidebar" class="col-md-3 col-lg-2 sidebar" style="background: #e8e8e8; padding-top: 8px;">
-                {% include 'partials/sidebar.html' %}
-            </nav>
-            
-            <!-- Overlay pour fermer la sidebar sur mobile -->
-            <div id="sidebar-overlay" class="sidebar-overlay"></div>
-            
-            <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
-                {% include 'partials/messages.html' %}
-                {% block content %}{% endblock %}
-            </main>
-        </div>
+<body class="o_web_client">
+    {% include 'partials/odoo_navbar.html' %}
+
+    <div class="o_action_manager">
+        <div class="o_control_panel" id="o_control_panel" data-section="{{ odoo_active_label }}" hidden></div>
+        <main class="o_content" id="o_content">
+            <div class="o_messages">{% include 'partials/messages.html' %}</div>
+            {% block content %}{% endblock %}
+        </main>
     </div>
-    
+
     <!-- jQuery - LOCAL -->
     <script src="{% static 'js/jquery.min.js' %}"></script>
     
@@ -95,71 +82,8 @@
         }
     </script>
     
-    <!-- Script pour la sidebar responsive -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const sidebar = document.getElementById('sidebar');
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidebarOverlay = document.getElementById('sidebar-overlay');
-            
-            // Fonction pour ouvrir la sidebar
-            function openSidebar() {
-                sidebar.classList.add('show');
-                sidebarOverlay.classList.add('show');
-                document.body.style.overflow = 'hidden';
-            }
-            
-            // Fonction pour fermer la sidebar
-            function closeSidebar() {
-                sidebar.classList.remove('show');
-                sidebarOverlay.classList.remove('show');
-                document.body.style.overflow = '';
-            }
-            
-            // Toggle sidebar au clic sur le bouton
-            if (sidebarToggle) {
-                sidebarToggle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    if (sidebar.classList.contains('show')) {
-                        closeSidebar();
-                    } else {
-                        openSidebar();
-                    }
-                });
-            }
-            
-            // Fermer la sidebar au clic sur l'overlay
-            if (sidebarOverlay) {
-                sidebarOverlay.addEventListener('click', function() {
-                    closeSidebar();
-                });
-            }
-            
-            // Fermer la sidebar au clic sur un lien (mobile)
-            const sidebarLinks = sidebar.querySelectorAll('.nav-link');
-            sidebarLinks.forEach(function(link) {
-                link.addEventListener('click', function() {
-                    if (window.innerWidth < 768) {
-                        closeSidebar();
-                    }
-                });
-            });
-            
-            // Fermer la sidebar avec la touche Escape
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && sidebar.classList.contains('show')) {
-                    closeSidebar();
-                }
-            });
-            
-            // Gérer le redimensionnement de la fenêtre
-            window.addEventListener('resize', function() {
-                if (window.innerWidth >= 768) {
-                    closeSidebar();
-                }
-            });
-        });
-    </script>
+    <!-- Comportements Odoo : lanceur d'applications + panneau de contrôle -->
+    <script src="{% static 'js/odoo.js' %}"></script>
 
     <!-- Searchable Select JS (listes déroulantes avec recherche et scrollbar) -->
     <script src="{% static 'js/searchable_select.js' %}"></script>
