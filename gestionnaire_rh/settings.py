@@ -45,6 +45,13 @@ ADMIN_REGISTRATION_CODE = config('ADMIN_REGISTRATION_CODE', default='625196629')
 
 ALLOWED_HOSTS = ['www.guineerh.space', 'guineerh.space', 'guineerh.pythonanywhere.com', 'localhost', '127.0.0.1', 'testserver']
 
+# Hébergement Render : l'hôte public est fourni par RENDER_EXTERNAL_HOSTNAME ;
+# ALLOWED_HOSTS_EXTRA permet d'ajouter d'autres domaines (séparés par des virgules).
+_render_host = config('RENDER_EXTERNAL_HOSTNAME', default='')
+if _render_host:
+    ALLOWED_HOSTS.append(_render_host)
+ALLOWED_HOSTS += [h.strip() for h in config('ALLOWED_HOSTS_EXTRA', default='').split(',') if h.strip()]
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -575,6 +582,10 @@ CSRF_TRUSTED_ORIGINS = [
     'https://www.guineerh.space',
     'https://guineerh.space',
 ]
+
+CSRF_TRUSTED_ORIGINS += ['https://' + h for h in ALLOWED_HOSTS
+                         if h not in ('localhost', '127.0.0.1', 'testserver')
+                         and 'https://' + h not in CSRF_TRUSTED_ORIGINS]
 
 if PYINSTALLER_MODE:
     CSRF_TRUSTED_ORIGINS += [
