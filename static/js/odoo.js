@@ -149,12 +149,11 @@
             ol.appendChild(li);
         }
         function norm(t) { return (t || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
-        if (appName) { crumb(appName, appUrl, false); }
+        // Odoo 18 : le nom de l'application est déjà dans la barre du haut ;
+        // le fil d'Ariane ne montre que le titre de la page courante.
         var last = title || section;
-        if (title && section && norm(section) !== norm(title) && norm(section) !== norm(appName)) {
-            crumb(section, null, false);
-        }
         if (last && norm(last) !== norm(appName)) { crumb(last, null, true); }
+        else if (appName) { crumb(appName, appUrl, true); }
         cp.appendChild(ol);
 
         if (h) {

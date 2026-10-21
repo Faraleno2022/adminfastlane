@@ -182,3 +182,36 @@ html { scroll-padding-top: 56px; }
     .lo-l-cap { font-size: .75rem; max-width: 92px; }
     .lo-top-link span { display: none; }
 }
+
+/* ===== Odoo 18 : accueil clair, tuiles blanches, barre grise ===== */
+.lo-topbar { background: #f8f9fa; color: #212529; box-shadow: none; }
+.lo-grid-btn { color: #495057; }
+.lo-grid-btn:hover { background: rgba(0, 0, 0, .05); color: #212529; }
+.lo-top-brand { color: #212529; font-weight: 400; font-size: 1.05rem; }
+.lo-top-links a { color: #212529; margin: 7px 1px; height: 32px; padding: 0 8px; border-radius: 6px; font-weight: 400; }
+.lo-top-links a:hover { background: rgba(0, 0, 0, .06); color: #212529; }
+.lo-top-link { color: #212529; margin: 7px 0; height: 32px; padding: 0 8px; border-radius: 6px; }
+.lo-top-link:hover { background: rgba(0, 0, 0, .06); color: #212529; }
+.lo-top-cta { background: #714b67; color: #fff; border-radius: 6px; padding: 5px 12px; font-weight: 500; font-size: .875rem; }
+.lo-top-cta:hover { background: #5b3c52; color: #fff; }
+.lo-launcher {
+    background-color: #f8f9fa;
+    background-image: radial-gradient(circle, rgba(0, 0, 0, .09) 1px, transparent 1.4px), radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, .9), rgba(248, 249, 250, 0) 70%);
+    background-size: 18px 18px, 100% 100%;
+}
+.lo-l-search i { color: #6b7280; }
+.lo-l-search input { background: #fff; border: 1px solid #dee2e6; color: #212529; height: 36px; font-size: .875rem; }
+.lo-l-search input::placeholder { color: #9aa0a6; }
+.lo-l-search input:focus { background: #fff; border-color: #714b67; box-shadow: 0 0 0 .15rem rgba(113, 75, 103, .15); }
+.lo-l-grid { grid-template-columns: repeat(auto-fill, 140px); gap: 30px 4px; }
+.lo-l-app, .lo-l-app:hover { color: #212529; transform: none; }
+.lo-l-ico { width: 72px; height: 72px; border-radius: 14px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .14), 0 0 0 1px rgba(0, 0, 0, .04); transition: box-shadow .15s, transform .15s; }
+.lo-l-app:hover .lo-l-ico { box-shadow: 0 6px 16px rgba(0, 0, 0, .16), 0 0 0 1px rgba(0, 0, 0, .05); transform: translateY(-2px); }
+.lo-l-ico i { color: var(--c, #714b67); font-size: 2.2rem; filter: none; }
+.lo-l-cap { color: #212529; text-shadow: none; font-size: .875rem; }
+.lo-l-empty { color: #6b7280; }
+.lo-l-hint { color: #6b7280; }
+.lo-l-hint a { color: #714b67; }
+.lo-l-down { color: #9aa0a6; }
+.lo-l-down:hover { color: #212529; }
+@media (max-width: 575.98px) { .lo-l-grid { grid-template-columns: repeat(auto-fill, 100px); gap: 22px 2px; } .lo-l-ico { width: 60px; height: 60px; } .lo-l-ico i { font-size: 1.8rem; } }

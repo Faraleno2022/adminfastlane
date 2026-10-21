@@ -2,7 +2,12 @@
 {# Barre de navigation façon Odoo : lanceur d'applications + menus de l'application courante + systray #}
 <header class="o_navbar{% if odoo_home %} o_home_menu_open{% endif %}" id="o_navbar">
     <nav class="o_main_navbar">
-        <button type="button" class="o_menu_toggle" id="o_menu_toggle" title="Applications" aria-label="Applications">
+        {% if odoo_app %}
+        <button type="button" class="o_menu_toggle o_app_toggle" id="o_menu_toggle" title="Applications" aria-label="Applications">
+            <span class="o_navbar_app_icon" style="--c: {{ odoo_app.g1 }};"><i class="bi {{ odoo_app.icon }}"></i></span>
+        </button>
+        {% else %}
+        <button type="button" class="o_menu_toggle" id="o_menu_toggle" title="Applications" aria-label="Applications"{% if odoo_home %} hidden{% endif %}>
             <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
                 <g fill="currentColor">
                     <rect x="1" y="1" width="4.4" height="4.4" rx="1"/><rect x="7.8" y="1" width="4.4" height="4.4" rx="1"/><rect x="14.6" y="1" width="4.4" height="4.4" rx="1"/>
@@ -11,6 +16,7 @@
                 </g>
             </svg>
         </button>
+        {% endif %}
 
         {% if odoo_app %}
         <a class="o_menu_brand" href="{{ odoo_app.url }}">{{ odoo_app.name }}</a>
@@ -96,7 +102,7 @@
         <div class="o_apps" id="o_apps">
             {% for app in odoo_apps %}
             <a class="o_app{% if odoo_app and odoo_app.key == app.key %} o_app_current{% endif %}" href="{{ app.url }}" data-name="{{ app.name|lower }}">
-                <span class="o_app_icon" style="background: linear-gradient(145deg, {{ app.g1 }}, {{ app.g2 }});">
+                <span class="o_app_icon" style="--c: {{ app.g1 }};">
                     <i class="bi {{ app.icon }}"></i>
                 </span>
                 <span class="o_caption">{{ app.name }}</span>

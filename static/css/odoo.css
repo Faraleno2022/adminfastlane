@@ -47,7 +47,7 @@ body {
     min-height: 100vh;
 }
 
-h1, h2, h3, h4, h5, h6 { font-family: var(--o-font); font-weight: 500; color: #212529; }
+h1, h2, h3, h4, h5, h6 { font-family: var(--o-font); font-weight: 500; color: inherit; }
 .h1, h1 { font-size: 1.5rem; }
 .h2, h2 { font-size: 1.25rem; }
 .h3, h3 { font-size: 1.1rem; }
@@ -553,3 +553,139 @@ hr { border-color: var(--o-border); opacity: 1; }
 .card.border-info { border-top-color: #017e84 !important; }
 .card.border-warning { border-top-color: #f0ad4e !important; }
 .card.border-danger { border-top-color: #dc3545 !important; }
+
+/* ==========================================================================
+   Odoo 18 — surcharge finale (relevé sur une instance Odoo 18 réelle)
+   Barre du haut claire, tuiles blanches sur fond à points, panneau de
+   contrôle gris clair avec recherche en pastille, boutons à coins 6px.
+   ========================================================================== */
+:root {
+    --o-bg: #f8f9fa;
+    --o-border: #dee2e6;
+    --o-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, "Noto Sans", Arial, sans-serif;
+    --bs-body-font-family: var(--o-font);
+    --bs-body-font-size: 0.875rem;
+    --bs-border-color: #dee2e6;
+    --bs-border-radius: 6px;
+}
+body { font-family: var(--o-font); font-size: 0.875rem; background: var(--o-bg); color: #212529; }
+.table, .form-control, .form-select, .btn, .dropdown-menu, .alert, .list-group-item, .page-link,
+.nav-tabs .nav-link, .input-group-text, .o_dropdown_menu { font-size: 0.875rem; }
+h1, h2, h3, h4, h5, h6 { font-family: var(--o-font); }
+
+/* ---- Barre du haut : transparente sur fond gris clair, texte sombre ---- */
+.o_main_navbar { background: var(--o-bg); color: #212529; box-shadow: none; border-bottom: 0; }
+.o_menu_toggle { color: #495057; width: 46px; border-radius: 0; }
+.o_menu_toggle:hover, .o_menu_toggle:focus-visible { background: rgba(0, 0, 0, .05); color: #212529; }
+.o_navbar_app_icon {
+    width: 28px; height: 28px; border-radius: 7px; background: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .08);
+}
+.o_navbar_app_icon i { color: var(--c, #714b67); font-size: 1rem; line-height: 1; }
+.o_menu_brand { color: #212529; font-weight: 400; font-size: 1.05rem; padding: 0 12px 0 4px; }
+.o_menu_brand:hover { color: #212529; background: transparent; }
+.o_nav_entry {
+    color: #212529; font-weight: 400; font-size: .875rem;
+    height: 32px; margin: 7px 1px; padding: 0 8px; border-radius: 6px;
+}
+.o_nav_entry:hover, .o_nav_entry:focus, .o_nav_entry.show { color: #212529; background: rgba(0, 0, 0, .06); }
+.o_nav_entry.active { color: #212529; background: transparent; font-weight: 500; }
+.o_nav_entry.dropdown-toggle::after { opacity: .55; margin-left: .35em; }
+.o_menu_sections > li { align-items: center; }
+.o_dropdown_menu {
+    border: 1px solid #dee2e6; border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12); padding: 6px; margin-top: 2px !important;
+}
+.o_dropdown_menu .dropdown-item { border-radius: 6px; padding: 6px 12px; color: #212529; }
+.o_dropdown_menu .dropdown-item:hover, .o_dropdown_menu .dropdown-item:focus { background: #f1f3f5; }
+.o_dropdown_menu .dropdown-item.active, .o_dropdown_menu .dropdown-item:active { background: #f1e9ef; color: #714b67; font-weight: 500; }
+.o_dropdown_menu .dropdown-header { color: #6b7280; }
+.o_systray_item { color: #495057; height: 32px; margin: 7px 1px; padding: 0 8px; border-radius: 6px; font-size: .875rem; }
+.o_systray_item:hover, .o_systray_item.show { color: #212529; background: rgba(0, 0, 0, .06); }
+.o_avatar { background: #714b67; color: #fff; width: 28px; height: 28px; }
+.o_menu_collapse_btn { color: #212529; }
+
+/* ---- Lanceur d'applications : fond clair à points, tuiles blanches ---- */
+.o_home_menu {
+    background-color: var(--o-bg);
+    background-image: radial-gradient(circle, rgba(0, 0, 0, .09) 1px, transparent 1.4px), radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, .9), rgba(248, 249, 250, 0) 70%);
+    background-size: 18px 18px, 100% 100%;
+    padding-top: 36px;
+}
+.o_home_menu_search { max-width: 340px; margin: 0 auto 40px; }
+.o_home_menu_search i { color: #6b7280; }
+.o_home_menu_search input { background: #fff; border: 1px solid #dee2e6; color: #212529; height: 36px; border-radius: 18px; font-size: .875rem; }
+.o_home_menu_search input::placeholder { color: #9aa0a6; }
+.o_home_menu_search input:focus { background: #fff; border-color: #714b67; box-shadow: 0 0 0 .15rem rgba(113, 75, 103, .15); }
+.o_apps { grid-template-columns: repeat(auto-fill, 140px); gap: 30px 4px; max-width: 920px; }
+.o_app { color: #212529; }
+.o_app:hover { color: #212529; transform: none; }
+.o_app_icon {
+    width: 72px; height: 72px; border-radius: 14px; background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .14), 0 0 0 1px rgba(0, 0, 0, .04);
+    transition: box-shadow .15s, transform .15s;
+}
+.o_app:hover .o_app_icon { box-shadow: 0 6px 16px rgba(0, 0, 0, .16), 0 0 0 1px rgba(0, 0, 0, .05); transform: translateY(-2px); }
+.o_app_icon i { color: var(--c, #714b67); font-size: 2.2rem; filter: none; }
+.o_caption { color: #212529; text-shadow: none; font-size: .875rem; font-weight: 500; margin-top: 10px; }
+.o_app_current .o_app_icon { outline: 2px solid #714b67; outline-offset: 2px; }
+.o_home_empty { color: #6b7280; }
+.o_home_menu_open .o_menu_brand, .o_home_menu_open .o_menu_collapse, .o_home_menu_open .o_menu_collapse_btn { visibility: hidden; }
+
+/* ---- Panneau de contrôle : gris clair, boutons à gauche, titre simple ---- */
+.o_control_panel { background: var(--o-bg); border-bottom: 0; padding: 8px 16px 12px; min-height: 52px; top: var(--o-navbar-h); justify-content: flex-start; gap: 8px 14px; }
+.o_cp_buttons { order: 1; margin-left: 0; }
+.o_breadcrumb { order: 2; font-size: 1.05rem; flex: 1 1 auto; }
+.o_breadcrumb li.active { font-weight: 400; color: #212529; }
+.o_breadcrumb li + li::before { color: #adb5bd; }
+.o_breadcrumb a { color: #017e84; }
+main.o_content { padding: 4px 16px 40px; }
+
+/* ---- Boutons : coins 6px, 14px ---- */
+.btn { border-radius: 6px; padding: 5px 10px; font-size: .875rem; font-weight: 500; }
+.btn-sm { padding: 3px 8px; font-size: .8125rem; }
+.btn-secondary, .btn-light, .btn-outline-secondary { background: #fff; border: 1px solid #dee2e6; color: #212529; }
+.btn-secondary:hover, .btn-light:hover, .btn-outline-secondary:hover, .btn-secondary:active { background: #f1f3f5; border-color: #ced4da; color: #212529; }
+.o_cp_buttons .btn:not(.btn-primary):not(.btn-danger):not(.btn-close):not(.dropdown-toggle-split) { background: #fff !important; border: 1px solid #dee2e6 !important; color: #212529 !important; }
+.o_cp_buttons .btn:not(.btn-primary):not(.btn-danger):hover { background: #f1f3f5 !important; border-color: #ced4da !important; }
+
+/* ---- Cartes, listes ---- */
+.card { border: 1px solid #dee2e6; border-radius: 8px; box-shadow: none; }
+.card:hover { box-shadow: none; }
+.card-header { background: #fff; border-radius: 8px 8px 0 0 !important; }
+.table > thead > tr > th, .table thead th { color: #495057; font-weight: 500; background: transparent; border-bottom: 1px solid #dee2e6 !important; }
+.table > :not(caption) > * > * { border-bottom-color: rgba(0, 0, 0, .06); }
+.table-hover > tbody > tr:hover > * { background-color: #f1f3f5; --bs-table-accent-bg: #f1f3f5; }
+.table-responsive { border-radius: 8px; border: 1px solid #dee2e6; background: #fff; }
+.o_dropdown_menu, .dropdown-menu { border-radius: 8px; }
+.modal-content { border-radius: 10px; }
+.form-control, .form-select { font-size: .875rem; }
+.page-link { border-radius: 6px; }
+
+@media (max-width: 991.98px) {
+    .o_menu_collapse { background: #fff; box-shadow: 0 8px 20px rgba(0, 0, 0, .15); border-bottom: 1px solid #dee2e6; }
+    .o_nav_entry { margin: 0; height: 44px; border-radius: 0; }
+    .o_menu_sections .dropdown-item { color: #212529; }
+    .o_menu_sections .dropdown-item:hover { background: #f1f3f5; color: #212529; }
+    .o_menu_sections .dropdown-item.active { background: #f1e9ef; color: #714b67; }
+    .o_menu_sections .dropdown-menu { background: #f8f9fa; }
+    .o_menu_sections .dropdown-header { color: #6b7280; }
+    .o_menu_sections .dropdown-divider { border-color: #dee2e6; }
+}
+@media (max-width: 575.98px) {
+    .o_apps { grid-template-columns: repeat(auto-fill, 100px); gap: 22px 2px; }
+    .o_app_icon { width: 60px; height: 60px; }
+    .o_app_icon i { font-size: 1.8rem; }
+    .o_control_panel { padding: 8px 12px; }
+}
+
+/* Tuiles KPI pleines (card text-white bg-*) -> cartes blanches avec liseré coloré, comme Odoo */
+.card.text-white[class*="bg-"] {
+    background: #fff !important; color: #212529 !important;
+    border-left: 4px solid var(--o-hdr, #9aa0a6);
+}
+.card.bg-primary { --o-hdr: #714b67; } .card.bg-success { --o-hdr: #28a745; } .card.bg-info { --o-hdr: #017e84; }
+.card.bg-warning { --o-hdr: #f0ad4e; } .card.bg-danger { --o-hdr: #dc3545; } .card.bg-secondary { --o-hdr: #6c757d; } .card.bg-dark { --o-hdr: #374151; }
+.card.text-white[class*="bg-"] [class*="text-white"] { color: inherit !important; }
+.card.text-white[class*="bg-"] .text-white-50, .card.text-white[class*="bg-"] .opacity-75 { color: #6b7280 !important; opacity: 1 !important; }
