@@ -1,0 +1,34 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Corbeille{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Corbeille</h1>
+<p class="text-muted">Les éléments supprimés restent ici et peuvent être restaurés (le stock et les soldes sont alors recalculés).</p>
+
+<div class="card mb-3"><div class="card-header">Dépôts et retraits supprimés</div><div class="table-responsive">
+<table class="table mb-0 align-middle"><thead><tr><th>Date</th><th>Matricule</th><th>Type</th><th class="v-num">Montant</th><th></th></tr></thead><tbody>
+{% for o in operations %}<tr><td>{{ o.created_at|date:"d/m/Y H:i" }}</td><td>{{ o.matricule }}</td><td>{{ o.get_type_display }}</td><td class="v-num v-money">{{ o.montant|gnf }}</td>
+<td class="text-end"><form method="post" action="{% url 'ventes:operation_restaurer' o.pk %}">{% csrf_token %}<button class="btn btn-sm btn-secondary">Restaurer</button></form></td></tr>
+{% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucun.</td></tr>{% endfor %}
+</tbody></table></div></div>
+
+<div class="card mb-3"><div class="card-header">Ventes annulées</div><div class="table-responsive">
+<table class="table mb-0 align-middle"><thead><tr><th>Date</th><th>Matricule</th><th>Produit</th><th class="v-num">Qté</th><th class="v-num">Montant</th><th></th></tr></thead><tbody>
+{% for v in ventes %}<tr><td>{{ v.created_at|date:"d/m/Y H:i" }}</td><td>{{ v.matricule|default:"—" }}</td><td>{{ v.produit_nom }}</td><td class="v-num">{{ v.quantite|nb }}</td><td class="v-num v-money">{{ v.montant_total|gnf }}</td>
+<td class="text-end"><form method="post" action="{% url 'ventes:vente_restaurer' v.pk %}">{% csrf_token %}<button class="btn btn-sm btn-secondary">Restaurer</button></form></td></tr>
+{% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Aucune.</td></tr>{% endfor %}
+</tbody></table></div></div>
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header">Produits archivés</div><div class="table-responsive">
+  <table class="table mb-0 align-middle"><tbody>
+  {% for p in produits %}<tr><td>{{ p.nom }}</td><td class="text-end"><form method="post" action="{% url 'ventes:produit_restaurer' p.pk %}">{% csrf_token %}<button class="btn btn-sm btn-secondary">Restaurer</button></form></td></tr>
+  {% empty %}<tr><td class="text-center text-muted py-3">Aucun.</td></tr>{% endfor %}
+  </tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Fiches clients archivées</div><div class="table-responsive">
+  <table class="table mb-0 align-middle"><tbody>
+  {% for c in clients %}<tr><td>{{ c }}</td><td class="text-end"><form method="post" action="{% url 'ventes:client_restaurer' c.pk %}">{% csrf_token %}<button class="btn btn-sm btn-secondary">Restaurer</button></form></td></tr>
+  {% empty %}<tr><td class="text-center text-muted py-3">Aucune.</td></tr>{% endfor %}
+  </tbody></table></div></div></div>
+</div>
+{% endblock %}

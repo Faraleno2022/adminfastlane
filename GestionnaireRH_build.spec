@@ -56,6 +56,7 @@ datas = [
     (str(PROJECT_DIR / 'secretariat'), 'secretariat'),
     (str(PROJECT_DIR / 'stock'), 'stock'),
     (str(PROJECT_DIR / 'flotte'), 'flotte'),
+    (str(PROJECT_DIR / 'ventes'), 'ventes'),
     # Configuration Django
     (str(PROJECT_DIR / 'gestionnaire_rh'), 'gestionnaire_rh'),
     # Fichiers de configuration
@@ -172,6 +173,13 @@ hiddenimports = [
     'flotte.middleware',
     'flotte.context_processors',
     'flotte.templatetags.flotte_extras',
+    'ventes',
+    'ventes.models',
+    'ventes.views',
+    'ventes.services',
+    'ventes.exports',
+    'ventes.templatetags.ventes_extras',
+    'core.tenancy',
     'gestionnaire_rh.settings',
     'gestionnaire_rh.settings_portable',
     'gestionnaire_rh.urls',

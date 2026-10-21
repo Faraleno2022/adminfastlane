@@ -1,0 +1,28 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Validations de stock{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Validations de stock</h1>
+<div class="card mb-3"><div class="card-header">Demandes en attente</div><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Date</th><th>Type</th><th>Produit</th><th class="v-num">Quantité</th><th>Demandeur</th><th>Motif</th><th class="text-end">Décision</th></tr></thead>
+  <tbody>
+  {% for d in en_attente %}
+  <tr>
+    <td>{{ d.created_at|date:"d/m/Y H:i" }}</td><td>{{ d.get_kind_display }}</td>
+    <td>{{ d.produit_nom }}{% if d.kind == "nouveau_produit" %}<div class="small text-muted">Prix {{ d.new_prix_unitaire|gnf }} · seuil {{ d.new_seuil_alerte|nb }}</div>{% endif %}</td>
+    <td class="v-num">{{ d.quantite|nb }}</td><td>{{ d.demandeur_nom }}</td><td>{{ d.motif }}</td>
+    <td class="text-end">
+      <form method="post" action="{% url 'ventes:demande_valider' d.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-primary">Valider</button></form>
+      <form method="post" action="{% url 'ventes:demande_rejeter' d.pk %}" class="d-inline-flex gap-1">{% csrf_token %}<input class="form-control form-control-sm" name="motif" placeholder="Motif du refus" style="width:150px"><button class="btn btn-sm btn-outline-danger">Rejeter</button></form>
+    </td>
+  </tr>
+  {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Aucune demande en attente.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+<div class="card"><div class="card-header">Dernières décisions</div><div class="table-responsive">
+<table class="table mb-0"><thead><tr><th>Date</th><th>Produit</th><th class="v-num">Quantité</th><th>Statut</th><th>Décidé par</th><th>Motif</th></tr></thead><tbody>
+  {% for d in traitees %}<tr><td>{{ d.decide_le|date:"d/m/Y H:i" }}</td><td>{{ d.produit_nom }}</td><td class="v-num">{{ d.quantite|nb }}</td><td><span class="badge {% if d.statut == 'valide' %}bg-success{% else %}bg-danger{% endif %}">{{ d.get_statut_display }}</span></td><td>{{ d.decide_par_nom }}</td><td>{{ d.decision_motif }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Rien pour le moment.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

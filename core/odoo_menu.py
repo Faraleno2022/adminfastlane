@@ -272,6 +272,41 @@ APPS = [
         ],
     },
     {
+        'key': 'ventes', 'name': 'Ventes & caisse', 'icon': 'bi-cart-check-fill',
+        'gradient': ('#e8590c', '#c2410c'), 'requires': None,
+        'home': 'ventes:tableau_de_bord',
+        'prefixes': ['/ventes/'],
+        'menus': [
+            ('Tableau de bord', 'ventes:tableau_de_bord'),
+            ('Opérations', [
+                ('Nouveau dépôt', 'ventes:depot_nouveau'),
+                ('Retrait / vente', 'ventes:retrait_nouveau'),
+                '-',
+                ('Dépôts et retraits', 'ventes:operations'),
+                ('Ventes', 'ventes:ventes'),
+            ]),
+            ('Clients', [
+                ('Clients et soldes', 'ventes:clients'),
+                ('Nouveau client', 'ventes:client_nouveau'),
+            ]),
+            ('Caisse', 'ventes:caisse'),
+            ('Stock', [
+                ('Produits', 'ventes:produits'),
+                ('Mouvements de stock', 'ventes:mouvements'),
+                ('Inventaire', 'ventes:inventaire', None, 'admin'),
+                ('Validations', 'ventes:validations', None, 'admin'),
+            ]),
+            ('Rapports', [
+                ('Rapports', 'ventes:rapports'),
+                ('Journal d\'audit', 'ventes:journal', None, 'admin'),
+            ]),
+            ('Configuration', [
+                ('Paramètres', 'ventes:parametres', None, 'admin'),
+                ('Corbeille', 'ventes:corbeille', None, 'admin'),
+            ]),
+        ],
+    },
+    {
         'key': 'flotte', 'name': 'Flotte', 'icon': 'bi-truck',
         'gradient': ('#0d6efd', '#0a58ca'), 'requires': None,
         'home': 'flotte:accueil',

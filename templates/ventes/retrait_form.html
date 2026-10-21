@@ -1,0 +1,143 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Retrait / vente{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Retrait d'espèces / vente de produits</h1>
+{% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
+<form method="post" id="form-retrait">
+  {% csrf_token %}
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card mb-3"><div class="card-body">
+        <div class="mb-3">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="mode_paiement" id="mode-compte" value="compte" {% if post.mode_paiement != "caisse" %}checked{% endif %}>
+            <label class="form-check-label" for="mode-compte">Débiter le compte du client</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="mode_paiement" id="mode-caisse" value="caisse" {% if post.mode_paiement == "caisse" %}checked{% endif %}>
+            <label class="form-check-label" for="mode-caisse">Vente encaissée en caisse (sans compte)</label>
+          </div>
+        </div>
+        <div class="row g-3" id="bloc-compte">
+          <div class="col-md-6">
+            <label class="form-label" for="matricule">Matricule <span class="text-danger">*</span></label>
+            <input class="form-control" id="matricule" name="matricule" maxlength="80" value="{{ post.matricule }}" autocomplete="off">
+            <div class="form-text" id="info-solde">&nbsp;</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="telephone">Téléphone</label>
+            <input class="form-control" id="telephone" name="telephone" maxlength="40" value="{{ post.telephone }}">
+          </div>
+        </div>
+      </div></div>
+
+      <div class="card mb-3"><div class="card-header d-flex justify-content-between align-items-center">
+        <span>Produits (laisser vide pour un retrait d'espèces)</span>
+        <button type="button" class="btn btn-sm btn-secondary" id="ajouter-ligne">+ Ligne</button>
+      </div>
+      <div class="table-responsive"><table class="table mb-0 v-lignes" id="table-lignes">
+        <thead><tr><th>Produit</th><th style="width:130px">Quantité</th><th class="v-num" style="width:150px">Total</th><th style="width:50px"></th></tr></thead>
+        <tbody></tbody>
+      </table></div></div>
+
+      <div class="card"><div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-5" id="bloc-montant">
+            <label class="form-label" for="montant">Montant du retrait (GNF)</label>
+            <input class="form-control" id="montant" name="montant" inputmode="decimal" value="{{ post.montant }}">
+          </div>
+          <div class="col-md-7">
+            <label class="form-label" for="note">Note</label>
+            <input class="form-control" id="note" name="note" maxlength="255" value="{{ post.note }}">
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card"><div class="card-body">
+        <div class="v-lbl">Montant total</div>
+        <div class="v-solde mb-3" id="total-general">0 GNF</div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" name="confirme" id="confirme" value="1">
+          <label class="form-check-label" for="confirme">Je confirme les produits et le montant.</label>
+        </div>
+        <button class="btn btn-primary w-100" type="submit">Valider</button>
+        {% if ticket %}
+        <a class="btn btn-secondary w-100 mt-2" target="_blank" href="{% url 'ventes:ticket' ticket.kind ticket.pk %}">Imprimer le dernier ticket</a>
+        {% endif %}
+      </div></div>
+    </div>
+  </div>
+</form>
+
+<template id="modele-ligne">
+  <tr>
+    <td>
+      <select class="form-select" name="prod_id">
+        <option value="">— Produit —</option>
+        {% for p in produits %}<option value="{{ p.pk }}" data-prix="{{ p.prix_unitaire|stringformat:'s' }}" data-stock="{{ p.quantite_stock|stringformat:'s' }}" data-suivi="{{ p.suivi_stock|yesno:'1,0' }}">{{ p.nom }} — {{ p.prix_unitaire|gnf }}{% if p.suivi_stock %} (stock {{ p.quantite_stock|nb }}){% endif %}</option>{% endfor %}
+      </select>
+    </td>
+    <td><input class="form-control" name="prod_qte" inputmode="decimal" value="1"></td>
+    <td class="v-num v-money ligne-total">0 GNF</td>
+    <td><button type="button" class="btn btn-sm btn-outline-danger retirer">×</button></td>
+  </tr>
+</template>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  var corps = document.querySelector("#table-lignes tbody"), modele = document.getElementById("modele-ligne");
+  var total = document.getElementById("total-general"), montant = document.getElementById("montant");
+  var blocMontant = document.getElementById("bloc-montant"), blocCompte = document.getElementById("bloc-compte");
+  function gnf(n) { return Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ") + " GNF"; }
+  function num(s) { return parseFloat(String(s).replace(/\s/g, "").replace(",", ".")) || 0; }
+  function recalcul() {
+    var somme = 0, nb = 0;
+    corps.querySelectorAll("tr").forEach(function (tr) {
+      var sel = tr.querySelector("select"), qte = num(tr.querySelector("input").value);
+      var opt = sel.options[sel.selectedIndex], t = 0;
+      if (sel.value) { nb++; t = num(opt.dataset.prix) * qte; }
+      tr.querySelector(".ligne-total").textContent = gnf(t);
+      somme += t;
+    });
+    blocMontant.style.display = nb ? "none" : "";
+    total.textContent = gnf(nb ? somme : num(montant.value));
+  }
+  function ajouter() {
+    corps.appendChild(modele.content.cloneNode(true));
+    recalcul();
+  }
+  document.getElementById("ajouter-ligne").addEventListener("click", ajouter);
+  corps.addEventListener("input", recalcul);
+  corps.addEventListener("change", recalcul);
+  corps.addEventListener("click", function (e) {
+    if (e.target.classList.contains("retirer")) { e.target.closest("tr").remove(); recalcul(); }
+  });
+  montant.addEventListener("input", recalcul);
+  function mode() {
+    var caisse = document.getElementById("mode-caisse").checked;
+    blocCompte.style.display = caisse ? "none" : "";
+  }
+  document.querySelectorAll("input[name=mode_paiement]").forEach(function (r) { r.addEventListener("change", mode); });
+  mode(); ajouter();
+
+  var champ = document.getElementById("matricule"), info = document.getElementById("info-solde"), tel = document.getElementById("telephone"), t = null;
+  champ.addEventListener("input", function () {
+    clearTimeout(t);
+    t = setTimeout(function () {
+      var m = champ.value.trim();
+      if (!m) { info.innerHTML = "&nbsp;"; return; }
+      fetch("{% url 'ventes:solde_api' %}?matricule=" + encodeURIComponent(m), {credentials: "same-origin"})
+        .then(function (r) { return r.json(); }).then(function (d) {
+          if (!d.ok) { return; }
+          info.textContent = (d.nom ? d.nom + " — " : "") + "solde actuel : " + d.solde_txt;
+          if (d.telephone && !tel.value) { tel.value = d.telephone; }
+        });
+    }, 300);
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Tableau de bord — Ventes{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Tableau de bord des ventes</h1>
+
+{% if s.nb_demandes and est_admin %}
+<div class="alert alert-warning py-2">
+  {{ s.nb_demandes }} demande(s) de stock en attente de validation.
+  <a href="{% url 'ventes:validations' %}">Voir les validations</a>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card v-kpi h-100"><div class="card-body"><div class="v-lbl">Solde des comptes clients</div><div class="v-val v-money">{{ s.solde_comptes|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card v-kpi h-100"><div class="card-body"><div class="v-lbl">Solde de la caisse</div><div class="v-val v-money">{{ s.solde_caisse|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card v-kpi h-100"><div class="card-body"><div class="v-lbl">Dépôts du jour</div><div class="v-val v-money">{{ s.depots_jour|gnf }}</div><div class="small text-muted">Mois : {{ s.depots_mois|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card v-kpi h-100"><div class="card-body"><div class="v-lbl">Sorties du jour</div><div class="v-val v-money">{{ s.sorties_jour|gnf }}</div><div class="small text-muted">Mois : {{ s.sorties_mois|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card v-kpi h-100"><div class="card-body"><div class="v-lbl">Ventes du jour</div><div class="v-val v-money">{{ s.ventes_jour|gnf }}</div><div class="small text-muted">{{ s.nb_ventes_jour }} vente(s) · mois : {{ s.ventes_mois|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card v-kpi h-100"><div class="card-body"><div class="v-lbl">Valeur du stock</div><div class="v-val v-money">{{ s.valeur_stock|gnf }}</div><div class="small text-muted">{{ s.nb_produits }} produit(s)</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card v-kpi h-100"><div class="card-body"><div class="v-lbl">Stocks bas / ruptures</div><div class="v-val">{{ s.nb_stock_bas }}</div><a class="small" href="{% url 'ventes:produits' %}">Voir les produits</a></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card v-kpi h-100"><div class="card-body"><div class="v-lbl">Clients actifs</div><div class="v-val">{{ s.nb_clients }}</div><a class="small" href="{% url 'ventes:clients' %}">Voir les comptes</a></div></div></div>
+</div>
+
+{% if peut_saisir %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="btn btn-primary" href="{% url 'ventes:depot_nouveau' %}">Nouveau dépôt</a>
+  <a class="btn btn-primary" href="{% url 'ventes:retrait_nouveau' %}">Retrait / vente</a>
+  <a class="btn btn-secondary" href="{% url 'ventes:caisse' %}">Caisse</a>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header">Dernières opérations</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Date</th><th>Matricule</th><th>Type</th><th class="v-num">Montant</th></tr></thead><tbody>
+      {% for o in recentes %}<tr><td>{{ o.created_at|date:"d/m H:i" }}</td><td>{{ o.matricule }}</td><td>{{ o.get_type_display }}</td><td class="v-num v-money">{{ o.montant|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucune opération.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Dernières ventes</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Date</th><th>Produit</th><th>Qté</th><th class="v-num">Montant</th></tr></thead><tbody>
+      {% for v in dernieres_ventes %}<tr><td>{{ v.created_at|date:"d/m H:i" }}</td><td>{{ v.produit_nom }}</td><td>{{ v.quantite|nb }}</td><td class="v-num v-money">{{ v.montant_total|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucune vente.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+</div>
+{% endblock %}

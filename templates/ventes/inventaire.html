@@ -1,0 +1,30 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Inventaire{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  <h1 class="h4 mb-0">Inventaire physique</h1>
+  <a class="btn btn-secondary ms-auto" href="?export=xlsx">Feuille Excel</a>
+  <a class="btn btn-secondary" href="?export=pdf">Feuille PDF</a>
+</div>
+{% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
+<p class="text-muted">Saisissez la quantité comptée ; les produits laissés vides sont ignorés. Chaque écart crée un mouvement d'ajustement.
+  Valeur du stock : <strong>{{ total_valeur|gnf }}</strong> — {{ total_unites|nb }} unité(s).</p>
+<form method="post">
+  {% csrf_token %}
+  <div class="card mb-3"><div class="table-responsive">
+  <table class="table table-hover mb-0 align-middle">
+    <thead><tr><th>Référence</th><th>Produit</th><th class="v-num">Prix</th><th class="v-num">Stock théorique</th><th style="width:160px">Stock compté</th><th class="v-num">Valeur</th></tr></thead>
+    <tbody>
+    {% for p in produits %}
+    <tr><td>{{ p.reference }}</td><td>{{ p.nom }}</td><td class="v-num v-money">{{ p.prix_unitaire|gnf }}</td><td class="v-num">{{ p.quantite_stock|nb }}</td>
+      <td><input class="form-control form-control-sm" name="count_{{ p.pk }}" inputmode="decimal"></td><td class="v-num v-money">{{ p.valeur_stock|gnf }}</td></tr>
+    {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Aucun produit suivi en stock.</td></tr>{% endfor %}
+    </tbody>
+  </table></div></div>
+  <div class="row g-2 align-items-end">
+    <div class="col-md-6"><label class="form-label">Motif</label><input class="form-control" name="motif" maxlength="255" placeholder="Inventaire physique"></div>
+    <div class="col-auto"><button class="btn btn-primary" onclick="return confirm('Enregistrer cet inventaire ? Les stocks seront alignés sur les quantités comptées.')">Enregistrer l'inventaire</button></div>
+  </div>
+</form>
+{% endblock %}

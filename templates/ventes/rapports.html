@@ -1,0 +1,32 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Rapports{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Rapports</h1>
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="card v-kpi"><div class="card-body"><div class="v-lbl">Aujourd'hui</div>
+    <div>Dépôts : <strong class="v-money">{{ stats.jour.0|gnf }}</strong></div><div>Retraits : <strong class="v-money">{{ stats.jour.1|gnf }}</strong></div></div></div></div>
+  <div class="col-md-4"><div class="card v-kpi"><div class="card-body"><div class="v-lbl">Ce mois</div>
+    <div>Dépôts : <strong class="v-money">{{ stats.mois.0|gnf }}</strong></div><div>Retraits : <strong class="v-money">{{ stats.mois.1|gnf }}</strong></div></div></div></div>
+  <div class="col-md-4"><div class="card v-kpi"><div class="card-body"><div class="v-lbl">Cette année</div>
+    <div>Dépôts : <strong class="v-money">{{ stats.annee.0|gnf }}</strong></div><div>Retraits : <strong class="v-money">{{ stats.annee.1|gnf }}</strong></div></div></div></div>
+</div>
+<div class="card"><div class="card-header">Générer un rapport</div><div class="card-body">
+  <form method="post" class="row g-3">
+    {% csrf_token %}
+    <div class="col-md-3"><label class="form-label">Données</label>
+      <select class="form-select" name="dataset">
+        <option value="operations">Dépôts et retraits</option><option value="ventes">Ventes</option>
+        <option value="caisse">Caisse</option><option value="stock">Mouvements de stock</option></select></div>
+    <div class="col-md-3"><label class="form-label">Période</label>
+      <select class="form-select" name="kind">
+        <option value="custom">Personnalisée</option><option value="daily">Aujourd'hui</option><option value="monthly">Mois en cours</option>
+        <option value="annual">Année en cours</option><option value="all">Tout l'historique</option></select></div>
+    <div class="col-md-2"><label class="form-label">Du</label><input class="form-control" type="date" name="date_from" value="{{ debut_defaut|date:'Y-m-d' }}"></div>
+    <div class="col-md-2"><label class="form-label">Au</label><input class="form-control" type="date" name="date_to" value="{{ fin_defaut|date:'Y-m-d' }}"></div>
+    <div class="col-md-2"><label class="form-label">Format</label>
+      <select class="form-select" name="format"><option value="pdf">PDF</option><option value="xlsx">Excel</option></select></div>
+    <div class="col-12"><button class="btn btn-primary">Générer</button></div>
+  </form>
+</div></div>
+{% endblock %}
