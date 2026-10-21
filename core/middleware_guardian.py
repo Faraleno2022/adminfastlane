@@ -1,14 +1,14 @@
 """
 Middleware de Protection Anti-Falsification — GestionnaireRH Guinée
 ====================================================================
-Auteur  : ICG Guinea
+Auteur  : International Consulting Guinea
 Version : 2.0.0
 
 Ce middleware vérifie l'intégrité du projet à chaque requête (avec cache)
 et bloque l'application si une modification non autorisée est détectée.
 
 AVERTISSEMENT LÉGAL :
-  Ce logiciel est la propriété exclusive de ICG Guinea.
+  Ce logiciel est la propriété exclusive de International Consulting Guinea.
   Toute modification, redistribution ou ingénierie inverse est interdite.
 """
 
@@ -64,7 +64,7 @@ _SECURITY_BLOCK_HTML = """<!DOCTYPE html>
     </p>
     <div class="reason">{reason}</div>
     <p class="msg">
-        Contactez <span class="contact">ICG Guinea</span> pour obtenir
+        Contactez <span class="contact">International Consulting Guinea</span> pour obtenir
         une copie authentique et non altérée de GestionnaireRH.
     </p>
     <p class="warn">
@@ -72,7 +72,7 @@ _SECURITY_BLOCK_HTML = """<!DOCTYPE html>
         de ce logiciel est une violation du droit d'auteur et sera poursuivie.
     </p>
     <div class="footer">
-        © 2025 ICG Guinea — GestionnaireRH — Tous droits réservés<br>
+        © 2025 International Consulting Guinea — GestionnaireRH — Tous droits réservés<br>
         Licence propriétaire — Usage non autorisé interdit
     </div>
 </div>

@@ -217,3 +217,7 @@ html { scroll-padding-top: 56px; }
 @media (max-width: 575.98px) { .lo-l-grid { grid-template-columns: repeat(auto-fill, 100px); gap: 22px 2px; } .lo-l-ico { width: 60px; height: 60px; } .lo-l-ico i { font-size: 1.8rem; } }
 
 .lo-l-signature { margin-top: 36px; color: #6b7280; font-size: .8125rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; }
+
+.lo-about.lo-about-texte { grid-template-columns: 1fr; max-width: 860px; margin: 0 auto; }
+.lo-about-texte p { color: #394255; font-size: 1.02rem; margin-bottom: 1rem; }
+.lo-about-texte p.lo-lead { color: var(--o-muted); font-size: 1.1rem; }
