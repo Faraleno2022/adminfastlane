@@ -71,7 +71,7 @@ _BLOCKED_HTML = """<!DOCTYPE html>
   <div class="reason">{reason}</div>
   <div class="contact">
     Pour renouveler votre licence, contactez :<br>
-    <strong>ICG Guinea</strong>
+    <strong>International Consulting Guinea</strong>
   </div>
   <small>Redémarrez l'application après activation.</small>
 </div>
@@ -129,7 +129,7 @@ class LicenceMiddleware:
                     request,
                     f"Votre {'essai' if status.get('trial') else 'licence'} "
                     f"expire dans {status['days_left']} jour(s). "
-                    "Contactez ICG Guinea pour renouveler."
+                    "Contactez International Consulting Guinea pour renouveler."
                 )
                 request.session['_lic_warn_shown'] = True
 
