@@ -1,0 +1,70 @@
+{% extends "flotte/base_flotte.html" %}
+{% block title %}{{ titre }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h4 mb-0">🚐 {{ vehicule.immatriculation }}</h1>
+  <div class="d-flex gap-2">
+    <a href="{% url 'flotte:vehicule_liste' %}" class="btn btn-outline-secondary">← Véhicules</a>
+    {% if peut_editer %}
+      <a href="{% url 'flotte:vehicule_modifier' vehicule.pk %}" class="btn btn-outline-primary">Modifier</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-6 col-md-3"><div class="text-muted small">Marque</div><div class="fw-semibold">{{ vehicule.marque|default:"—" }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted small">Type</div><div class="fw-semibold">{{ vehicule.type_vehicule|default:"—" }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted small">Capacité</div><div class="fw-semibold">{{ vehicule.get_capacite_tonnes_display|default:"—" }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted small">N° de châssis</div><div class="fw-semibold">{{ vehicule.numero_chassis|default:"—" }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted small">Chauffeur principal</div><div class="fw-semibold">{{ vehicule.chauffeur_actuel|default:"—" }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted small">Second chauffeur</div><div class="fw-semibold">{{ vehicule.chauffeur_secondaire|default:"—" }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted small">En service</div><div class="fw-semibold">{{ vehicule.actif|yesno:"Oui,Non" }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+  <h2 class="h5 mb-0">Documents du véhicule</h2>
+  {% if peut_editer %}
+    <a href="{% url 'flotte:document_creer' %}?vehicule={{ vehicule.pk }}" class="btn btn-success">+ Joindre un document</a>
+  {% endif %}
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover table-striped mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Document</th><th>N°</th><th>Délivré le</th><th>Expire le</th><th>État</th><th>Fichier</th>
+          {% if peut_editer %}<th class="text-end">Actions</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in documents %}
+        <tr>
+          <td>{{ d.get_type_document_display }}{% if d.observations %}<div class="text-muted small">{{ d.observations }}</div>{% endif %}</td>
+          <td>{{ d.numero|default:"—" }}</td>
+          <td>{{ d.date_emission|date:"d/m/Y"|default:"—" }}</td>
+          <td>{{ d.date_expiration|date:"d/m/Y"|default:"—" }}</td>
+          <td>{{ d.statut_badge }}</td>
+          <td>
+            {% if d.fichier %}<a href="{% url 'flotte:document_fichier' d.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">📎 Voir</a>
+            {% else %}<span class="text-muted small">Aucun</span>{% endif %}
+          </td>
+          {% if peut_editer %}
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'flotte:document_modifier' d.pk %}">Modifier</a>
+            <a class="btn btn-sm btn-outline-danger" href="{% url 'flotte:document_supprimer' d.pk %}">Supprimer</a>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="99" class="text-center text-muted py-4">Aucun document joint (carte grise, assurance, visite technique…).</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

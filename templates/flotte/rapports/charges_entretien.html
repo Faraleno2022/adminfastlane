@@ -1,0 +1,24 @@
+{% extends "flotte/base_flotte.html" %}
+{% block title %}Charges d'entretien{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h4 mb-0">Charges d'entretien par mois et par véhicule — {{ annee }}</h1>
+  <form method="get" class="actions-bar align-items-center no-print">
+    <select name="vehicule" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()" aria-label="Véhicule">
+      <option value="">Tous les véhicules</option>
+      {% for v in vehicules %}<option value="{{ v.pk }}" {% if v.pk|stringformat:"s" == vehicule_id %}selected{% endif %}>{{ v.immatriculation }}</option>{% endfor %}
+    </select>
+    <select name="annee" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()" aria-label="Année">
+      {% for a in annees %}<option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()">🖨️ Imprimer</button>
+  </form>
+</div>
+
+<div class="card shadow-sm"><div class="card-body">
+  <p class="text-muted small mb-2">Montant TTC des entretiens et réparations. La dernière ligne donne le total des charges par mois pour tous les véhicules.</p>
+  {% include "flotte/rapports/_matrice.html" with m=m suffixe="" entete="Véhicule" %}
+</div></div>
+
+{% endblock %}

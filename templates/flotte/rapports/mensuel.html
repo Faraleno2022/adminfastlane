@@ -1,0 +1,97 @@
+{% extends "flotte/base_flotte.html" %}
+{% load humanize %}
+{% block title %}Rapport mensuel d'activités{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <div>
+    <div class="small text-muted print-only">{{ ENTREPRISE_NOM }} — {{ ENTREPRISE_CONTACT }}</div>
+    <h1 class="h4 mb-0">Rapport d'activités — {{ mois_nom|capfirst }} {{ annee }}</h1>
+  </div>
+  <form method="get" class="actions-bar align-items-center no-print">
+    <select name="mois" class="form-select form-select-sm" style="width:auto" aria-label="Mois">
+      {% for num, nom in mois_liste %}<option value="{{ num }}" {% if num == mois %}selected{% endif %}>{{ nom|capfirst }}</option>{% endfor %}
+    </select>
+    <select name="annee" class="form-select form-select-sm" style="width:auto" aria-label="Année">
+      {% for a in annees %}<option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <input type="date" name="jour" value="{{ jour|date:'Y-m-d' }}" class="form-control form-control-sm" style="width:auto" aria-label="Jour">
+    <button class="btn btn-sm btn-primary">Afficher</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()">🖨️ Imprimer</button>
+  </form>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Tonnage mensuel et journalier par camion</h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr><th>N°</th><th>Prénoms et Noms</th><th>Immatriculation</th>
+                <th class="text-end">Voyages du mois</th><th class="text-end">Voyages le {{ jour|date:"d/m" }}</th></tr>
+          </thead>
+          <tbody>
+            {% for l in r.voyages %}
+            <tr><td>{{ forloop.counter }}</td><td>{{ l.chauffeur }}</td><td>{{ l.immatriculation }}</td>
+                <td class="text-end">{{ l.mois }} tour(s)</td><td class="text-end">{{ l.jour }} tour(s)</td></tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted">Aucun véhicule actif.</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="fw-bold"><tr><td colspan="3">Total</td>
+            <td class="text-end">{{ r.total_voyages_mois }} tour(s)</td><td class="text-end">{{ r.total_voyages_jour }} tour(s)</td></tr></tfoot>
+        </table>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Consommation mensuelle et journalière de carburant</h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr><th>N°</th><th>Prénoms et Noms</th><th>Immatriculation</th>
+                <th class="text-end">Litres / mois</th><th class="text-end">Litres le {{ jour|date:"d/m" }}</th></tr>
+          </thead>
+          <tbody>
+            {% for l in r.carburant %}
+            <tr><td>{{ forloop.counter }}</td><td>{{ l.chauffeur }}</td><td>{{ l.immatriculation }}</td>
+                <td class="text-end">{{ l.mois|floatformat:"-2"|intcomma }} L</td><td class="text-end">{{ l.jour|floatformat:"-2"|intcomma }} L</td></tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted">Aucune donnée.</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="fw-bold"><tr><td colspan="3">Total</td>
+            <td class="text-end">{{ r.total_litres_mois|floatformat:"-2"|intcomma }} L</td><td class="text-end">{{ r.total_litres_jour|floatformat:"-2"|intcomma }} L</td></tr></tfoot>
+        </table>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card shadow-sm mt-3"><div class="card-body">
+  <h2 class="h6">Statistiques du nombre de voyages journalier</h2>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>Date</th><th>Immatriculation</th><th class="text-end">Nb de voyages</th></tr></thead>
+      <tbody>
+        {% for s in r.stats_journalieres %}
+        <tr><td>{{ s.date|date:"d/m/Y" }}</td><td>{{ s.vehicule__immatriculation }}</td><td class="text-end">{{ s.nb }}</td></tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-center text-muted">Aucun voyage ce mois-ci.</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="fw-bold"><tr><td colspan="2">Total général</td><td class="text-end">{{ r.total_voyages_mois }}</td></tr></tfoot>
+    </table>
+  </div>
+</div></div>
+
+<div class="signature mt-4">
+  <div>Fait à {{ RAPPORT_LIEU }} le : {{ aujourdhui|date:"d/m/Y" }}</div>
+  <div class="mt-3">{{ RAPPORT_SIGNATAIRE_TITRE }}</div>
+  <div class="mt-5 fw-bold">{{ RAPPORT_SIGNATAIRE_NOM }}</div>
+</div>
+
+{% endblock %}
