@@ -215,3 +215,5 @@ html { scroll-padding-top: 56px; }
 .lo-l-down { color: #9aa0a6; }
 .lo-l-down:hover { color: #212529; }
 @media (max-width: 575.98px) { .lo-l-grid { grid-template-columns: repeat(auto-fill, 100px); gap: 22px 2px; } .lo-l-ico { width: 60px; height: 60px; } .lo-l-ico i { font-size: 1.8rem; } }
+
+.lo-l-signature { margin-top: 36px; color: #6b7280; font-size: .8125rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; }

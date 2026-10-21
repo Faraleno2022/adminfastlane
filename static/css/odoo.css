@@ -712,3 +712,7 @@ main.o_content { padding: 4px 16px 40px; }
     background: transparent !important; border: 0 !important; border-radius: 0 !important;
     padding: 0 !important; margin: 0 !important; box-shadow: none !important;
 }
+
+/* Signature en bas de l'écran d'accueil */
+.o_home_signature { text-align: center; margin: 48px 0 8px; color: #6b7280; font-size: .8125rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; }
+.o_home_menu_open .o_menu_brand.o_menu_brand_static { visibility: visible; padding-left: 16px; }
