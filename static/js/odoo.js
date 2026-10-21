@@ -90,14 +90,18 @@
     //  d'Ariane ; la rangée qui le contient (boutons d'action) est déplacée
     //  à droite du panneau, comme dans Odoo.
     // ------------------------------------------------------------------
-    var HEAVY = 'table, .card, form:not(.d-inline), input:not([type=hidden]), select, textarea, canvas, .list-group, .nav-tabs';
+    var HEAVY = 'table, .card, form:not(.d-inline), input:not([type=hidden]), select, textarea, canvas, .list-group, .nav-tabs, img, [class*=hero], [class*=banner]';
+
+    var BANNERS = '.compta-header, .stock-header, .secr-header, [class*=page-header], [class*=-header-bar]';
 
     function findHeading(root) {
-        var hs = root.querySelectorAll('h1, h2');
+        var hs = root.querySelectorAll('h1, h2, h3, h4');
         for (var i = 0; i < hs.length; i++) {
             var h = hs[i];
-            if (h.closest('.card, .modal, table, .alert, form, .o_control_panel, [hidden]')) { continue; }
+            if (h.closest('.card, .modal, table, .alert, form, .o_control_panel, [hidden]') && !h.closest(BANNERS)) { continue; }
             if (!h.textContent.trim()) { continue; }
+            // h3/h4 : uniquement dans un bandeau d'en-tête de module
+            if ((h.tagName === 'H3' || h.tagName === 'H4') && !h.closest(BANNERS)) { continue; }
             return h;
         }
         return null;
@@ -130,7 +134,8 @@
             while (top.parentElement && top.parentElement !== content) {
                 var p = top.parentElement;
                 if (p.querySelector(HEAVY)) { break; }
-                if (p.textContent.trim().length > 260) { break; }
+                if (p.textContent.trim().length > 160) { break; }
+                if (p.querySelectorAll('*').length > 24) { break; }
                 if (p.querySelectorAll('h1, h2, h3, h4').length > 1) { break; }
                 top = p;
             }

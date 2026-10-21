@@ -689,3 +689,26 @@ main.o_content { padding: 4px 16px 40px; }
 .card.bg-warning { --o-hdr: #f0ad4e; } .card.bg-danger { --o-hdr: #dc3545; } .card.bg-secondary { --o-hdr: #6c757d; } .card.bg-dark { --o-hdr: #374151; }
 .card.text-white[class*="bg-"] [class*="text-white"] { color: inherit !important; }
 .card.text-white[class*="bg-"] .text-white-50, .card.text-white[class*="bg-"] .opacity-75 { color: #6b7280 !important; opacity: 1 !important; }
+
+/* Bandeaux d'en-tête de modules et de rapports : carte blanche à liseré violet (Odoo) */
+.compta-header, .stock-header, .secr-header,
+.card-body[style*="linear-gradient"][style*="EF7707"], .card-body[style*="linear-gradient"][style*="ef7707"] {
+    background: #fff !important; color: #212529 !important;
+    border: 1px solid #dee2e6 !important; border-left: 4px solid #714b67 !important; border-radius: 8px !important;
+}
+.compta-header *:not(.btn):not(.btn *), .stock-header *:not(.btn):not(.btn *), .secr-header *:not(.btn):not(.btn *),
+.card-body[style*="linear-gradient"][style*="EF7707"] *:not(.btn):not(.btn *) { color: inherit; }
+.compta-header .text-white, .stock-header .text-white, .secr-header .text-white,
+.card-body[style*="EF7707"] .text-white, .card-body[style*="EF7707"] .text-white-50 { color: #212529 !important; }
+.compta-header .btn-light, .stock-header .btn-light, .secr-header .btn-light, .compta-header .btn-outline-light,
+.stock-header .btn-outline-light, .secr-header .btn-outline-light { background: #fff; color: #212529 !important; border: 1px solid #dee2e6; }
+.compta-header .btn-light:hover, .stock-header .btn-light:hover, .secr-header .btn-light:hover { background: #f1f3f5; }
+.card-header.bg-light, .card-header.bg-white, .card-header.bg-body-tertiary, .card-header.bg-body-secondary { box-shadow: none; background: #f8f9fa !important; }
+.plan-card { border-color: #dee2e6 !important; border-radius: 12px !important; }
+.plan-card.featured { border-color: #714b67 !important; box-shadow: 0 6px 22px rgba(113, 75, 103, .18) !important; }
+.pricing-hero { border-radius: 8px; }
+/* Bandeau déplacé dans le panneau de contrôle : plus de carte, simple rangée d'actions */
+.o_cp_buttons .compta-header, .o_cp_buttons .stock-header, .o_cp_buttons .secr-header {
+    background: transparent !important; border: 0 !important; border-radius: 0 !important;
+    padding: 0 !important; margin: 0 !important; box-shadow: none !important;
+}
