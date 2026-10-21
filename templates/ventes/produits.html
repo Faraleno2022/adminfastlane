@@ -1,0 +1,41 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Produits{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+  {% if est_admin %}<a class="btn btn-primary" href="{% url 'ventes:produit_nouveau' %}">Nouveau</a>
+  <a class="btn btn-secondary" href="{% url 'ventes:validations' %}">Validations{% if demandes %} <span class="badge bg-danger">{{ demandes }}</span>{% endif %}</a>
+  <a class="btn btn-secondary" href="{% url 'ventes:inventaire' %}">Inventaire</a>
+  {% elif peut_saisir %}<a class="btn btn-primary" href="{% url 'ventes:demande_produit' %}">Proposer un produit</a>{% endif %}
+  <h1 class="h4 mb-0">Produits et stock</h1>
+</div>
+<form class="row g-2 mb-3 v-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Nom, référence, catégorie"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Rechercher</button></div>
+  <div class="col-auto ms-auto"><a class="btn btn-secondary" href="?{% if q %}q={{ q|urlencode }}&{% endif %}export=xlsx">Excel</a> <a class="btn btn-secondary" href="?{% if q %}q={{ q|urlencode }}&{% endif %}export=pdf">PDF</a></div>
+</form>
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Référence</th><th>Produit</th><th>Catégorie</th><th class="v-num">Prix</th><th class="v-num">Stock</th><th class="v-num">Seuil</th><th>État</th><th class="text-end">Actions</th></tr></thead>
+  <tbody>
+  {% for p in produits %}
+  <tr>
+    <td>{{ p.reference }}</td><td>{{ p.nom }}</td><td>{{ p.categorie }}</td>
+    <td class="v-num v-money">{{ p.prix_unitaire|gnf }}</td>
+    <td class="v-num">{% if p.suivi_stock %}{{ p.quantite_stock|nb }} {{ p.unite }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+    <td class="v-num">{% if p.suivi_stock %}{{ p.seuil_alerte|nb }}{% endif %}</td>
+    <td>{% if p.etat_stock == "rupture" %}<span class="badge badge-etat-rupture">Rupture</span>{% elif p.etat_stock == "bas" %}<span class="badge badge-etat-bas">Stock bas</span>{% elif p.etat_stock == "surstock" %}<span class="badge badge-etat-surstock">Surstock</span>{% elif p.etat_stock == "ok" %}<span class="badge badge-etat-ok">OK</span>{% endif %}</td>
+    <td class="text-end text-nowrap">
+      {% if est_admin %}
+        {% if p.suivi_stock %}<a class="btn btn-sm btn-secondary" href="{% url 'ventes:stock_ajuster' p.pk %}">Stock</a>{% endif %}
+        <a class="btn btn-sm btn-secondary" href="{% url 'ventes:produit_modifier' p.pk %}">Modifier</a>
+        <form method="post" action="{% url 'ventes:produit_basculer' p.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Envoyer ce produit à la corbeille ?')">Archiver</button></form>
+      {% elif peut_saisir and p.suivi_stock %}
+        <a class="btn btn-sm btn-secondary" href="{% url 'ventes:demande_entree' p.pk %}">Demander une entrée</a>
+      {% endif %}
+    </td>
+  </tr>
+  {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">Aucun produit.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

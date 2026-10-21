@@ -1,0 +1,59 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Nouveau dépôt{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Nouveau dépôt</h1>
+{% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card"><div class="card-body">
+    <form method="post" id="form-depot">
+      {% csrf_token %}
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" for="matricule">Matricule <span class="text-danger">*</span></label>
+          <input class="form-control" id="matricule" name="matricule" required maxlength="80" value="{{ post.matricule }}" autocomplete="off">
+          <div class="form-text" id="info-solde">&nbsp;</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="telephone">Téléphone</label>
+          <input class="form-control" id="telephone" name="telephone" maxlength="40" value="{{ post.telephone }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="montant">Montant (GNF) <span class="text-danger">*</span></label>
+          <input class="form-control" id="montant" name="montant" required inputmode="decimal" value="{{ post.montant }}">
+          {% if plafond %}<div class="form-text">Plafond journalier : {{ plafond|gnf }} par matricule.</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="note">Note</label>
+          <input class="form-control" id="note" name="note" maxlength="255" value="{{ post.note }}">
+        </div>
+      </div>
+      <div class="mt-4 d-flex gap-2">
+        <button class="btn btn-primary" type="submit">Enregistrer le dépôt</button>
+        {% if ticket %}<a class="btn btn-secondary" target="_blank" href="{% url 'ventes:ticket' ticket.kind ticket.pk %}">Imprimer le dernier reçu</a>{% endif %}
+      </div>
+    </form>
+  </div></div></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  var champ = document.getElementById("matricule"), info = document.getElementById("info-solde"), tel = document.getElementById("telephone");
+  var t = null;
+  champ.addEventListener("input", function () {
+    clearTimeout(t);
+    t = setTimeout(function () {
+      var m = champ.value.trim();
+      if (!m) { info.innerHTML = "&nbsp;"; return; }
+      fetch("{% url 'ventes:solde_api' %}?matricule=" + encodeURIComponent(m), {credentials: "same-origin"})
+        .then(function (r) { return r.json(); }).then(function (d) {
+          if (!d.ok) { return; }
+          info.textContent = (d.nom ? d.nom + " — " : "") + "solde actuel : " + d.solde_txt;
+          if (d.telephone && !tel.value) { tel.value = d.telephone; }
+        });
+    }, 300);
+  });
+})();
+</script>
+{% endblock %}

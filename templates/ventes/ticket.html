@@ -1,0 +1,43 @@
+{% load ventes_extras %}<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{{ titre }} {{ ref }}</title>
+<style>
+  body { font-family: "Courier New", monospace; font-size: 12px; width: 76mm; margin: 0 auto; padding: 6px; color: #000; }
+  h1 { font-size: 14px; text-align: center; margin: 4px 0; }
+  .c { text-align: center; } .r { text-align: right; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 1px 0; vertical-align: top; }
+  hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+  .tot { font-size: 14px; font-weight: bold; }
+  @media print { .no-print { display: none; } @page { margin: 2mm; } }
+</style>
+</head>
+<body>
+  <div class="c"><strong>{{ param.ticket_titre|default:entreprise.nom_entreprise }}</strong></div>
+  {% if param.ticket_adresse %}<div class="c">{{ param.ticket_adresse }}</div>{% endif %}
+  <hr>
+  <h1>{{ titre }}</h1>
+  <div>N° : {{ ref }}</div>
+  <div>Date : {{ date_op|date:"d/m/Y H:i" }}</div>
+  {% if matricule %}<div>Matricule : {{ matricule }}</div>{% endif %}
+  {% if agent %}<div>Agent : {{ agent }}</div>{% endif %}
+  <hr>
+  {% if lignes %}
+  <table>
+    {% for nom, qte, pu, tot in lignes %}
+    <tr><td colspan="2">{{ nom }}</td></tr>
+    <tr><td>{{ qte|nb }} x {{ pu|gnf }}</td><td class="r">{{ tot|gnf }}</td></tr>
+    {% endfor %}
+  </table>
+  <hr>
+  {% endif %}
+  <table><tr class="tot"><td>TOTAL</td><td class="r">{{ total|gnf }}</td></tr></table>
+  {% if solde != None %}<div>Solde du compte : {{ solde|gnf }}</div>{% endif %}
+  <hr>
+  <div class="c">{{ param.ticket_pied }}</div>
+  <p class="c no-print"><button onclick="window.print()">Imprimer</button></p>
+  <script>window.addEventListener("load", function () { setTimeout(function () { window.print(); }, 300); });</script>
+</body>
+</html>

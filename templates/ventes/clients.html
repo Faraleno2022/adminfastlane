@@ -1,0 +1,41 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Clients{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'ventes:client_nouveau' %}">Nouveau</a>{% endif %}
+  <h1 class="h4 mb-0">Clients et soldes</h1>
+</div>
+
+<form class="row g-2 mb-3 v-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Matricule ou nom"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Rechercher</button></div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-secondary" href="?{% if q %}q={{ q|urlencode }}&{% endif %}export=xlsx">Excel</a>
+    <a class="btn btn-secondary" href="?{% if q %}q={{ q|urlencode }}&{% endif %}export=pdf">PDF</a>
+  </div>
+</form>
+
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Matricule</th><th>Nom</th><th>Téléphone</th><th class="v-num">Solde</th><th class="v-num">Opérations</th><th class="text-end">Actions</th></tr></thead>
+  <tbody>
+  {% for l in lignes %}
+    <tr>
+      <td>{{ l.matricule }}{% if not l.fiche %} <span class="badge bg-secondary">sans fiche</span>{% endif %}</td>
+      <td>{{ l.nom }}</td><td>{{ l.telephone }}</td>
+      <td class="v-num v-money v-solde {% if l.solde < 0 %}neg{% else %}pos{% endif %}">{{ l.solde|gnf }}</td>
+      <td class="v-num">{{ l.nb_ops }}</td>
+      <td class="text-end text-nowrap">
+        {% if peut_saisir %}<a class="btn btn-sm btn-secondary" href="{% url 'ventes:operations' %}?q={{ l.matricule|urlencode }}">Historique</a>{% endif %}
+        {% if est_admin and l.fiche %}
+          <a class="btn btn-sm btn-secondary" href="{% url 'ventes:client_modifier' l.fiche.pk %}">Modifier</a>
+          <form method="post" action="{% url 'ventes:client_basculer' l.fiche.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Envoyer cette fiche à la corbeille ?')">Archiver</button></form>
+        {% endif %}
+      </td>
+    </tr>
+  {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Aucun client.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="3">{{ nb }} compte(s)</td><td class="v-num v-money">{{ total|gnf }}</td><td colspan="2"></td></tr></tfoot>
+</table></div></div>
+{% endblock %}

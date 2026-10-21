@@ -1,0 +1,16 @@
+/* Module Ventes & caisse — composants propres (le thème général est dans odoo.css) */
+.v-kpi { border-radius: 8px; }
+.v-kpi .v-val { font-size: 1.45rem; font-weight: 700; }
+.v-kpi .v-lbl { font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; }
+.v-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.v-num { text-align: right; }
+.v-filtres .form-control, .v-filtres .form-select { min-width: 140px; }
+.v-solde { font-size: 1.1rem; font-weight: 700; }
+.v-solde.neg { color: #dc3545; }
+.v-solde.pos { color: #198754; }
+.v-lignes td { vertical-align: middle; }
+.badge-etat-rupture { background: #dc3545; }
+.badge-etat-bas { background: #f0ad4e; color: #212529; }
+.badge-etat-surstock { background: #0dcaf0; color: #212529; }
+.badge-etat-ok { background: #198754; }
+@media (max-width: 575.98px) { .v-kpi .v-val { font-size: 1.15rem; } }

@@ -1,0 +1,30 @@
+{% extends "ventes/base_ventes.html" %}
+{% block title %}{{ titre }}{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">{{ titre }}</h1>
+{% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
+<div class="row"><div class="col-xl-9"><div class="card"><div class="card-body">
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="row g-3">
+      {% for field in form %}
+      <div class="{% if field.name == 'description' %}col-12{% else %}col-md-4{% endif %}">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+        {{ field }}
+        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+        {% for err in field.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+      </div>
+      {% endfor %}
+      {% if creation %}
+      <div class="col-md-4"><label class="form-label" for="stock_initial">Stock initial</label>
+        <input class="form-control" id="stock_initial" name="stock_initial" inputmode="decimal" value="0"></div>
+      {% endif %}
+    </div>
+    <div class="mt-4 d-flex gap-2">
+      <button class="btn btn-primary" type="submit">Enregistrer</button>
+      <a class="btn btn-secondary" href="{% url 'ventes:produits' %}">Annuler</a>
+    </div>
+  </form>
+</div></div></div></div>
+{% endblock %}

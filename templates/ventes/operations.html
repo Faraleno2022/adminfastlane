@@ -1,0 +1,38 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Dépôts et retraits{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'ventes:depot_nouveau' %}">Nouveau dépôt</a>
+  <a class="btn btn-secondary" href="{% url 'ventes:retrait_nouveau' %}">Retrait / vente</a>{% endif %}
+  <h1 class="h4 mb-0">Dépôts et retraits</h1>
+</div>
+<form class="row g-2 mb-3 v-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Matricule, note, agent"></div>
+  <div class="col-auto"><select class="form-select" name="type"><option value="">Tous types</option><option value="depot" {% if type == "depot" %}selected{% endif %}>Dépôts</option><option value="retrait" {% if type == "retrait" %}selected{% endif %}>Retraits</option></select></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_from" value="{{ debut|date:'Y-m-d' }}"></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_to" value="{{ fin|date:'Y-m-d' }}"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Filtrer</button></div>
+  <div class="col-auto ms-auto"><a class="btn btn-secondary" href="?{{ request.GET.urlencode }}{% if request.GET %}&{% endif %}export=xlsx">Excel</a> <a class="btn btn-secondary" href="?{{ request.GET.urlencode }}{% if request.GET %}&{% endif %}export=pdf">PDF</a></div>
+</form>
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Date</th><th>Matricule</th><th>Type</th><th class="v-num">Montant</th><th class="v-num">Solde après</th><th>Agent</th><th>Note</th><th></th></tr></thead>
+  <tbody>
+  {% for o in page %}
+  <tr>
+    <td>{{ o.created_at|date:"d/m/Y H:i" }}</td><td>{{ o.matricule }}</td>
+    <td><span class="badge {% if o.type == 'depot' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ o.get_type_display }}</span></td>
+    <td class="v-num v-money">{{ o.montant|gnf }}</td><td class="v-num v-money">{{ o.solde_apres|gnf }}</td>
+    <td>{{ o.agent_nom }}</td><td>{{ o.note }}</td>
+    <td class="text-end text-nowrap">
+      <a class="btn btn-sm btn-secondary" target="_blank" href="{% url 'ventes:ticket' 'operation' o.pk %}">Reçu</a>
+      {% if peut_supprimer %}<form method="post" action="{% url 'ventes:operation_supprimer' o.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Envoyer cette opération à la corbeille ?')">Supprimer</button></form>{% endif %}
+    </td>
+  </tr>
+  {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">Aucune opération.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="3">Dépôts : {{ total_depots|gnf }}</td><td colspan="5">Retraits : {{ total_retraits|gnf }}</td></tr></tfoot>
+</table></div></div>
+{% include "ventes/_pagination.html" %}
+{% endblock %}

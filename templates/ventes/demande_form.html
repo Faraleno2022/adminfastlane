@@ -1,0 +1,27 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}{% if nouveau %}Proposer un produit{% else %}Demande d'entrée de stock{% endif %}{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">{% if nouveau %}Proposer un nouveau produit{% else %}Demande d'entrée — {{ produit.nom }}{% endif %}</h1>
+{% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
+<div class="alert alert-info py-2">Cette demande n'affecte pas le stock réel : elle sera appliquée après validation d'un administrateur.</div>
+<div class="row"><div class="col-lg-7"><div class="card"><div class="card-body">
+  <form method="post">
+    {% csrf_token %}
+    <div class="row g-3">
+      {% if nouveau %}
+      <div class="col-md-8"><label class="form-label">Nom du produit *</label><input class="form-control" name="nom" required maxlength="200" value="{{ post.nom }}"></div>
+      <div class="col-md-4"><label class="form-label">Référence</label><input class="form-control" name="reference" maxlength="80" value="{{ post.reference }}"></div>
+      <div class="col-md-4"><label class="form-label">Prix de vente (GNF)</label><input class="form-control" name="prix" inputmode="decimal" value="{{ post.prix }}"></div>
+      <div class="col-md-4"><label class="form-label">Seuil d'alerte</label><input class="form-control" name="seuil" inputmode="decimal" value="{{ post.seuil }}"></div>
+      <div class="col-md-4"><label class="form-label">Quantité initiale</label><input class="form-control" name="quantite" inputmode="decimal" value="{{ post.quantite }}"></div>
+      <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2">{{ post.description }}</textarea></div>
+      {% else %}
+      <div class="col-md-4"><label class="form-label">Quantité à ajouter *</label><input class="form-control" name="quantite" required inputmode="decimal"></div>
+      {% endif %}
+      <div class="col-12"><label class="form-label">Motif</label><input class="form-control" name="motif" maxlength="255" value="{{ post.motif }}"></div>
+    </div>
+    <div class="mt-4 d-flex gap-2"><button class="btn btn-primary">Envoyer la demande</button><a class="btn btn-secondary" href="{% url 'ventes:produits' %}">Annuler</a></div>
+  </form>
+</div></div></div></div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "ventes/base_ventes.html" %}
+{% block title %}Journal d'audit{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Journal d'audit</h1>
+<form class="row g-2 mb-3 v-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="user" value="{{ u }}" placeholder="Utilisateur"></div>
+  <div class="col-auto"><input class="form-control" name="action" value="{{ a }}" placeholder="Action"></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_from" value="{{ debut|date:'Y-m-d' }}"></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_to" value="{{ fin|date:'Y-m-d' }}"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Filtrer</button></div>
+</form>
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Cible</th><th>Détails</th></tr></thead>
+  <tbody>
+  {% for j in page %}<tr><td>{{ j.created_at|date:"d/m/Y H:i:s" }}</td><td>{{ j.user_identifiant }}</td><td><code>{{ j.action }}</code></td><td>{{ j.target_type }} {{ j.target_id }}</td><td>{{ j.details }}</td></tr>
+  {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Aucune entrée.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% include "ventes/_pagination.html" %}
+{% endblock %}

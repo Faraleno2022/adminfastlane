@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     'secretariat',
     'stock',
     'flotte',
+    'ventes',
 ]
 
 MIDDLEWARE = [
@@ -105,7 +106,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'flotte.middleware.FlotteEntrepriseMiddleware',
+    'core.tenancy.TenancyMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # Security middlewares

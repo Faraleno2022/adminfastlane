@@ -1,0 +1,20 @@
+{% extends "ventes/base_ventes.html" %}
+{% load ventes_extras %}
+{% block title %}Ajuster le stock{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Mouvement de stock — {{ produit.nom }}</h1>
+{% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
+<div class="row"><div class="col-lg-6"><div class="card"><div class="card-body">
+  <p>Stock actuel : <strong>{{ produit.quantite_stock|nb }} {{ produit.unite }}</strong></p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label">Type</label>
+        <select class="form-select" name="type"><option value="entree">Entrée</option><option value="sortie">Sortie</option></select></div>
+      <div class="col-md-6"><label class="form-label">Quantité</label><input class="form-control" name="quantite" required inputmode="decimal"></div>
+      <div class="col-12"><label class="form-label">Motif</label><input class="form-control" name="motif" maxlength="255"></div>
+    </div>
+    <div class="mt-4 d-flex gap-2"><button class="btn btn-primary">Enregistrer</button><a class="btn btn-secondary" href="{% url 'ventes:produits' %}">Annuler</a></div>
+  </form>
+</div></div></div></div>
+{% endblock %}
