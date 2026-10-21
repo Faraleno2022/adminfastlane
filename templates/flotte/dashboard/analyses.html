@@ -1,0 +1,90 @@
+{% extends "flotte/base_flotte.html" %}
+{% load humanize static %}
+{% block title %}Analyses par véhicule{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h4 mb-0">Analyses par véhicule</h1>
+  <div class="actions-bar">
+    <form method="get" class="d-flex align-items-center gap-2">
+      <label class="form-label mb-0">Année</label>
+      <select name="annee" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        <option value="">Toutes</option>
+        {% for a in annees %}<option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>{% endfor %}
+      </select>
+    </form>
+    <a href="{% url 'flotte:export_excel' %}?annee={{ annee|default:'' }}" class="btn btn-sm btn-outline-success">⬇ Excel</a>
+    <a href="{% url 'flotte:export_pdf' %}?annee={{ annee|default:'' }}" class="btn btn-sm btn-outline-danger">⬇ PDF</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Coût total au km</h2>
+      <div class="chart-box"><canvas id="c-cout-km"></canvas></div>
+    </div></div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Consommation (L/100 km)</h2>
+      <div class="chart-box"><canvas id="c-conso"></canvas></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover table-striped align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Véhicule</th>
+          <th class="text-end">Distance (km)</th>
+          <th class="text-end">Litres</th>
+          <th class="text-end">L/100 km</th>
+          <th class="text-end">Carburant</th>
+          <th class="text-end">Entretien</th>
+          <th class="text-end">Coût/km carbur.</th>
+          <th class="text-end">Coût/km entret.</th>
+          <th class="text-end">Coût total/km</th>
+          <th class="text-end">Voyages</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lignes %}
+        <tr>
+          <td class="fw-semibold">{{ l.vehicule }}</td>
+          <td class="text-end">{% if l.distance %}{{ l.distance|intcomma }}{% else %}<span class="text-muted">n/d</span>{% endif %}</td>
+          <td class="text-end">{{ l.litres|floatformat:0|intcomma }}</td>
+          <td class="text-end">{% if l.l_100km %}{{ l.l_100km }}{% else %}<span class="text-muted">n/d</span>{% endif %}</td>
+          <td class="text-end">{{ l.montant_carburant|floatformat:0|intcomma }}</td>
+          <td class="text-end">{{ l.montant_entretien|floatformat:0|intcomma }}</td>
+          <td class="text-end">{% if l.cout_carburant_km %}{{ l.cout_carburant_km|intcomma }}{% else %}<span class="text-muted">n/d</span>{% endif %}</td>
+          <td class="text-end">{% if l.cout_entretien_km %}{{ l.cout_entretien_km|intcomma }}{% else %}<span class="text-muted">n/d</span>{% endif %}</td>
+          <td class="text-end fw-bold">{% if l.cout_total_km %}{{ l.cout_total_km|intcomma }}{% else %}<span class="text-muted">n/d</span>{% endif %}</td>
+          <td class="text-end">{{ l.nb_voyages|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10" class="text-center text-muted py-4">Aucune donnée pour cette période.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="text-muted small mt-2">
+  « n/d » : distance non calculable (kilométrages de départ/arrivée non saisis).
+  La distance est estimée à partir des kilométrages min/max relevés sur la période.
+</p>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src=\"{% static 'js/chart.umd.min.js' %}\"></script>
+<script>
+  window.ANALYSE = {
+    coutKm: {{ chart_cout_km|safe }},
+    conso: {{ chart_conso|safe }}
+  };
+</script>
+<script src="{% static 'flotte/js/analyses.js' %}"></script>
+{% endblock %}

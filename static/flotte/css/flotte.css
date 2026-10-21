@@ -1,0 +1,54 @@
+/* Module Gestion de flotte — composants propres (le thème général est dans odoo.css) */
+.kpi-card { border-radius: 8px; }
+.kpi-card .kpi-val { font-size: 1.5rem; font-weight: 700; }
+.kpi-card .kpi-lbl { font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; }
+.chart-box { position: relative; height: 300px; }
+.actions-bar { display: flex; gap: .5rem; flex-wrap: wrap; }
+.table thead th { white-space: nowrap; }
+
+/* ----------------- Grille de pointage ----------------- */
+.pointage-wrap { max-height: 72vh; overflow: auto; -webkit-overflow-scrolling: touch; }
+.pointage-table { border-collapse: separate; border-spacing: 0; font-size: .82rem; }
+.pointage-table thead th {
+  position: sticky; top: 0; z-index: 3;
+  background: #f1f3f5; color: #212529; text-align: center;
+  vertical-align: middle; padding: 4px 6px; white-space: nowrap;
+  border-bottom: 1px solid #dee2e6;
+}
+.pointage-table th.col-fixe, .pointage-table td.col-fixe {
+  position: sticky; left: 0; z-index: 2; background: #fff;
+  text-align: left; white-space: nowrap; max-width: 180px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.pointage-table thead th.col-fixe { z-index: 4; background: #f1f3f5; }
+.col-nom  { left: 0 !important; min-width: 160px; }
+.col-mat  { left: 160px !important; min-width: 90px; }
+.col-fonc { left: 250px !important; min-width: 110px; }
+.col-serv { left: 360px !important; min-width: 110px; }
+.pointage-table td.col-fixe { border-right: 1px solid #dee2e6; }
+.col-jour { min-width: 34px; }
+.col-jour .jabbr { font-size: .7rem; opacity: .8; }
+.col-tot { background: #f8f1f5; text-align: center; min-width: 46px; font-weight: 600; }
+.pointage-table td.cell { padding: 1px; text-align: center; }
+.pointage-table td.weekend, .pointage-table th.weekend { background: #f1f3f5; }
+.ptg-select {
+  border: none !important; background: transparent; width: 100%;
+  text-align: center; font-weight: 700; cursor: pointer;
+  -webkit-appearance: none; appearance: none; padding: 4px 2px; box-shadow: none !important;
+}
+.ptg-select:focus { outline: 2px solid #714b67; }
+/* Couleurs par statut */
+.st-P  { background: #d1e7dd; }
+.st-A  { background: #f8d7da; }
+.st-C  { background: #fff3cd; }
+.st-M  { background: #cfe2ff; }
+.st-R  { background: #e2e3e5; }
+.st-ML { background: #e7d6f5; }
+.st-RT { background: #ffe5d0; }
+.st-S  { background: #f1aeb5; }
+.legende .badge { color: #212529; margin-left: 6px; }
+@media (max-width: 575.98px) {
+  .kpi-card .kpi-val { font-size: 1.15rem; }
+  .kpi-card .kpi-lbl { font-size: .68rem; }
+  .chart-box { height: 240px; }
+}

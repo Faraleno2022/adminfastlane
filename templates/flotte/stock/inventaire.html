@@ -1,0 +1,82 @@
+{% extends "flotte/base_flotte.html" %}
+{% load humanize %}
+{% block title %}Inventaire{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h4 mb-0">Inventaire — {{ lignes|length }} article(s)</h1>
+  <div class="actions-bar">
+    <a class="btn btn-sm btn-outline-primary" href="{% url 'flotte:synthese' %}">📊 Synthèse</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'flotte:mouvement_liste' %}">🔁 Mouvements</a>
+    {% if peut_saisir %}<a class="btn btn-sm btn-success" href="{% url 'flotte:article_creer' %}">+ Article</a>{% endif %}
+  </div>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-sm-4">
+    <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Rechercher (code, désignation)…">
+  </div>
+  <div class="col-sm-3">
+    <select name="categorie" class="form-select form-select-sm">
+      <option value="">Toutes catégories</option>
+      {% for c in categories %}<option value="{{ c }}" {% if c == categorie_sel %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-sm-3">
+    <select name="statut" class="form-select form-select-sm">
+      <option value="">Tous statuts</option>
+      <option value="OK" {% if statut_sel == 'OK' %}selected{% endif %}>OK</option>
+      <option value="ALERTE" {% if statut_sel == 'ALERTE' %}selected{% endif %}>Alerte</option>
+      <option value="RUPTURE" {% if statut_sel == 'RUPTURE' %}selected{% endif %}>Rupture</option>
+    </select>
+  </div>
+  <div class="col-sm-2 d-grid">
+    <button class="btn btn-sm btn-primary">Filtrer</button>
+  </div>
+</form>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Code</th><th>Désignation</th><th>Spécification</th><th>Catégorie</th>
+          <th class="text-end">Stock init.</th><th class="text-end">Entrées</th>
+          <th class="text-end">Sorties</th><th class="text-end">Stock actuel</th>
+          <th class="text-end">Seuil</th><th>Statut</th>
+          {% if peut_saisir %}<th class="text-end">Actions</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lignes %}
+        <tr>
+          <td class="fw-semibold">{{ l.article.code }}</td>
+          <td>{{ l.article.designation }}</td>
+          <td class="text-muted small">{{ l.article.specification }}</td>
+          <td>{{ l.article.categorie }}</td>
+          <td class="text-end">{{ l.article.stock_initial|floatformat:"-2" }}</td>
+          <td class="text-end text-success">{{ l.entrees|floatformat:"-2" }}</td>
+          <td class="text-end text-danger">{{ l.sorties|floatformat:"-2" }}</td>
+          <td class="text-end fw-bold">{{ l.stock_actuel|floatformat:"-2" }}</td>
+          <td class="text-end">{{ l.article.seuil_mini|floatformat:"-2" }}</td>
+          <td>
+            {% if l.statut == 'OK' %}<span class="badge bg-success">OK</span>
+            {% elif l.statut == 'ALERTE' %}<span class="badge bg-warning text-dark">ALERTE</span>
+            {% else %}<span class="badge bg-danger">RUPTURE</span>{% endif %}
+          </td>
+          {% if peut_saisir %}
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'flotte:article_modifier' l.article.pk %}">Modifier</a>
+            <a class="btn btn-sm btn-outline-danger" href="{% url 'flotte:article_supprimer' l.article.pk %}">Suppr.</a>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="99" class="text-center text-muted py-4">Aucun article. {% if peut_saisir %}<a href="{% url 'flotte:article_creer' %}">Ajouter</a>.{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="text-muted small mt-2">Stock actuel = stock initial + entrées − sorties. Statut : RUPTURE si ≤ 0, ALERTE si ≤ seuil minimum.</p>
+{% endblock %}

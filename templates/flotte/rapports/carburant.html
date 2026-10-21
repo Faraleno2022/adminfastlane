@@ -1,0 +1,31 @@
+{% extends "flotte/base_flotte.html" %}
+{% block title %}Consommation de carburant{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h4 mb-0">Évolution de la consommation de carburant — {{ annee }}</h1>
+  <form method="get" class="actions-bar align-items-center no-print">
+    <select name="unite" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()" aria-label="Unité">
+      <option value="litres" {% if unite == 'litres' %}selected{% endif %}>Quantité (litres)</option>
+      <option value="montant" {% if unite == 'montant' %}selected{% endif %}>Dépense (montant)</option>
+    </select>
+    <select name="annee" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()" aria-label="Année">
+      {% for a in annees %}<option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()">🖨️ Imprimer</button>
+  </form>
+</div>
+
+<div class="card shadow-sm"><div class="card-body">
+  <p class="text-muted small mb-2">
+    {% if unite == 'litres' %}Litres consommés{% else %}Dépenses de carburant{% endif %}
+    par véhicule et par engin (Poclain…), mois par mois.
+  </p>
+  {% if unite == 'litres' %}
+    {% include "flotte/rapports/_matrice.html" with m=m suffixe=" L" entete="Véhicule / engin" %}
+  {% else %}
+    {% include "flotte/rapports/_matrice.html" with m=m suffixe="" entete="Véhicule / engin" %}
+  {% endif %}
+</div></div>
+
+{% endblock %}

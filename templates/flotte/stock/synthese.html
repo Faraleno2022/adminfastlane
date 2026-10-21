@@ -1,0 +1,85 @@
+{% extends "flotte/base_flotte.html" %}
+{% load humanize static %}
+{% block title %}Synthèse du stock{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Synthèse du stock</h1>
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'flotte:inventaire' %}">← Inventaire</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card shadow-sm bg-primary text-white h-100"><div class="card-body">
+      <div class="kpi-lbl">Articles référencés</div><div class="kpi-val">{{ nb_articles|intcomma }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card shadow-sm bg-dark text-white h-100"><div class="card-body">
+      <div class="kpi-lbl">Quantité en stock</div><div class="kpi-val">{{ qte_totale|floatformat:"-2"|intcomma }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card shadow-sm bg-warning text-dark h-100"><div class="card-body">
+      <div class="kpi-lbl">En alerte</div><div class="kpi-val">{{ nb_alerte }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card shadow-sm bg-danger text-white h-100"><div class="card-body">
+      <div class="kpi-lbl">En rupture</div><div class="kpi-val">{{ nb_rupture }}</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Quantité par catégorie</h2>
+      <div class="chart-box"><canvas id="c-cat"></canvas></div>
+    </div></div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Articles à réapprovisionner ({{ alertes|length }})</h2>
+      <div class="table-responsive" style="max-height:300px;overflow:auto">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th>Code</th><th>Désignation</th><th class="text-end">Stock</th><th class="text-end">Seuil</th><th>Statut</th></tr></thead>
+          <tbody>
+            {% for l in alertes %}
+            <tr>
+              <td>{{ l.article.code }}</td><td>{{ l.article.designation }}</td>
+              <td class="text-end fw-bold">{{ l.stock_actuel|floatformat:"-2" }}</td>
+              <td class="text-end">{{ l.article.seuil_mini|floatformat:"-2" }}</td>
+              <td>{% if l.statut == 'ALERTE' %}<span class="badge bg-warning text-dark">ALERTE</span>{% else %}<span class="badge bg-danger">RUPTURE</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-3">Aucun article en alerte 👍</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card shadow-sm mt-3"><div class="card-body">
+  <h2 class="h6">Répartition par catégorie</h2>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>Catégorie</th><th class="text-end">Nb articles</th><th class="text-end">Quantité</th></tr></thead>
+      <tbody>
+        {% for cat, d in par_categorie %}
+        <tr><td>{{ cat }}</td><td class="text-end">{{ d.nb }}</td><td class="text-end">{{ d.qte|floatformat:"-2" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src=\"{% static 'js/chart.umd.min.js' %}\"></script>
+<script>window.STOCK_CAT = {{ chart_cat|safe }};</script>
+<script src="{% static 'flotte/js/stock.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "flotte/base_flotte.html" %}
+{% block title %}Supprimer{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Confirmer la suppression</h1>
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card border-danger">
+      <div class="card-body">
+        <p>Voulez-vous vraiment supprimer : <strong>{{ object }}</strong> ?</p>
+        <p class="text-muted small">
+          La donnée est retirée de l'application. Elle est conservée en interne
+          (suppression logique) et peut être restaurée par un administrateur.
+        </p>
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Oui, supprimer</button>
+          <a href="javascript:history.back()" class="btn btn-secondary">Annuler</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

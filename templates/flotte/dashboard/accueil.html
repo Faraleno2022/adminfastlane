@@ -1,0 +1,180 @@
+{% extends "flotte/base_flotte.html" %}
+{% load humanize static %}
+{% block title %}Tableau de bord{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h4 mb-0">Tableau de bord — Gestion Parc Automobile</h1>
+  <form method="get" class="actions-bar align-items-center">
+    <select name="mois" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()" aria-label="Mois">
+      {% for num, nom in mois_liste %}
+        <option value="{{ num }}" {% if num == mois %}selected{% endif %}>{{ nom|capfirst }}</option>
+      {% endfor %}
+    </select>
+    <select name="annee" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()" aria-label="Année">
+      {% for a in annees %}
+        <option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if etat_sync %}
+<div class="alert {% if etat_sync.last_error %}alert-warning{% else %}alert-light{% endif %} py-2 small">
+  {% if etat_sync.last_sync_ok %}Dernière synchro réussie : {{ etat_sync.last_sync_ok|date:"d/m/Y H:i" }}.{% else %}Aucune synchro effectuée pour l'instant.{% endif %}
+  {% if etat_sync.last_error %} Dernier incident : {{ etat_sync.last_error }}{% endif %}
+  {% if nb_conflits %} · <a href="/admin/sync/syncconflict/">{{ nb_conflits }} conflit(s) à revoir</a>{% endif %}
+</div>
+{% endif %}
+
+{% if alertes_documents %}
+<div class="card shadow-sm border-danger mb-4">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+      <h2 class="h6 mb-0 text-danger">⚠️ Documents expirés ou à renouveler ({{ NB_ALERTES_DOCUMENTS }})</h2>
+      <a href="{% url 'flotte:document_liste' %}?statut=alerte" class="btn btn-sm btn-outline-danger">Tout voir</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Véhicule</th><th>Document</th><th>Expire le</th><th>État</th></tr></thead>
+        <tbody>
+          {% for d in alertes_documents %}
+          <tr>
+            <td><a href="{% url 'flotte:vehicule_detail' d.vehicule_id %}">{{ d.vehicule }}</a></td>
+            <td>{{ d.get_type_document_display }}</td>
+            <td>{{ d.date_expiration|date:"d/m/Y" }}</td>
+            <td>{{ d.statut_badge }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ---------- Indicateurs annuels ---------- #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card shadow-sm bg-danger text-white h-100"><div class="card-body">
+      <div class="kpi-lbl">Dépenses {{ annee }}</div>
+      <div class="kpi-val">{{ kpi.depenses_totales|floatformat:0|intcomma }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card shadow-sm bg-success text-white h-100"><div class="card-body">
+      <div class="kpi-lbl">Recettes {{ annee }}</div>
+      <div class="kpi-val">{{ kpi.recettes_totales|floatformat:0|intcomma }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card shadow-sm {% if kpi.resultat < 0 %}bg-warning text-dark{% else %}bg-primary text-white{% endif %} h-100"><div class="card-body">
+      <div class="kpi-lbl">Résultat {{ annee }}</div>
+      <div class="kpi-val">{{ kpi.resultat|floatformat:0|intcomma }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card shadow-sm bg-dark text-white h-100"><div class="card-body">
+      <div class="kpi-lbl">Carburant (litres)</div>
+      <div class="kpi-val">{{ kpi.litres_carburant|floatformat:0|intcomma }}</div>
+    </div></div>
+  </div>
+</div>
+
+{# ---------- Tableau de bord de gestion (feuille TB_Gestion) ---------- #}
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h2 class="h6 mb-3">Tableau de bord de gestion — Rapport d'activités {{ gestion.mois_nom|upper }}-{{ annee }}</h2>
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-danger"><tr><th>Dépenses effectuées</th><th class="text-end">Mensuel</th><th class="text-end">Annuel</th></tr></thead>
+            <tbody>
+              {% for libelle, mensuel, annuel, genre in gestion.depenses %}
+              <tr {% if genre == 'total' %}class="fw-bold table-light"{% endif %}>
+                <td>{{ libelle }}</td>
+                <td class="text-end">{{ mensuel|floatformat:0|intcomma }}{% if genre == 'litres' %} L{% endif %}</td>
+                <td class="text-end">{{ annuel|floatformat:0|intcomma }}{% if genre == 'litres' %} L{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-success"><tr><th>Recettes réalisées</th><th class="text-end">Mensuel</th><th class="text-end">Annuel</th></tr></thead>
+            <tbody>
+              {% for libelle, mensuel, annuel, genre in gestion.recettes %}
+              <tr {% if genre == 'total' %}class="fw-bold table-light"{% endif %}>
+                <td>{{ libelle }}</td>
+                <td class="text-end">{{ mensuel|floatformat:0|intcomma }}</td>
+                <td class="text-end">{{ annuel|floatformat:0|intcomma }}</td>
+              </tr>
+              {% endfor %}
+              <tr class="fw-bold">
+                <td>Résultat (recettes − dépenses)</td>
+                <td class="text-end {% if gestion.resultat_mensuel < 0 %}text-danger{% else %}text-success{% endif %}">{{ gestion.resultat_mensuel|floatformat:0|intcomma }}</td>
+                <td class="text-end {% if gestion.resultat_annuel < 0 %}text-danger{% else %}text-success{% endif %}">{{ gestion.resultat_annuel|floatformat:0|intcomma }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Recettes vs Dépenses par mois ({{ annee }})</h2>
+      <div class="chart-box"><canvas id="c-mois"></canvas></div>
+    </div></div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Répartition des dépenses</h2>
+      <div class="chart-box"><canvas id="c-repartition"></canvas></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-4">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Répartition des recettes</h2>
+      <div class="chart-box"><canvas id="c-recettes"></canvas></div>
+    </div></div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Charges par véhicule (entretien + carburant)</h2>
+      <div class="chart-box"><canvas id="c-vehicules"></canvas></div>
+    </div></div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6">Voyages par véhicule</h2>
+      <div class="chart-box"><canvas id="c-voyages"></canvas></div>
+    </div></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src=\"{% static 'js/chart.umd.min.js' %}\"></script>
+<script>
+  window.DASH = {
+    repartition: {{ chart_repartition|safe }},
+    recettes: {{ chart_recettes|safe }},
+    vehicules: {{ chart_vehicules|safe }},
+    voyages: {{ chart_voyages|safe }},
+    mois: {{ chart_mois|safe }}
+  };
+</script>
+<script src="{% static 'flotte/js/charts.js' %}"></script>
+{% endblock %}

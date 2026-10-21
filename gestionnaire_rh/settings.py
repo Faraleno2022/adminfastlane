@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     'comptabilite',
     'secretariat',
     'stock',
+    'flotte',
 ]
 
 MIDDLEWARE = [
@@ -104,6 +105,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'flotte.middleware.FlotteEntrepriseMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # Security middlewares
@@ -137,6 +139,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.company_info',
                 'core.context_processors.odoo_shell',
+                'flotte.context_processors.flotte',
             ],
             **(
                 {
@@ -265,6 +268,18 @@ else:
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# --- Module Gestion de flotte -------------------------------------------
+# Pièces jointes des véhicules : stockées hors de /media/ (non servies
+# publiquement) et délivrées uniquement par une vue authentifiée.
+FLOTTE_DOCUMENTS_ROOT = BASE_DIR / 'private_media' / 'flotte'
+DOCUMENTS_TAILLE_MAX_MO = config('DOCUMENTS_TAILLE_MAX_MO', default=10, cast=int)
+# Nombre de jours avant expiration à partir duquel un document est signalé.
+DOCUMENTS_DELAI_ALERTE_JOURS = config('DOCUMENTS_DELAI_ALERTE_JOURS', default=30, cast=int)
+# Signature des rapports imprimés de la flotte.
+RAPPORT_LIEU = config('RAPPORT_LIEU', default='Conakry')
+RAPPORT_SIGNATAIRE_TITRE = config('RAPPORT_SIGNATAIRE_TITRE', default='Directeur Général')
+RAPPORT_SIGNATAIRE_NOM = config('RAPPORT_SIGNATAIRE_NOM', default='')
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

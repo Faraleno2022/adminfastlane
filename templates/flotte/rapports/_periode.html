@@ -1,0 +1,16 @@
+{# Sélecteur de période commun aux rapports. Variables : mois, annee, mois_liste, annees, avec_mois #}
+<form method="get" class="actions-bar align-items-center no-print">
+  {% if avec_mois %}
+  <select name="mois" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()" aria-label="Mois">
+    {% for num, nom in mois_liste %}
+      <option value="{{ num }}" {% if num == mois %}selected{% endif %}>{{ nom|capfirst }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+  <select name="annee" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()" aria-label="Année">
+    {% for a in annees %}
+      <option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()">🖨️ Imprimer</button>
+</form>

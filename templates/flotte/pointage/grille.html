@@ -1,0 +1,105 @@
+{% extends "flotte/base_flotte.html" %}
+{% load static %}
+{% block title %}Pointage de présence{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h4 mb-0">Pointage de présence — {{ mois_libelle }}</h1>
+  <div class="actions-bar align-items-center">
+    <a class="btn btn-sm btn-outline-secondary" href="?mois={{ mois_prec }}">← Mois préc.</a>
+    <form method="get" class="d-flex align-items-center gap-1">
+      <input type="month" name="mois" value="{{ mois_param }}" class="form-control form-control-sm"
+             onchange="this.form.submit()">
+    </form>
+    <a class="btn btn-sm btn-outline-secondary" href="?mois={{ mois_suiv }}">Mois suiv. →</a>
+    <a class="btn btn-sm btn-outline-primary" href="{% url 'flotte:employe_liste' %}">👥 Employés</a>
+  </div>
+</div>
+
+<div class="legende mb-2 small text-muted">
+  Légende :
+  <span class="badge st-P">P</span> Présent
+  <span class="badge st-A">A</span> Absent
+  <span class="badge st-C">C</span> Congé
+  <span class="badge st-M">M</span> Mission
+  <span class="badge st-R">R</span> Repos
+  <span class="badge st-ML">ML</span> Maladie
+  <span class="badge st-RT">RT</span> Retard
+  <span class="badge st-S">S</span> Sanction
+  {% if peut_saisir %}· Cliquez une cellule pour marquer le statut.{% else %}· (consultation seule){% endif %}
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive pointage-wrap">
+    <table class="table table-bordered table-sm mb-0 pointage-table align-middle">
+      <thead>
+        <tr>
+          <th class="col-fixe col-nom">Nom complet</th>
+          <th class="col-fixe col-mat">Matricule</th>
+          <th class="col-fixe col-fonc">Fonction</th>
+          <th class="col-fixe col-serv">Service</th>
+          {% for j in jours %}
+            <th class="col-jour {% if j.weekend %}weekend{% endif %}" title="{{ j.iso }}">
+              <div>{{ j.num }}</div><div class="jabbr">{{ j.abbr }}</div>
+            </th>
+          {% endfor %}
+          <th class="col-tot">Prés.</th>
+          <th class="col-tot">Abs.</th>
+          <th class="col-tot">Cong.</th>
+          <th class="col-tot">Miss.</th>
+          <th class="col-tot">Repos</th>
+          <th class="col-tot">Mal.</th>
+          <th class="col-tot">Ret.</th>
+          <th class="col-tot">Sanc.</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ligne in lignes %}
+        <tr data-employe="{{ ligne.employe.id }}">
+          <td class="col-fixe col-nom">{{ ligne.employe.nom_complet }}</td>
+          <td class="col-fixe col-mat">{{ ligne.employe.matricule }}</td>
+          <td class="col-fixe col-fonc">{{ ligne.employe.fonction }}</td>
+          <td class="col-fixe col-serv">{{ ligne.employe.service }}</td>
+          {% for c in ligne.cellules %}
+            <td class="cell {% if c.weekend %}weekend{% endif %} st-{{ c.statut }}">
+              <select class="ptg-select" data-date="{{ c.iso }}" {% if not peut_saisir %}disabled{% endif %}>
+                <option value="">·</option>
+                {% for code, label in statuts %}
+                  <option value="{{ code }}" title="{{ label }}" {% if code == c.statut %}selected{% endif %}>{{ code }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          {% endfor %}
+          <td class="col-tot tot-presence fw-bold">{{ ligne.totaux.nb_presence }}</td>
+          <td class="col-tot tot-absence">{{ ligne.totaux.nb_absence }}</td>
+          <td class="col-tot tot-conge">{{ ligne.totaux.nb_conge }}</td>
+          <td class="col-tot tot-mission">{{ ligne.totaux.nb_mission }}</td>
+          <td class="col-tot tot-repos">{{ ligne.totaux.nb_repos }}</td>
+          <td class="col-tot tot-maladie">{{ ligne.totaux.nb_maladie }}</td>
+          <td class="col-tot tot-retard">{{ ligne.totaux.nb_retard }}</td>
+          <td class="col-tot tot-sanction">{{ ligne.totaux.nb_sanction }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="99" class="text-center text-muted py-4">
+          Aucun employé actif. <a href="{% url 'flotte:employe_creer' %}">Ajouter un employé</a>.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="text-muted small mt-2">
+  « Prés. » compte les jours <em>Présent</em>, <em>Mission</em> et <em>Retard</em>. Les totaux se
+  mettent à jour automatiquement à chaque saisie.
+</p>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.PTG_URL = "{% url 'flotte:enregistrer' %}";
+  window.PTG_CSRF = "{{ csrf_token }}";
+</script>
+<script src="{% static 'flotte/js/pointage.js' %}"></script>
+{% endblock %}
