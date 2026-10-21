@@ -2007,9 +2007,17 @@ def _controles_livre_paie(bulletins, totaux):
     }
 
 
-def _bloquer_pdf_livre_paie(controles_livre, fmt):
-    """Refuse le PDF officiel si les controles du livre de paie echouent."""
+def _bloquer_pdf_livre_paie(controles_livre, fmt, document=None):
+    """Refuse le PDF officiel (ou un export social/fiscal) si les controles du livre de paie echouent."""
     from django.utils.html import escape
+
+    if document:
+        titre_page = 'Export {} bloque - paie non conforme'.format(escape(document))
+        message = ("Generation de l'export interrompue : les bulletins de la periode ne respectent pas "
+                   "les regles legales (CNSS / coherence net). Corrigez les bulletins puis relancez l'export.")
+    else:
+        titre_page = 'Livre de paie non conforme'
+        message = "Generation du PDF officiel bloquee. Corrigez les bulletins puis relancez l'export."
 
     anomalies = controles_livre.get('anomalies_cnss', [])[:10]
     lignes = ''.join(
@@ -2038,7 +2046,7 @@ def _bloquer_pdf_livre_paie(controles_livre, fmt):
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Livre de paie non conforme</title>
+  <title>{titre_page}</title>
   <style>
     body {{ font-family: Arial, sans-serif; margin: 32px; color: #212529; }}
     .box {{ border: 1px solid #dc3545; border-radius: 8px; padding: 20px; max-width: 820px; }}
@@ -2049,8 +2057,8 @@ def _bloquer_pdf_livre_paie(controles_livre, fmt):
 </head>
 <body>
   <div class="box">
-    <h1>Livre de paie non conforme</h1>
-    <p>Generation du PDF officiel bloquee. Corrigez les bulletins puis relancez l'export.</p>
+    <h1>{titre_page}</h1>
+    <p>{message}</p>
     <div class="metric"><strong>Statut :</strong> NON CONFORME</div>
     <div class="metric"><strong>Net attendu :</strong> {net_attendu} GNF</div>
     <div class="metric"><strong>Ecart net :</strong> {ecart_net} GNF</div>
@@ -2063,6 +2071,8 @@ def _bloquer_pdf_livre_paie(controles_livre, fmt):
 </body>
 </html>
 """.format(
+        titre_page=titre_page,
+        message=message,
         net_attendu=fmt(controles_livre.get('net_attendu')),
         ecart_net=fmt(controles_livre.get('ecart_net')),
         nb_anomalies=controles_livre.get('nb_anomalies_cnss', 0),
@@ -2071,6 +2081,45 @@ def _bloquer_pdf_livre_paie(controles_livre, fmt):
         agregations=agregations or '<li>Aucun ecart aggregation detaille.</li>',
     )
     return HttpResponse(html, status=409, content_type='text/html; charset=utf-8')
+
+
+def verifier_conformite_export_social(entreprise, annee, mois=None, document='document'):
+    """Verifie la conformite des bulletins avant un export social/fiscal (CNSS, DMU, eTax).
+
+    Applique les memes controles que le livre de paie (`_controles_livre_paie`).
+    Retourne None si la periode est conforme ou sans bulletin, sinon une
+    HttpResponse 409 decrivant les anomalies.
+    """
+    periodes = PeriodePaie.objects.filter(entreprise=entreprise, annee=annee)
+    if mois:
+        periodes = periodes.filter(mois=mois)
+
+    bulletins_qs = (
+        BulletinPaie.objects
+        .filter(periode__in=periodes, employe__entreprise=entreprise)
+        .select_related('employe', 'periode')
+    )
+    totaux = bulletins_qs.aggregate(
+        total_brut=Sum('salaire_brut'),
+        total_net=Sum('net_a_payer'),
+        total_retenues=Sum(F('salaire_brut') + F('rappel_salaire') - F('net_a_payer')),
+    )
+    bulletins = list(bulletins_qs)
+    if not bulletins:
+        return None
+
+    controles = _controles_livre_paie(bulletins, totaux)
+    if controles['conforme']:
+        return None
+
+    def fmt(val):
+        try:
+            n = float(val or 0)
+        except Exception:
+            n = 0
+        return f"{n:,.0f}".replace(",", " ")
+
+    return _bloquer_pdf_livre_paie(controles, fmt, document=document)
 
 
 _DETAILS_LIVRE_PAIE = (

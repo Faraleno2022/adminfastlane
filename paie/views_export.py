@@ -20,6 +20,7 @@ from .utils_declarations import (
 )
 from employes.models import Employe
 from core.decorators import entreprise_active_required
+from .views import verifier_conformite_export_social
 
 # Imports pour génération Excel
 try:
@@ -191,10 +192,16 @@ def export_cnss_excel(request):
     """Exporte le bordereau CNSS au format Excel"""
     if not OPENPYXL_AVAILABLE:
         return HttpResponse("Module openpyxl non disponible", status=500)
-    
+
     annee = request.GET.get('annee', date.today().year)
     mois = request.GET.get('mois')
-    
+
+    blocage = verifier_conformite_export_social(
+        request.user.entreprise, int(annee), int(mois) if mois else None, document='CNSS Excel'
+    )
+    if blocage is not None:
+        return blocage
+
     data = get_declarations_data(request.user.entreprise, int(annee), int(mois) if mois else None)
     
     # Créer le workbook
@@ -325,10 +332,16 @@ def export_cnss_pdf(request):
     """Exporte le bordereau CNSS au format PDF"""
     if not REPORTLAB_AVAILABLE:
         return HttpResponse("Module reportlab non disponible", status=500)
-    
+
     annee = request.GET.get('annee', date.today().year)
     mois = request.GET.get('mois')
-    
+
+    blocage = verifier_conformite_export_social(
+        request.user.entreprise, int(annee), int(mois) if mois else None, document='CNSS PDF'
+    )
+    if blocage is not None:
+        return blocage
+
     data = get_declarations_data(request.user.entreprise, int(annee), int(mois) if mois else None)
     
     # Créer le PDF
@@ -448,13 +461,19 @@ def export_dmu_excel(request):
     """Exporte la DMU au format Excel"""
     if not OPENPYXL_AVAILABLE:
         return HttpResponse("Module openpyxl non disponible", status=500)
-    
+
     annee = request.GET.get('annee', date.today().year)
     mois = request.GET.get('mois')
-    
+
     if not mois:
         return HttpResponse("Le mois est requis pour la DMU", status=400)
-    
+
+    blocage = verifier_conformite_export_social(
+        request.user.entreprise, int(annee), int(mois), document='DMU Excel'
+    )
+    if blocage is not None:
+        return blocage
+
     data = get_declarations_data(request.user.entreprise, int(annee), int(mois))
     
     # Créer le workbook
@@ -639,13 +658,19 @@ def export_dmu_pdf(request):
     """Exporte la DMU au format PDF"""
     if not REPORTLAB_AVAILABLE:
         return HttpResponse("Module reportlab non disponible", status=500)
-    
+
     annee = request.GET.get('annee', date.today().year)
     mois = request.GET.get('mois')
-    
+
     if not mois:
         return HttpResponse("Le mois est requis pour la DMU", status=400)
-    
+
+    blocage = verifier_conformite_export_social(
+        request.user.entreprise, int(annee), int(mois), document='DMU PDF'
+    )
+    if blocage is not None:
+        return blocage
+
     data = get_declarations_data(request.user.entreprise, int(annee), int(mois))
     
     # Créer le PDF
