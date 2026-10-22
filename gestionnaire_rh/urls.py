@@ -117,6 +117,7 @@ urlpatterns = [
     path('contrats/', include('contrats.urls')),
     path('flotte/', include('flotte.urls')),
     path('ventes/', include('ventes.urls')),
+    path('prets/', include('prets.urls')),
     # path('api/', include('api.urls')),  # TODO: Create api app
 ]
 

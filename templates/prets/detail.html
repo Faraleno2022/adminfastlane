@@ -1,0 +1,62 @@
+{% extends "prets/base_prets.html" %}
+{% load prets_extras %}
+{% block title %}{{ pret.designation }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h1 class="h4 mb-0 me-auto">{{ pret.designation }} {% include "prets/_statut.html" with p=pret %}</h1>
+  <a class="btn btn-secondary" href="{% url 'prets:liste' %}">Retour à la liste</a>
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'prets:modifier' pret.pk %}">Modifier</a>{% endif %}
+  {% if peut_supprimer %}
+    <form method="post" action="{% url 'prets:supprimer' pret.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-danger" onclick="return confirm('Supprimer ce prêt et ses remboursements ?')">Supprimer</button></form>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Montant de prêt</div><div class="p-val p-money">{{ pret.montant_pret|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Montant global à recouvrer</div><div class="p-val p-money">{{ pret.montant_a_recouvrer|gnf }}</div><div class="small text-muted">dont intérêt : {{ pret.valeur_interet|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Déjà remboursé</div><div class="p-val p-money">{{ rembourse|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Reste à recouvrer</div><div class="p-val p-money">{{ reste|gnf }}</div></div></div></div>
+</div>
+
+<div class="card mb-3"><div class="card-body">
+  <div class="row g-2">
+    <div class="col-md-3"><span class="text-muted">Début</span><br>{{ pret.date_debut|date:"d/m/Y" }}</div>
+    <div class="col-md-3"><span class="text-muted">Fin</span><br>{{ pret.date_fin|date:"d/m/Y" }}</div>
+    <div class="col-md-3"><span class="text-muted">Durée</span><br>{{ pret.duree_jours }} jour(s)</div>
+    <div class="col-md-3"><span class="text-muted">Observation</span><br>{{ pret.get_observation_display }}</div>
+    {% if pret.note %}<div class="col-12"><span class="text-muted">Note</span><br>{{ pret.note|linebreaksbr }}</div>{% endif %}
+  </div>
+</div></div>
+
+<div class="row g-3">
+  <div class="{% if form %}col-lg-8{% else %}col-12{% endif %}"><div class="card"><div class="card-header">Remboursements</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Date</th><th class="p-num">Montant</th><th>Note</th><th></th></tr></thead>
+      <tbody>
+      {% for r in remboursements %}
+        <tr>
+          <td>{{ r.date|date:"d/m/Y" }}</td><td class="p-num p-money">{{ r.montant|gnf }}</td><td>{{ r.note }}</td>
+          <td class="text-end">{% if peut_supprimer %}
+            <form method="post" action="{% url 'prets:remboursement_supprimer' r.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce remboursement ?')">Supprimer</button></form>
+          {% endif %}</td>
+        </tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucun remboursement enregistré.</td></tr>{% endfor %}
+      </tbody>
+    </table></div></div></div>
+
+  {% if form %}
+  <div class="col-lg-4"><div class="card"><div class="card-header">Enregistrer un remboursement</div><div class="card-body">
+    <form method="post" action="{% url 'prets:remboursement_ajouter' pret.pk %}">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="mb-2">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+        </div>
+      {% endfor %}
+      <button class="btn btn-primary w-100">Ajouter</button>
+    </form>
+  </div></div></div>
+  {% endif %}
+</div>
+{% endblock %}

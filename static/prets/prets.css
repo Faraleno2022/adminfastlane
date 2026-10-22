@@ -1,0 +1,12 @@
+/* Module Suivi des prêts — composants propres (le thème général est dans odoo.css) */
+.p-kpi { border-radius: 8px; }
+.p-kpi .p-val { font-size: 1.45rem; font-weight: 700; }
+.p-kpi .p-lbl { font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; }
+.p-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p-num { text-align: right; }
+.p-filtres .form-control, .p-filtres .form-select { min-width: 140px; }
+.badge-pret-en_cours { background: #0d6efd; }
+.badge-pret-paye { background: #198754; }
+.badge-pret-impaye { background: #dc3545; }
+.badge-pret-echu { background: #f0ad4e; color: #212529; }
+@media (max-width: 575.98px) { .p-kpi .p-val { font-size: 1.15rem; } }

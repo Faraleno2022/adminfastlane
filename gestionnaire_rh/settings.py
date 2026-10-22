@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     'stock',
     'flotte',
     'ventes',
+    'prets',
 ]
 
 MIDDLEWARE = [

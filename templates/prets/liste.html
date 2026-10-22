@@ -1,0 +1,81 @@
+{% extends "prets/base_prets.html" %}
+{% load prets_extras %}
+{% block title %}Suivi des prêts{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-1">
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'prets:nouveau' %}">Nouveau prêt</a>{% endif %}
+  <h1 class="h4 mb-0">Suivi des montants de prêts</h1>
+</div>
+<p class="text-muted mb-3">Fastlane Logistic — {{ nb }} prêt(s)</p>
+
+<form class="row g-2 mb-3 p-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Désignation"></div>
+  <div class="col-auto">
+    <select class="form-select" name="statut">
+      <option value="">Tous les statuts</option>
+      {% for code, libelle in statuts %}<option value="{{ code }}" {% if statut == code %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+      <option value="echu" {% if statut == 'echu' %}selected{% endif %}>Échus (non payés)</option>
+    </select>
+  </div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_from" value="{{ date_from }}" title="Début à partir du"></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_to" value="{{ date_to }}" title="Début jusqu'au"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Filtrer</button></div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-secondary" href="?{% if qs_export %}{{ qs_export }}&{% endif %}export=xlsx">Excel</a>
+    <a class="btn btn-secondary" href="?{% if qs_export %}{{ qs_export }}&{% endif %}export=pdf">PDF</a>
+  </div>
+</form>
+
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr>
+    <th>N°</th><th>Désignation</th><th class="p-num">Montant de prêt</th><th class="p-num">Montant global à recouvrer</th>
+    <th class="p-num">Valeur d'intérêt</th><th>Début</th><th>Fin</th><th class="p-num">Durée</th>
+    <th class="p-num">Remboursé</th><th class="p-num">Reste</th><th>Observation</th><th class="text-end">Actions</th>
+  </tr></thead>
+  <tbody>
+  {% for p in page %}
+    <tr>
+      <td>{{ page.start_index|add:forloop.counter0 }}</td>
+      <td><a href="{% url 'prets:detail' p.pk %}">{{ p.designation }}</a></td>
+      <td class="p-num p-money">{{ p.montant_pret|gnf }}</td>
+      <td class="p-num p-money">{{ p.montant_a_recouvrer|gnf }}</td>
+      <td class="p-num p-money">{{ p.valeur_interet|gnf }}</td>
+      <td class="text-nowrap">{{ p.date_debut|date:"d/m/Y" }}</td>
+      <td class="text-nowrap">{{ p.date_fin|date:"d/m/Y" }}</td>
+      <td class="p-num">{{ p.duree_jours }} j</td>
+      <td class="p-num p-money">{{ p.rembourse|gnf }}</td>
+      <td class="p-num p-money">{{ p.reste|gnf }}</td>
+      <td>{% include "prets/_statut.html" %}</td>
+      <td class="text-end text-nowrap">
+        <a class="btn btn-sm btn-secondary" href="{% url 'prets:detail' p.pk %}">Voir</a>
+        {% if peut_saisir %}<a class="btn btn-sm btn-secondary" href="{% url 'prets:modifier' p.pk %}">Modifier</a>{% endif %}
+        {% if peut_supprimer %}
+          <form method="post" action="{% url 'prets:supprimer' p.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce prêt et ses remboursements ?')">Supprimer</button></form>
+        {% endif %}
+      </td>
+    </tr>
+  {% empty %}<tr><td colspan="12" class="text-center text-muted py-4">Aucun prêt.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr>
+    <td colspan="2">Total ({{ nb }})</td>
+    <td class="p-num p-money">{{ totaux.pret|gnf }}</td>
+    <td class="p-num p-money">{{ totaux.recouvrer|gnf }}</td>
+    <td class="p-num p-money">{{ totaux.interet|gnf }}</td>
+    <td colspan="3"></td>
+    <td class="p-num p-money">{{ totaux.rembourse|gnf }}</td>
+    <td class="p-num p-money">{{ totaux.reste|gnf }}</td>
+    <td colspan="2"></td>
+  </tr></tfoot>
+</table></div></div>
+
+{% if page.paginator.num_pages > 1 %}
+<nav class="mt-3">
+  <ul class="pagination justify-content-center">
+    {% if page.has_previous %}<li class="page-item"><a class="page-link" href="?{% if page.qs %}{{ page.qs }}&{% endif %}page={{ page.previous_page_number }}">Précédent</a></li>{% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ page.number }} / {{ page.paginator.num_pages }}</span></li>
+    {% if page.has_next %}<li class="page-item"><a class="page-link" href="?{% if page.qs %}{{ page.qs }}&{% endif %}page={{ page.next_page_number }}">Suivant</a></li>{% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

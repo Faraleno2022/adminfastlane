@@ -1,0 +1,42 @@
+{% extends "prets/base_prets.html" %}
+{% load prets_extras %}
+{% block title %}Tableau de bord — Prêts{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Suivi des prêts</h1>
+
+{% if nb_echus %}
+<div class="alert alert-warning py-2">
+  {{ nb_echus }} prêt(s) échu(s) non payé(s).
+  <a href="{% url 'prets:liste' %}?statut=echu">Voir les prêts échus</a>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-4"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Total prêté</div><div class="p-val p-money">{{ total_pret|gnf }}</div><div class="small text-muted">{{ nb }} prêt(s)</div></div></div></div>
+  <div class="col-6 col-lg-4"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Total à recouvrer</div><div class="p-val p-money">{{ total_recouvrer|gnf }}</div><div class="small text-muted">dont intérêts : {{ total_interet|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-4"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Déjà remboursé</div><div class="p-val p-money">{{ total_rembourse|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-4"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Reste à recouvrer (non payés)</div><div class="p-val p-money">{{ reste|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-4"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">En cours / Impayés</div><div class="p-val">{{ par_statut.en_cours }} / {{ par_statut.impaye }}</div></div></div></div>
+  <div class="col-6 col-lg-4"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Payés</div><div class="p-val">{{ par_statut.paye }}</div></div></div></div>
+</div>
+
+{% if peut_saisir %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="btn btn-primary" href="{% url 'prets:nouveau' %}">Nouveau prêt</a>
+  <a class="btn btn-secondary" href="{% url 'prets:liste' %}">Liste des prêts</a>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header">Prêts échus</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Désignation</th><th>Fin</th><th class="p-num">À recouvrer</th></tr></thead><tbody>
+      {% for p in echus %}<tr><td><a href="{% url 'prets:detail' p.pk %}">{{ p.designation }}</a></td><td>{{ p.date_fin|date:"d/m/Y" }}</td><td class="p-num p-money">{{ p.montant_a_recouvrer|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">Aucun prêt échu.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Échéances dans les 30 jours</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Désignation</th><th>Fin</th><th class="p-num">À recouvrer</th></tr></thead><tbody>
+      {% for p in bientot %}<tr><td><a href="{% url 'prets:detail' p.pk %}">{{ p.designation }}</a></td><td>{{ p.date_fin|date:"d/m/Y" }}</td><td class="p-num p-money">{{ p.montant_a_recouvrer|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">Aucune échéance proche.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+</div>
+{% endblock %}

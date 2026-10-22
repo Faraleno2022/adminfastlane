@@ -307,6 +307,19 @@ APPS = [
         ],
     },
     {
+        'key': 'prets', 'name': 'Suivi des prêts', 'icon': 'bi-piggy-bank-fill',
+        'gradient': ('#6f42c1', '#59359a'), 'requires': None,
+        'home': 'prets:tableau_de_bord',
+        'prefixes': ['/prets/'],
+        'menus': [
+            ('Tableau de bord', 'prets:tableau_de_bord'),
+            ('Prêts', [
+                ('Liste des prêts', 'prets:liste'),
+                ('Nouveau prêt', 'prets:nouveau'),
+            ]),
+        ],
+    },
+    {
         'key': 'flotte', 'name': 'Flotte', 'icon': 'bi-truck',
         'gradient': ('#0d6efd', '#0a58ca'), 'requires': None,
         'home': 'flotte:accueil',
