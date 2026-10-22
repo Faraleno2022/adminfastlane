@@ -1,0 +1,33 @@
+{% extends "agence/base_agence.html" %}
+{% block title %}Clients{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'agence:client_nouveau' %}">Nouveau client</a>{% endif %}
+  <h1 class="h4 mb-0">Clients</h1>
+</div>
+
+<form class="row g-2 mb-3 a-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Nom, téléphone, passeport"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Rechercher</button></div>
+</form>
+
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Nom</th><th>Téléphone</th><th>E-mail</th><th>Passeport</th><th>Expiration</th><th class="a-num">Dossiers</th><th class="text-end">Actions</th></tr></thead>
+  <tbody>
+  {% for c in page %}
+    <tr>
+      <td><a href="{% url 'agence:client_detail' c.pk %}">{{ c.nom }}</a></td>
+      <td>{{ c.telephone }}</td><td>{{ c.email }}</td><td>{{ c.passeport_numero }}</td>
+      <td>{{ c.passeport_expiration|date:"d/m/Y" }}</td>
+      <td class="a-num">{{ c.dossiers.all|length }}</td>
+      <td class="text-end text-nowrap">
+        <a class="btn btn-sm btn-secondary" href="{% url 'agence:client_detail' c.pk %}">Voir</a>
+        {% if peut_saisir %}<a class="btn btn-sm btn-primary" href="{% url 'agence:dossier_nouveau' %}?client={{ c.pk }}">Nouveau dossier</a>{% endif %}
+      </td>
+    </tr>
+  {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Aucun client.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% include "agence/_pagination.html" %}
+{% endblock %}

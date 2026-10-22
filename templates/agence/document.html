@@ -1,0 +1,69 @@
+{% load agence_extras %}<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{{ titre }} {{ dossier.reference }}</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #111; max-width: 190mm; margin: 0 auto; padding: 12px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: .08em; }
+  .tete { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 14px; }
+  .bloc { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+  th, td { border: 1px solid #bbb; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #eee; }
+  .r { text-align: right; } .totaux td { font-weight: bold; }
+  .pied { margin-top: 24px; font-size: 11px; color: #555; }
+  @media print { .no-print { display: none; } @page { margin: 12mm; } }
+</style>
+</head>
+<body>
+  <div class="tete">
+    <div>
+      <strong style="font-size:16px">{{ entreprise.nom_entreprise }}</strong><br>
+      {% if entreprise.adresse %}{{ entreprise.adresse }}<br>{% endif %}
+      {% if entreprise.telephone %}Tél : {{ entreprise.telephone }}<br>{% endif %}
+      {{ entreprise.email }}{% if entreprise.nif %}<br>NIF : {{ entreprise.nif }}{% endif %}
+    </div>
+    <div style="text-align:right">
+      <h1>{{ titre }}</h1>
+      N° {{ dossier.reference }}<br>Date : {{ dossier.created_at|date:"d/m/Y" }}
+    </div>
+  </div>
+
+  <div class="bloc">
+    <div><strong>Client</strong><br>{{ dossier.client.nom }}<br>{{ dossier.client.telephone }}<br>{{ dossier.client.adresse }}</div>
+    <div><strong>Voyage</strong><br>Destination : {{ dossier.destination }}<br>
+      {% if dossier.date_depart %}Départ : {{ dossier.date_depart|date:"d/m/Y" }}<br>{% endif %}
+      {% if dossier.date_retour %}Retour : {{ dossier.date_retour|date:"d/m/Y" }}<br>{% endif %}
+      Voyageurs : {{ dossier.nb_voyageurs }}</div>
+  </div>
+
+  <table>
+    <thead><tr><th>Désignation</th><th class="r">Qté</th><th class="r">Prix unitaire</th><th class="r">Montant</th></tr></thead>
+    <tbody>
+    {% for p in prestations %}
+      <tr><td>{{ p.get_type_display }} — {{ p.description }}{% if p.reference_fournisseur %} <small>(réf. {{ p.reference_fournisseur }})</small>{% endif %}</td>
+        <td class="r">{{ p.quantite|floatformat:"-2" }}</td><td class="r">{{ p.prix_vente|gnf }}</td><td class="r">{{ p.total_vente|gnf }}</td></tr>
+    {% empty %}<tr><td colspan="4">Aucune prestation.</td></tr>{% endfor %}
+    </tbody>
+    <tfoot class="totaux">
+      <tr><td colspan="3" class="r">Total</td><td class="r">{{ dossier.total_vente|gnf }}</td></tr>
+      {% if titre == "FACTURE" %}
+      <tr><td colspan="3" class="r">Déjà payé</td><td class="r">{{ dossier.total_paye|gnf }}</td></tr>
+      <tr><td colspan="3" class="r">Reste à payer</td><td class="r">{{ dossier.reste_a_payer|gnf }}</td></tr>
+      {% endif %}
+    </tfoot>
+  </table>
+
+  {% if titre == "FACTURE" and paiements %}
+  <strong>Paiements reçus</strong>
+  <table>
+    <thead><tr><th>Date</th><th>Mode</th><th>Référence</th><th class="r">Montant</th></tr></thead>
+    <tbody>{% for r in paiements %}<tr><td>{{ r.date|date:"d/m/Y" }}</td><td>{{ r.get_mode_display }}</td><td>{{ r.reference }}</td><td class="r">{{ r.montant|gnf }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+
+  {% if titre == "DEVIS" %}<p class="pied">Devis non contractuel, soumis à la disponibilité et aux tarifs des fournisseurs au moment de la réservation.</p>{% endif %}
+  <p class="no-print"><button onclick="window.print()">Imprimer</button></p>
+</body>
+</html>

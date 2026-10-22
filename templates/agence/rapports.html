@@ -1,0 +1,37 @@
+{% extends "agence/base_agence.html" %}
+{% load agence_extras %}
+{% block title %}Rapports — Agence de voyage{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Rapports</h1>
+
+<form class="row g-2 mb-3 a-filtres" method="get">
+  <div class="col-auto"><input class="form-control" type="date" name="date_from" value="{{ date_from }}"></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_to" value="{{ date_to }}"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Afficher</button></div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-secondary" href="?date_from={{ date_from }}&date_to={{ date_to }}&export=xlsx">Excel</a>
+    <a class="btn btn-secondary" href="?date_from={{ date_from }}&date_to={{ date_to }}&export=pdf">PDF</a>
+  </div>
+</form>
+<p class="text-muted">Période {{ periode }} — {{ nb }} dossier(s) confirmé(s) ou terminé(s) ouvert(s) sur la période.</p>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Chiffre d'affaires</div><div class="a-val a-money">{{ ca|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Marge</div><div class="a-val a-money">{{ marge|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Encaissements</div><div class="a-val a-money">{{ encaisse|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Règlements fournisseurs</div><div class="a-val a-money">{{ decaisse|gnf }}</div></div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card"><div class="card-header">Par type de prestation</div>
+    <div class="table-responsive"><table class="table mb-0 align-middle"><thead><tr><th>Type</th><th class="a-num">Ventes</th><th class="a-num">Achats</th><th class="a-num">Marge</th></tr></thead><tbody>
+      {% for nom, v, a, m in lignes_type %}<tr><td>{{ nom }}</td><td class="a-num a-money">{{ v|gnf }}</td><td class="a-num a-money">{{ a|gnf }}</td><td class="a-num a-money">{{ m|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucune donnée sur la période.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-5"><div class="card"><div class="card-header">Principales destinations</div>
+    <div class="table-responsive"><table class="table mb-0 align-middle"><thead><tr><th>Destination</th><th class="a-num">Dossiers</th><th class="a-num">Ventes</th><th class="a-num">Marge</th></tr></thead><tbody>
+      {% for nom, n, v, m in lignes_dest %}<tr><td>{{ nom }}</td><td class="a-num">{{ n }}</td><td class="a-num a-money">{{ v|gnf }}</td><td class="a-num a-money">{{ m|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucune donnée sur la période.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "agence/base_agence.html" %}
+{% load agence_extras %}
+{% block title %}{{ client.nom }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h1 class="h4 mb-0 me-auto">{{ client.nom }}</h1>
+  <a class="btn btn-secondary" href="{% url 'agence:clients' %}">Retour</a>
+  {% if peut_saisir %}
+    <a class="btn btn-primary" href="{% url 'agence:dossier_nouveau' %}?client={{ client.pk }}">Nouveau dossier</a>
+    <a class="btn btn-secondary" href="{% url 'agence:client_modifier' client.pk %}">Modifier</a>
+  {% endif %}
+  {% if peut_supprimer %}
+    <form method="post" action="{% url 'agence:client_supprimer' client.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-danger" onclick="return confirm('Supprimer ce client ?')">Supprimer</button></form>
+  {% endif %}
+</div>
+
+<div class="card mb-3"><div class="card-body"><div class="row g-2">
+  <div class="col-md-3"><span class="text-muted">Téléphone</span><br>{{ client.telephone|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">E-mail</span><br>{{ client.email|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">Adresse</span><br>{{ client.adresse|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">Nationalité</span><br>{{ client.nationalite|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">Date de naissance</span><br>{{ client.date_naissance|date:"d/m/Y"|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">N° de passeport</span><br>{{ client.passeport_numero|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">Expiration du passeport</span><br>{{ client.passeport_expiration|date:"d/m/Y"|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">Chiffre d'affaires / reste dû</span><br>{{ total|gnf }} / {{ reste|gnf }}</div>
+  {% if client.note %}<div class="col-12"><span class="text-muted">Note</span><br>{{ client.note|linebreaksbr }}</div>{% endif %}
+</div></div></div>
+
+<div class="card"><div class="card-header">Dossiers de voyage</div>
+<div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Référence</th><th>Destination</th><th>Départ</th><th>Statut</th><th class="a-num">Total</th><th class="a-num">Reste</th></tr></thead>
+  <tbody>
+  {% for d in dossiers %}
+    <tr>
+      <td><a href="{% url 'agence:dossier_detail' d.pk %}">{{ d.reference }}</a></td><td>{{ d.destination }}</td>
+      <td>{{ d.date_depart|date:"d/m/Y" }}</td>
+      <td>{% include "agence/_statut.html" with valeur=d.statut libelle=d.get_statut_display %}</td>
+      <td class="a-num a-money">{{ d.total_vente|gnf }}</td><td class="a-num a-money">{{ d.reste_a_payer|gnf }}</td>
+    </tr>
+  {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Aucun dossier.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

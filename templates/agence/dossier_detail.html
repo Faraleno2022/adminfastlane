@@ -1,0 +1,113 @@
+{% extends "agence/base_agence.html" %}
+{% load agence_extras %}
+{% block title %}Dossier {{ dossier.reference }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h1 class="h4 mb-0 me-auto">{{ dossier.reference }} — {{ dossier.destination }}
+    {% include "agence/_statut.html" with valeur=dossier.statut libelle=dossier.get_statut_display %}</h1>
+  <a class="btn btn-secondary" href="{% url 'agence:dossiers' %}">Retour</a>
+  <a class="btn btn-secondary" target="_blank" href="{% url 'agence:document' dossier.pk %}">{% if dossier.statut == 'devis' %}Imprimer le devis{% else %}Imprimer la facture{% endif %}</a>
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'agence:dossier_modifier' dossier.pk %}">Modifier</a>{% endif %}
+  {% if peut_supprimer %}
+    <form method="post" action="{% url 'agence:dossier_supprimer' dossier.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-danger" onclick="return confirm('Supprimer ce dossier ?')">Supprimer</button></form>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Total à payer</div><div class="a-val a-money">{{ dossier.total_vente|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Déjà payé</div><div class="a-val a-money">{{ dossier.total_paye|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Reste à payer</div><div class="a-val a-money {% if dossier.reste_a_payer > 0 %}a-neg{% else %}a-pos{% endif %}">{{ dossier.reste_a_payer|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Marge</div><div class="a-val a-money">{{ dossier.marge|gnf }}</div><div class="small text-muted">Dû aux fournisseurs : {{ dossier.dette_fournisseurs|gnf }}</div></div></div></div>
+</div>
+
+<div class="card mb-3"><div class="card-body"><div class="row g-2">
+  <div class="col-md-3"><span class="text-muted">Client</span><br><a href="{% url 'agence:client_detail' dossier.client_id %}">{{ dossier.client.nom }}</a></div>
+  <div class="col-md-3"><span class="text-muted">Départ → Retour</span><br>{{ dossier.date_depart|date:"d/m/Y"|default:"—" }} → {{ dossier.date_retour|date:"d/m/Y"|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">Voyageurs</span><br>{{ dossier.nb_voyageurs }}{% if dossier.objet %} · {{ dossier.objet }}{% endif %}</div>
+  <div class="col-md-3"><span class="text-muted">Agent</span><br>{{ dossier.agent|default:"—" }}</div>
+  {% if dossier.note %}<div class="col-12"><span class="text-muted">Note</span><br>{{ dossier.note|linebreaksbr }}</div>{% endif %}
+</div>
+{% if peut_saisir %}
+<hr>
+<form method="post" action="{% url 'agence:dossier_statut' dossier.pk %}" class="d-flex flex-wrap gap-2 align-items-center">
+  {% csrf_token %}
+  <span class="text-muted">Changer le statut :</span>
+  {% for code, libelle in statuts %}{% if code != dossier.statut %}
+    <button name="statut" value="{{ code }}" class="btn btn-sm btn-outline-secondary" {% if code == 'annule' %}onclick="return confirm('Annuler ce dossier ?')"{% endif %}>{{ libelle }}</button>
+  {% endif %}{% endfor %}
+</form>
+{% endif %}
+</div></div>
+
+<div class="card mb-3"><div class="card-header d-flex align-items-center">
+  <span class="me-auto">Prestations</span>
+  {% if peut_saisir %}<a class="btn btn-sm btn-primary" href="{% url 'agence:prestation_nouvelle' dossier.pk %}">Ajouter une prestation</a>{% endif %}
+</div>
+<div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Type</th><th>Description</th><th>Fournisseur</th><th>Réf.</th><th>Statut</th><th class="a-num">Qté</th><th class="a-num">Vente</th><th class="a-num">Achat</th><th class="a-num">Dû fourn.</th><th></th></tr></thead>
+  <tbody>
+  {% for p in prestations %}
+    <tr {% if p.statut == 'annulee' %}class="text-muted"{% endif %}>
+      <td>{{ p.get_type_display }}</td>
+      <td>{{ p.description }}{% if p.date_debut %}<div class="small text-muted">{{ p.date_debut|date:"d/m/Y" }}{% if p.date_fin %} → {{ p.date_fin|date:"d/m/Y" }}{% endif %}</div>{% endif %}</td>
+      <td>{% if p.fournisseur %}<a href="{% url 'agence:fournisseur_detail' p.fournisseur_id %}">{{ p.fournisseur.nom }}</a>{% else %}—{% endif %}</td>
+      <td>{{ p.reference_fournisseur }}</td>
+      <td>{% include "agence/_statut.html" with valeur=p.statut libelle=p.get_statut_display %}</td>
+      <td class="a-num">{{ p.quantite|floatformat:"-2" }}</td>
+      <td class="a-num a-money">{{ p.total_vente|gnf }}</td>
+      <td class="a-num a-money">{{ p.total_achat|gnf }}</td>
+      <td class="a-num a-money">{% if p.statut != 'annulee' %}{{ p.reste_fournisseur|gnf }}{% else %}—{% endif %}</td>
+      <td class="text-end text-nowrap">
+        {% if peut_saisir %}
+          {% if p.statut != 'annulee' and p.reste_fournisseur > 0 %}<a class="btn btn-sm btn-outline-primary" href="{% url 'agence:paiement_fournisseur_nouveau' p.pk %}">Régler</a>{% endif %}
+          <a class="btn btn-sm btn-secondary" href="{% url 'agence:prestation_modifier' p.pk %}">Modifier</a>
+        {% endif %}
+        {% if peut_supprimer %}<form method="post" action="{% url 'agence:prestation_supprimer' p.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer cette prestation ?')">Supprimer</button></form>{% endif %}
+      </td>
+    </tr>
+    {% for r in p.paiements.all %}
+    <tr class="small text-muted"><td></td><td colspan="8">↳ Règlement fournisseur du {{ r.date|date:"d/m/Y" }} — {{ r.get_mode_display }}{% if r.reference %} ({{ r.reference }}){% endif %} : <strong>{{ r.montant|gnf }}</strong></td>
+      <td class="text-end">{% if peut_supprimer %}<form method="post" action="{% url 'agence:paiement_fournisseur_supprimer' r.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Supprimer ce règlement ?')">Supprimer</button></form>{% endif %}</td></tr>
+    {% endfor %}
+  {% empty %}<tr><td colspan="10" class="text-center text-muted py-3">Aucune prestation : ajoutez les billets, hôtels, visas… vendus au client.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header d-flex align-items-center">
+    <span class="me-auto">Paiements du client</span>
+    {% if peut_saisir and dossier.reste_a_payer > 0 %}<a class="btn btn-sm btn-primary" href="{% url 'agence:paiement_nouveau' dossier.pk %}">Encaisser</a>{% endif %}
+  </div>
+  <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+    <thead><tr><th>Date</th><th>Mode</th><th>Réf.</th><th class="a-num">Montant</th><th></th></tr></thead>
+    <tbody>
+    {% for r in paiements %}
+      <tr><td>{{ r.date|date:"d/m/Y" }}</td><td>{{ r.get_mode_display }}</td><td>{{ r.reference }}</td><td class="a-num a-money">{{ r.montant|gnf }}</td>
+        <td class="text-end text-nowrap"><a class="btn btn-sm btn-secondary" target="_blank" href="{% url 'agence:recu' r.pk %}">Reçu</a>
+          {% if peut_supprimer %}<form method="post" action="{% url 'agence:paiement_supprimer' r.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce paiement ?')">Supprimer</button></form>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucun paiement.</td></tr>{% endfor %}
+    </tbody>
+  </table></div></div></div>
+
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header d-flex align-items-center">
+    <span class="me-auto">Voyageurs ({{ voyageurs|length }} / {{ dossier.nb_voyageurs }})</span>
+    {% if peut_saisir %}
+      <a class="btn btn-sm btn-outline-primary me-1" href="{% url 'agence:voyageur_nouveau' dossier.pk %}?depuis_client=1">Ajouter le client</a>
+      <a class="btn btn-sm btn-primary" href="{% url 'agence:voyageur_nouveau' dossier.pk %}">Ajouter</a>
+    {% endif %}
+  </div>
+  <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+    <thead><tr><th>Nom</th><th>Passeport</th><th>Expiration</th><th></th></tr></thead>
+    <tbody>
+    {% for v in voyageurs %}
+      <tr><td>{{ v.nom }}</td><td>{{ v.passeport_numero }}</td>
+        <td class="text-nowrap">{{ v.passeport_expiration|date:"d/m/Y" }}{% if v.passeport_a_verifier %} <span class="badge bg-warning text-dark" title="Expire moins de 6 mois après le voyage">À vérifier</span>{% endif %}</td>
+        <td class="text-end text-nowrap">
+          {% if peut_saisir %}<a class="btn btn-sm btn-secondary" href="{% url 'agence:voyageur_modifier' v.pk %}">Modifier</a>{% endif %}
+          {% if peut_supprimer %}<form method="post" action="{% url 'agence:voyageur_supprimer' v.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce voyageur ?')">Supprimer</button></form>{% endif %}
+        </td></tr>
+    {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucun voyageur enregistré.</td></tr>{% endfor %}
+    </tbody>
+  </table></div></div></div>
+</div>
+{% endblock %}

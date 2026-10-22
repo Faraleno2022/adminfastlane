@@ -320,6 +320,28 @@ APPS = [
         ],
     },
     {
+        'key': 'agence', 'name': 'Agence de voyage', 'icon': 'bi-airplane-fill',
+        'gradient': ('#0aa2c0', '#087990'), 'requires': None,
+        'home': 'agence:tableau_de_bord',
+        'prefixes': ['/agence/'],
+        'menus': [
+            ('Tableau de bord', 'agence:tableau_de_bord'),
+            ('Dossiers', [
+                ('Nouveau dossier', 'agence:dossier_nouveau'),
+                ('Tous les dossiers', 'agence:dossiers'),
+            ]),
+            ('Clients', [
+                ('Clients', 'agence:clients'),
+                ('Nouveau client', 'agence:client_nouveau'),
+            ]),
+            ('Fournisseurs', [
+                ('Fournisseurs', 'agence:fournisseurs'),
+                ('Nouveau fournisseur', 'agence:fournisseur_nouveau'),
+            ]),
+            ('Rapports', 'agence:rapports'),
+        ],
+    },
+    {
         'key': 'flotte', 'name': 'Flotte', 'icon': 'bi-truck',
         'gradient': ('#0d6efd', '#0a58ca'), 'requires': None,
         'home': 'flotte:accueil',

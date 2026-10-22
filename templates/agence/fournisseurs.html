@@ -1,0 +1,31 @@
+{% extends "agence/base_agence.html" %}
+{% load agence_extras %}
+{% block title %}Fournisseurs{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'agence:fournisseur_nouveau' %}">Nouveau fournisseur</a>{% endif %}
+  <h1 class="h4 mb-0">Fournisseurs</h1>
+</div>
+
+<form class="row g-2 mb-3 a-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Nom ou contact"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Rechercher</button></div>
+</form>
+
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Nom</th><th>Type</th><th>Contact</th><th>Téléphone</th><th class="a-num">Reste dû</th><th class="text-end">Actions</th></tr></thead>
+  <tbody>
+  {% for f in page %}
+    <tr>
+      <td><a href="{% url 'agence:fournisseur_detail' f.pk %}">{{ f.nom }}</a></td>
+      <td>{{ f.get_type_display }}</td><td>{{ f.contact }}</td><td>{{ f.telephone }}</td>
+      <td class="a-num a-money {% if f.dette > 0 %}a-neg{% endif %}">{{ f.dette|gnf }}</td>
+      <td class="text-end"><a class="btn btn-sm btn-secondary" href="{% url 'agence:fournisseur_detail' f.pk %}">Voir</a></td>
+    </tr>
+  {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Aucun fournisseur.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="4">Total dû aux fournisseurs</td><td class="a-num a-money">{{ total_dette|gnf }}</td><td></td></tr></tfoot>
+</table></div></div>
+{% include "agence/_pagination.html" %}
+{% endblock %}

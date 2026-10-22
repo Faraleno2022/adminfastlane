@@ -1,0 +1,54 @@
+{% extends "agence/base_agence.html" %}
+{% load agence_extras %}
+{% block title %}Tableau de bord — Agence de voyage{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Agence de voyage</h1>
+
+{% if nb_passeports %}
+<div class="alert alert-warning py-2">
+  {{ nb_passeports }} voyageur(s) avec un passeport qui expire moins de 6 mois après le voyage (départs à venir).
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Chiffre d'affaires</div><div class="a-val a-money">{{ ca|gnf }}</div><div class="small text-muted">dossiers confirmés et terminés</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Marge</div><div class="a-val a-money">{{ marge|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Encaissé</div><div class="a-val a-money">{{ encaisse|gnf }}</div><div class="small text-muted">ce mois : {{ encaisse_mois|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Reste à encaisser</div><div class="a-val a-money a-neg">{{ total_impayes|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Dû aux fournisseurs</div><div class="a-val a-money">{{ dettes|gnf }}</div><a class="small" href="{% url 'agence:fournisseurs' %}">Voir les fournisseurs</a></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Devis en cours</div><div class="a-val">{{ nb_devis }}</div><a class="small" href="{% url 'agence:dossiers' %}?statut=devis">Voir les devis</a></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Confirmés / terminés</div><div class="a-val">{{ nb_confirmes }} / {{ nb_termines }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Clients</div><div class="a-val">{{ nb_clients }}</div><a class="small" href="{% url 'agence:clients' %}">Voir les clients</a></div></div></div>
+</div>
+
+{% if peut_saisir %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="btn btn-primary" href="{% url 'agence:dossier_nouveau' %}">Nouveau dossier</a>
+  <a class="btn btn-secondary" href="{% url 'agence:client_nouveau' %}">Nouveau client</a>
+  <a class="btn btn-secondary" href="{% url 'agence:dossiers' %}">Tous les dossiers</a>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header">Départs dans les 30 jours</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Départ</th><th>Dossier</th><th>Client</th><th>Destination</th></tr></thead><tbody>
+      {% for d in departs %}<tr><td>{{ d.date_depart|date:"d/m/Y" }}</td><td><a href="{% url 'agence:dossier_detail' d.pk %}">{{ d.reference }}</a></td><td>{{ d.client.nom }}</td><td>{{ d.destination }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucun départ proche.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Plus gros restes à encaisser</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Dossier</th><th>Client</th><th class="a-num">Reste</th></tr></thead><tbody>
+      {% for d in impayes %}<tr><td><a href="{% url 'agence:dossier_detail' d.pk %}">{{ d.reference }}</a></td><td>{{ d.client.nom }}</td><td class="a-num a-money">{{ d.reste_a_payer|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">Tout est encaissé.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Passeports à vérifier</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Voyageur</th><th>Dossier</th><th>Expiration</th></tr></thead><tbody>
+      {% for v in passeports %}<tr><td>{{ v.nom }}</td><td><a href="{% url 'agence:dossier_detail' v.dossier_id %}">{{ v.dossier.reference }}</a></td><td>{{ v.passeport_expiration|date:"d/m/Y" }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">Aucun passeport à signaler.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Derniers dossiers</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Dossier</th><th>Client</th><th>Statut</th><th class="a-num">Total</th></tr></thead><tbody>
+      {% for d in recents %}<tr><td><a href="{% url 'agence:dossier_detail' d.pk %}">{{ d.reference }}</a></td><td>{{ d.client.nom }}</td><td>{% include "agence/_statut.html" with valeur=d.statut libelle=d.get_statut_display %}</td><td class="a-num a-money">{{ d.total_vente|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucun dossier.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+</div>
+{% endblock %}

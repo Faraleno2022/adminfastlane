@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     'flotte',
     'ventes',
     'prets',
+    'agence',
 ]
 
 MIDDLEWARE = [

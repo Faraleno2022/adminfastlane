@@ -1,0 +1,57 @@
+{% extends "agence/base_agence.html" %}
+{% load agence_extras %}
+{% block title %}Dossiers de voyage{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'agence:dossier_nouveau' %}">Nouveau dossier</a>{% endif %}
+  <h1 class="h4 mb-0">Dossiers de voyage</h1>
+</div>
+
+<form class="row g-2 mb-3 a-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Référence, client, destination"></div>
+  <div class="col-auto">
+    <select class="form-select" name="statut">
+      <option value="">Tous les statuts</option>
+      {% for code, libelle in statuts %}<option value="{{ code }}" {% if statut == code %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="filtre">
+      <option value="">Tous</option>
+      <option value="impayes" {% if filtre == 'impayes' %}selected{% endif %}>Avec reste à payer</option>
+      <option value="departs" {% if filtre == 'departs' %}selected{% endif %}>Départs sous 30 jours</option>
+    </select>
+  </div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_from" value="{{ date_from }}" title="Créés à partir du"></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_to" value="{{ date_to }}" title="Créés jusqu'au"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Filtrer</button></div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-secondary" href="?{% if page.qs %}{{ page.qs }}&{% endif %}export=xlsx">Excel</a>
+    <a class="btn btn-secondary" href="?{% if page.qs %}{{ page.qs }}&{% endif %}export=pdf">PDF</a>
+  </div>
+</form>
+
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Référence</th><th>Client</th><th>Destination</th><th>Départ</th><th>Statut</th><th class="a-num">Total</th><th class="a-num">Payé</th><th class="a-num">Reste</th><th class="a-num">Marge</th></tr></thead>
+  <tbody>
+  {% for d in page %}
+    <tr {% if d.statut == 'annule' %}class="text-muted"{% endif %}>
+      <td><a href="{% url 'agence:dossier_detail' d.pk %}">{{ d.reference }}</a></td>
+      <td>{{ d.client.nom }}</td><td>{{ d.destination }}</td><td class="text-nowrap">{{ d.date_depart|date:"d/m/Y" }}</td>
+      <td>{% include "agence/_statut.html" with valeur=d.statut libelle=d.get_statut_display %}</td>
+      <td class="a-num a-money">{{ d.total_vente|gnf }}</td>
+      <td class="a-num a-money">{{ d.total_paye|gnf }}</td>
+      <td class="a-num a-money {% if d.reste_a_payer > 0 and d.statut != 'annule' %}a-neg{% endif %}">{{ d.reste_a_payer|gnf }}</td>
+      <td class="a-num a-money">{{ d.marge|gnf }}</td>
+    </tr>
+  {% empty %}<tr><td colspan="9" class="text-center text-muted py-4">Aucun dossier.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr>
+    <td colspan="5">Total hors dossiers annulés ({{ nb }} dossier(s))</td>
+    <td class="a-num a-money">{{ totaux.vente|gnf }}</td><td class="a-num a-money">{{ totaux.paye|gnf }}</td>
+    <td class="a-num a-money">{{ totaux.reste|gnf }}</td><td class="a-num a-money">{{ totaux.marge|gnf }}</td>
+  </tr></tfoot>
+</table></div></div>
+{% include "agence/_pagination.html" %}
+{% endblock %}

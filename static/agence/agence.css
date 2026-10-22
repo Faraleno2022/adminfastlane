@@ -1,0 +1,14 @@
+/* Module Agence de voyage — composants propres (le thème général est dans odoo.css) */
+.a-kpi { border-radius: 8px; }
+.a-kpi .a-val { font-size: 1.45rem; font-weight: 700; }
+.a-kpi .a-lbl { font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; }
+.a-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.a-num { text-align: right; }
+.a-filtres .form-control, .a-filtres .form-select { min-width: 140px; }
+.badge-ag-devis, .badge-ag-attente { background: #6c757d; }
+.badge-ag-confirme, .badge-ag-confirmee { background: #0d6efd; }
+.badge-ag-termine { background: #198754; }
+.badge-ag-annule, .badge-ag-annulee { background: #dc3545; }
+.a-pos { color: #198754; }
+.a-neg { color: #dc3545; }
+@media (max-width: 575.98px) { .a-kpi .a-val { font-size: 1.15rem; } }

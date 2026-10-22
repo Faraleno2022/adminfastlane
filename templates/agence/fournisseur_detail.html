@@ -1,0 +1,34 @@
+{% extends "agence/base_agence.html" %}
+{% load agence_extras %}
+{% block title %}{{ fournisseur.nom }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h1 class="h4 mb-0 me-auto">{{ fournisseur.nom }} <small class="text-muted">{{ fournisseur.get_type_display }}</small></h1>
+  <a class="btn btn-secondary" href="{% url 'agence:fournisseurs' %}">Retour</a>
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'agence:fournisseur_modifier' fournisseur.pk %}">Modifier</a>{% endif %}
+  {% if peut_supprimer %}
+    <form method="post" action="{% url 'agence:fournisseur_supprimer' fournisseur.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-danger" onclick="return confirm('Supprimer ce fournisseur ?')">Supprimer</button></form>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Reste dû</div><div class="a-val a-money">{{ dette|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card a-kpi h-100"><div class="card-body"><div class="a-lbl">Contact</div><div>{{ fournisseur.contact|default:"—" }}</div><div class="small text-muted">{{ fournisseur.telephone }} {{ fournisseur.email }}</div></div></div></div>
+</div>
+
+<div class="card"><div class="card-header">Prestations achetées</div>
+<div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Dossier</th><th>Client</th><th>Prestation</th><th>Réf.</th><th class="a-num">Achat</th><th class="a-num">Réglé</th><th class="a-num">Reste</th><th></th></tr></thead>
+  <tbody>
+  {% for p in prestations %}
+    <tr {% if p.statut == 'annulee' %}class="text-muted"{% endif %}>
+      <td><a href="{% url 'agence:dossier_detail' p.dossier_id %}">{{ p.dossier.reference }}</a></td>
+      <td>{{ p.dossier.client.nom }}</td><td>{{ p.description }}</td><td>{{ p.reference_fournisseur }}</td>
+      <td class="a-num a-money">{{ p.total_achat|gnf }}</td><td class="a-num a-money">{{ p.paye_fournisseur|gnf }}</td>
+      <td class="a-num a-money">{{ p.reste_fournisseur|gnf }}</td>
+      <td class="text-end">{% if peut_saisir and p.reste_fournisseur > 0 and p.statut != 'annulee' %}<a class="btn btn-sm btn-primary" href="{% url 'agence:paiement_fournisseur_nouveau' p.pk %}">Régler</a>{% endif %}</td>
+    </tr>
+  {% empty %}<tr><td colspan="8" class="text-center text-muted py-3">Aucune prestation.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}
