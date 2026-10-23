@@ -238,8 +238,8 @@ class VuesTests(ProjetsBase):
         self.assertEqual(m.saisi_par, "saisie_a")
         rep = self.client.get(reverse("projets:mouvement_piece", args=[m.pk]))
         self.assertEqual(rep.status_code, 200)
+        # Lire tout le flux referme la réponse (et le fichier) ; rep.close() fermerait la connexion à la base.
         self.assertEqual(b"".join(rep.streaming_content), b"%PDF-1.4 test")
-        rep.close()
         # Une autre entreprise ne peut pas lire la pièce
         self.client.force_login(self.admin_b)
         self.assertEqual(self.client.get(reverse("projets:mouvement_piece", args=[m.pk])).status_code, 404)

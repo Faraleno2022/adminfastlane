@@ -133,6 +133,8 @@ build_log.txt
 
 # Temporary scripts
 _*.py
+# Les paquets Python (applications, migrations, templatetags) doivent être versionnés.
+!__init__.py
 _*.bat
 
 # Other

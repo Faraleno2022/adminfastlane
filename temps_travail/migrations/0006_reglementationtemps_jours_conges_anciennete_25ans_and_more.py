@@ -2,6 +2,8 @@
 
 from django.db import migrations, models
 
+from temps_travail.operations_migration import AjouterChampSiAbsent
+
 
 class Migration(migrations.Migration):
 
@@ -10,14 +12,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
+        AjouterChampSiAbsent(
             model_name="reglementationtemps",
             name="jours_conges_anciennete_25ans",
             field=models.IntegerField(
                 default=10, help_text="Jours supplémentaires après 25 ans"
             ),
         ),
-        migrations.AddField(
+        AjouterChampSiAbsent(
             model_name="reglementationtemps",
             name="jours_conges_mineurs",
             field=models.DecimalField(

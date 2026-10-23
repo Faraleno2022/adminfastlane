@@ -3,6 +3,8 @@
 import django.db.models.deletion
 from django.db import migrations, models
 
+from temps_travail.operations_migration import AjouterChampSiAbsent
+
 
 class Migration(migrations.Migration):
 
@@ -37,12 +39,12 @@ class Migration(migrations.Migration):
             name='heures_a_recuperer',
             field=models.BooleanField(default=False, help_text='Heures à récupérer'),
         ),
-        migrations.AddField(
+        AjouterChampSiAbsent(
             model_name='reglementationtemps',
             name='jours_conges_anciennete_25ans',
             field=models.IntegerField(default=10, help_text='Jours supplémentaires après 25 ans'),
         ),
-        migrations.AddField(
+        AjouterChampSiAbsent(
             model_name='reglementationtemps',
             name='jours_conges_mineurs',
             field=models.DecimalField(decimal_places=2, default=24.0, help_text='Jours congés moins de 18 ans (2j/mois)', max_digits=4),
