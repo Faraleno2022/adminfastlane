@@ -1,0 +1,40 @@
+{% load carburant_extras %}<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Bon de transport {{ voyage.reference }}</title>
+{% include "carburant/_impression.html" %}
+</head>
+<body>
+  {% include "carburant/_entete.html" with titre="BON DE TRANSPORT" sous_titre="N° "|add:voyage.reference %}
+
+  <div class="bloc">
+    <div><strong>Client</strong><br>{{ voyage.client.nom }}<br>{{ voyage.client.telephone }}<br>{{ voyage.client.adresse }}</div>
+    <div><strong>Transport</strong><br>
+      Citerne : {{ voyage.citerne.immatriculation }} ({{ voyage.citerne.capacite|floatformat:"0g" }} L, {{ voyage.citerne.nb_compartiments }} compart.)<br>
+      Tracteur : {{ voyage.vehicule.immatriculation|default:"—" }}<br>
+      Chauffeur : {{ voyage.chauffeur.nom_prenoms|default:"—" }} {{ voyage.chauffeur.telephone }}</div>
+  </div>
+
+  <table>
+    <tr><th>Produit</th><th>Dépôt de chargement</th><th>Lieu de livraison</th><th>Date prévue</th></tr>
+    <tr><td>{{ voyage.get_produit_display }}</td><td>{{ voyage.lieu_chargement }}</td><td>{{ voyage.destination }}</td><td>{{ voyage.date_prevue|date:"d/m/Y" }}</td></tr>
+  </table>
+
+  <table>
+    <tr><th></th><th>Date</th><th>N° de bon</th><th class="r">Quantité (L)</th></tr>
+    <tr><td>Chargement</td><td>{{ voyage.date_chargement|date:"d/m/Y" }}</td><td>{{ voyage.bon_chargement }}</td><td class="r">{{ voyage.quantite_chargee|floatformat:"0g" }}</td></tr>
+    <tr><td>Livraison</td><td>{{ voyage.date_livraison|date:"d/m/Y" }}</td><td>{{ voyage.bon_livraison }}</td><td class="r">{{ voyage.quantite_livree|floatformat:"0g" }}</td></tr>
+    {% if voyage.ecart is not None %}<tr class="totaux"><td colspan="3">Écart (tolérance {{ voyage.tolerance_pct }} %)</td><td class="r">{{ voyage.ecart|floatformat:"0g" }}</td></tr>{% endif %}
+  </table>
+
+  {% if voyage.note %}<p>{{ voyage.note|linebreaksbr }}</p>{% endif %}
+
+  <div class="signatures">
+    <div>Visa du dépôt (chargement)</div>
+    <div>Chauffeur</div>
+    <div>Réceptionnaire (livraison) — cachet</div>
+  </div>
+  <div class="pied">Document édité le {% now "d/m/Y à H:i" %}.</div>
+</body>
+</html>

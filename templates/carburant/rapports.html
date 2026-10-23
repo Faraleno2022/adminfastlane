@@ -1,0 +1,42 @@
+{% extends "carburant/base_carburant.html" %}
+{% load carburant_extras %}
+{% block title %}Rapports — Transport de carburant{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Rapports</h1>
+
+<form class="row g-2 mb-3 c-filtres" method="get">
+  <div class="col-auto"><input class="form-control" type="date" name="date_from" value="{{ date_from }}"></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_to" value="{{ date_to }}"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Afficher</button></div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-secondary" href="?date_from={{ date_from }}&date_to={{ date_to }}&export=xlsx">Excel</a>
+    <a class="btn btn-secondary" href="?date_from={{ date_from }}&date_to={{ date_to }}&export=pdf">PDF</a>
+  </div>
+</form>
+<p class="text-muted">Voyages livrés {{ periode }} : {{ nb }}.</p>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Litres livrés</div><div class="c-val c-money">{{ totaux.livre|floatformat:"0g" }} L</div><div class="small text-muted">chargés : {{ totaux.charge|floatformat:"0g" }} L</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Manquants imputables</div><div class="c-val c-money {% if totaux.manquant %}c-neg{% endif %}">{{ totaux.manquant|floatformat:"0g" }} L</div><div class="small text-muted">pénalités : {{ totaux.penalite|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Facturé (net)</div><div class="c-val c-money">{{ totaux.net|gnf }}</div><div class="small text-muted">encaissé : {{ encaisse|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Marge</div><div class="c-val c-money">{{ totaux.marge|gnf }}</div><div class="small text-muted">frais : {{ totaux.frais|gnf }}</div></div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12"><div class="card"><div class="card-header">Par client</div>
+    <div class="table-responsive"><table class="table mb-0 align-middle"><thead><tr><th>Client</th><th class="c-num">Voyages</th><th class="c-num">Litres livrés</th><th class="c-num">Manquants</th><th class="c-num">Net facturé</th></tr></thead><tbody>
+      {% for nom, nb, l, m, ca in lignes_client %}<tr><td>{{ nom }}</td><td class="c-num">{{ nb }}</td><td class="c-num c-money">{{ l|floatformat:"0g" }} L</td><td class="c-num c-money {% if m %}c-neg{% endif %}">{{ m|floatformat:"0g" }} L</td><td class="c-num c-money">{{ ca|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucune livraison sur la période.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-7"><div class="card"><div class="card-header">Par citerne</div>
+    <div class="table-responsive"><table class="table mb-0 align-middle"><thead><tr><th>Citerne</th><th class="c-num">Voyages</th><th class="c-num">Litres</th><th class="c-num">Facturé</th><th class="c-num">Frais</th><th class="c-num">Marge</th></tr></thead><tbody>
+      {% for nom, nb, l, ca, fr, mg in lignes_citerne %}<tr><td>{{ nom }}</td><td class="c-num">{{ nb }}</td><td class="c-num c-money">{{ l|floatformat:"0g" }}</td><td class="c-num c-money">{{ ca|gnf }}</td><td class="c-num c-money">{{ fr|gnf }}</td><td class="c-num c-money {% if mg < 0 %}c-neg{% endif %}">{{ mg|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Aucune donnée.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-5"><div class="card"><div class="card-header">Par produit</div>
+    <div class="table-responsive"><table class="table mb-0 align-middle"><thead><tr><th>Produit</th><th class="c-num">Voyages</th><th class="c-num">Chargé</th><th class="c-num">Livré</th></tr></thead><tbody>
+      {% for nom, nb, ch, lv in lignes_produit %}<tr><td>{{ nom }}</td><td class="c-num">{{ nb }}</td><td class="c-num c-money">{{ ch|floatformat:"0g" }}</td><td class="c-num c-money">{{ lv|floatformat:"0g" }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucune donnée.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+</div>
+{% endblock %}

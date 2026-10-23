@@ -1,0 +1,66 @@
+{% extends "carburant/base_carburant.html" %}
+{% load carburant_extras %}
+{% block title %}{{ client.nom }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h1 class="h4 mb-0 me-auto">{{ client.nom }}</h1>
+  <a class="btn btn-secondary" href="{% url 'carburant:clients' %}">Retour</a>
+  <a class="btn btn-secondary" target="_blank" href="{% url 'carburant:releve' client.pk %}">Relevé du mois</a>
+  {% if peut_saisir %}
+    <a class="btn btn-primary" href="{% url 'carburant:voyage_nouveau' %}?client={{ client.pk }}">Nouveau voyage</a>
+    <a class="btn btn-success" href="{% url 'carburant:paiement_nouveau' client.pk %}">Encaisser</a>
+    <a class="btn btn-secondary" href="{% url 'carburant:client_modifier' client.pk %}">Modifier</a>
+  {% endif %}
+  {% if peut_supprimer %}
+    <form method="post" action="{% url 'carburant:client_supprimer' client.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-danger" onclick="return confirm('Supprimer ce client ?')">Supprimer</button></form>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Facturé (voyages livrés)</div><div class="c-val c-money">{{ facture|gnf }}</div></div></div></div>
+  <div class="col-md-4"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Payé</div><div class="c-val c-money">{{ paye|gnf }}</div></div></div></div>
+  <div class="col-md-4"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Solde dû</div><div class="c-val c-money {% if solde > 0 %}c-neg{% else %}c-pos{% endif %}">{{ solde|gnf }}</div></div></div></div>
+</div>
+
+<div class="card mb-3"><div class="card-body"><div class="row g-2">
+  <div class="col-md-3"><span class="text-muted">Contact</span><br>{{ client.contact|default:"—" }}<div class="small">{{ client.telephone }}</div></div>
+  <div class="col-md-3"><span class="text-muted">E-mail</span><br>{{ client.email|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">Conditions</span><br>{{ client.tarif_litre|gnf }} / L — tolérance {{ client.tolerance_pct }} %</div>
+  <div class="col-md-3"><span class="text-muted">NIF</span><br>{{ client.nif|default:"—" }}</div>
+  {% if client.adresse %}<div class="col-12"><span class="text-muted">Adresse</span><br>{{ client.adresse }}</div>{% endif %}
+  {% if client.note %}<div class="col-12"><span class="text-muted">Note</span><br>{{ client.note|linebreaksbr }}</div>{% endif %}
+</div>
+<hr>
+<form class="row g-2 align-items-end" method="get" action="{% url 'carburant:releve' client.pk %}" target="_blank">
+  <div class="col-auto"><label class="form-label small mb-0">Relevé du</label><input class="form-control" type="date" name="date_from"></div>
+  <div class="col-auto"><label class="form-label small mb-0">au</label><input class="form-control" type="date" name="date_to"></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Imprimer le relevé</button></div>
+</form>
+</div></div>
+
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card h-100"><div class="card-header">Derniers voyages</div><div class="table-responsive">
+  <table class="table table-hover mb-0 align-middle">
+    <thead><tr><th>Voyage</th><th>Date</th><th>Destination</th><th>Statut</th><th class="c-num">Livré (L)</th><th class="c-num">Net</th></tr></thead>
+    <tbody>
+    {% for v in voyages %}
+      <tr><td><a href="{% url 'carburant:voyage_detail' v.pk %}">{{ v.reference }}</a></td><td class="text-nowrap">{{ v.date_prevue|date:"d/m/Y" }}</td><td>{{ v.destination }}</td>
+        <td>{% include "carburant/_badge.html" with valeur=v.statut libelle=v.get_statut_display %}</td>
+        <td class="c-num c-money">{{ v.quantite_livree|floatformat:"0g"|default:"—" }}</td>
+        <td class="c-num c-money">{% if v.facturable %}{{ v.montant_net|gnf }}{% else %}—{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Aucun voyage.</td></tr>{% endfor %}
+    </tbody>
+  </table></div></div></div>
+  <div class="col-lg-5"><div class="card h-100"><div class="card-header">Paiements</div><div class="table-responsive">
+  <table class="table table-hover mb-0 align-middle">
+    <thead><tr><th>Date</th><th>Mode</th><th class="c-num">Montant</th><th></th></tr></thead>
+    <tbody>
+    {% for p in paiements %}
+      <tr><td class="text-nowrap">{{ p.date|date:"d/m/Y" }}</td><td>{{ p.get_mode_display }}{% if p.reference %}<div class="small text-muted">{{ p.reference }}</div>{% endif %}</td><td class="c-num c-money">{{ p.montant|gnf }}</td>
+        <td class="text-end text-nowrap"><a class="btn btn-sm btn-secondary" target="_blank" href="{% url 'carburant:recu' p.pk %}">Reçu</a>
+          {% if peut_supprimer %}<form method="post" action="{% url 'carburant:paiement_supprimer' p.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce paiement ?')">Supprimer</button></form>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucun paiement.</td></tr>{% endfor %}
+    </tbody>
+  </table></div></div></div>
+</div>
+{% endblock %}

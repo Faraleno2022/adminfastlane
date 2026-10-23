@@ -1,0 +1,13 @@
+<p class="no-print"><button onclick="window.print()">Imprimer</button></p>
+<div class="tete">
+  <div>
+    <strong style="font-size:16px">{{ entreprise.nom_entreprise }}</strong><br>
+    {% if entreprise.adresse %}{{ entreprise.adresse }}<br>{% endif %}
+    {% if entreprise.telephone %}Tél : {{ entreprise.telephone }}<br>{% endif %}
+    {{ entreprise.email }}{% if entreprise.nif %}<br>NIF : {{ entreprise.nif }}{% endif %}
+  </div>
+  <div style="text-align:right">
+    <h1>{{ titre }}</h1>
+    {{ sous_titre }}
+  </div>
+</div>

@@ -95,6 +95,7 @@ INSTALLED_APPS = [
     'prets',
     'agence',
     'projets',
+    'carburant',
 ]
 
 MIDDLEWARE = [

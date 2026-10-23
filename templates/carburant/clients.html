@@ -1,0 +1,26 @@
+{% extends "carburant/base_carburant.html" %}
+{% load carburant_extras %}
+{% block title %}Clients — Transport de carburant{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'carburant:client_nouveau' %}">Nouveau client</a>{% endif %}
+  <h1 class="h4 mb-0">Clients</h1>
+</div>
+<form class="row g-2 mb-3 c-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Nom, contact, téléphone, e-mail"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Rechercher</button></div>
+</form>
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Client</th><th>Contact</th><th class="c-num">Tarif / L</th><th class="c-num">Facturé</th><th class="c-num">Payé</th><th class="c-num">Solde dû</th></tr></thead>
+  <tbody>
+  {% for c in page %}
+    <tr><td><a href="{% url 'carburant:client_detail' c.pk %}">{{ c.nom }}</a></td><td>{{ c.contact }}{% if c.telephone %}<div class="small text-muted">{{ c.telephone }}</div>{% endif %}</td>
+      <td class="c-num c-money">{{ c.tarif_litre|gnf }}</td><td class="c-num c-money">{{ c.facture|gnf }}</td><td class="c-num c-money">{{ c.paye|gnf }}</td>
+      <td class="c-num c-money {% if c.solde > 0 %}c-neg{% endif %}">{{ c.solde|gnf }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Aucun client.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="5">Total des soldes</td><td class="c-num c-money">{{ total_solde|gnf }}</td></tr></tfoot>
+</table></div></div>
+{% include "carburant/_pagination.html" %}
+{% endblock %}

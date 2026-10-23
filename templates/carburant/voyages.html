@@ -1,0 +1,76 @@
+{% extends "carburant/base_carburant.html" %}
+{% load carburant_extras %}
+{% block title %}Voyages — Transport de carburant{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'carburant:voyage_nouveau' %}">Nouveau voyage</a>{% endif %}
+  <h1 class="h4 mb-0">Voyages</h1>
+</div>
+
+<form class="row g-2 mb-3 c-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Réf., client, lieu, n° de bon"></div>
+  <div class="col-auto">
+    <select class="form-select" name="statut">
+      <option value="">Tous les statuts</option>
+      {% for code, libelle in statuts %}<option value="{{ code }}" {% if statut == code %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="client">
+      <option value="">Tous les clients</option>
+      {% for c in liste_clients %}<option value="{{ c.pk }}" {% if client == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nom }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="citerne">
+      <option value="">Toutes les citernes</option>
+      {% for c in liste_citernes %}<option value="{{ c.pk }}" {% if citerne == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.immatriculation }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="produit">
+      <option value="">Tous les produits</option>
+      {% for code, libelle in produits %}<option value="{{ code }}" {% if produit == code %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="filtre">
+      <option value="">Tous</option>
+      <option value="manquants" {% if filtre == 'manquants' %}selected{% endif %}>Avec manquant imputable</option>
+    </select>
+  </div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_from" value="{{ date_from }}" title="Prévus à partir du"></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_to" value="{{ date_to }}" title="Prévus jusqu'au"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Filtrer</button></div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-secondary" href="?{% if page.qs %}{{ page.qs }}&{% endif %}export=xlsx">Excel</a>
+    <a class="btn btn-secondary" href="?{% if page.qs %}{{ page.qs }}&{% endif %}export=pdf">PDF</a>
+  </div>
+</form>
+
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Référence</th><th>Date</th><th>Client</th><th>Produit</th><th>Citerne</th><th>Trajet</th><th>Statut</th><th class="c-num">Chargé (L)</th><th class="c-num">Livré (L)</th><th class="c-num">Manquant</th><th class="c-num">Net facturé</th></tr></thead>
+  <tbody>
+  {% for v in page %}
+    <tr {% if v.statut == 'annule' %}class="text-muted"{% endif %}>
+      <td><a href="{% url 'carburant:voyage_detail' v.pk %}">{{ v.reference }}</a></td>
+      <td class="text-nowrap">{{ v.date_prevue|date:"d/m/Y" }}</td>
+      <td>{{ v.client.nom }}</td><td>{{ v.get_produit_display }}</td><td>{{ v.citerne.immatriculation }}</td>
+      <td>{{ v.lieu_chargement }} → {{ v.destination }}</td>
+      <td>{% include "carburant/_badge.html" with valeur=v.statut libelle=v.get_statut_display %}</td>
+      <td class="c-num c-money">{{ v.quantite_chargee|floatformat:"0g"|default:"—" }}</td>
+      <td class="c-num c-money">{{ v.quantite_livree|floatformat:"0g"|default:"—" }}</td>
+      <td class="c-num c-money {% if v.manquant_imputable > 0 %}c-neg{% endif %}">{% if v.facturable %}{{ v.manquant_imputable|floatformat:"0g" }}{% else %}—{% endif %}</td>
+      <td class="c-num c-money">{% if v.facturable %}{{ v.montant_net|gnf }}{% else %}—{% endif %}</td>
+    </tr>
+  {% empty %}<tr><td colspan="11" class="text-center text-muted py-4">Aucun voyage.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr>
+    <td colspan="7">Total hors voyages annulés ({{ nb }} voyage(s))</td>
+    <td class="c-num c-money">{{ totaux.charge|floatformat:"0g" }}</td><td class="c-num c-money">{{ totaux.livre|floatformat:"0g" }}</td>
+    <td class="c-num c-money">{{ totaux.manquant|floatformat:"0g" }}</td><td class="c-num c-money">{{ totaux.net|gnf }}</td>
+  </tr></tfoot>
+</table></div></div>
+{% include "carburant/_pagination.html" %}
+{% endblock %}

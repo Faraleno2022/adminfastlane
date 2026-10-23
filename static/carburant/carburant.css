@@ -1,0 +1,22 @@
+/* Module Transport de carburant — composants propres (le thème général est dans odoo.css) */
+.c-kpi { border-radius: 8px; }
+.c-kpi .c-val { font-size: 1.45rem; font-weight: 700; }
+.c-kpi .c-lbl { font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; }
+.c-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.c-num { text-align: right; }
+.c-filtres .form-control, .c-filtres .form-select { min-width: 140px; }
+.c-pos { color: #198754; }
+.c-neg { color: #dc3545; }
+.c-etapes { display: flex; gap: .5rem; flex-wrap: wrap; }
+.c-etape { flex: 1 1 180px; border: 1px solid #dee2e6; border-radius: 8px; padding: .6rem .8rem; }
+.c-etape.faite { border-color: #198754; background: #f1faf4; }
+.c-etape .c-lbl { font-size: .76rem; text-transform: uppercase; color: #6b7280; }
+.badge-tc-planifie { background: #6c757d; }
+.badge-tc-en_route { background: #fd7e14; }
+.badge-tc-livre { background: #198754; }
+.badge-tc-annule { background: #343a40; }
+.badge-tc-ok { background: #198754; }
+.badge-tc-bientot { background: #ffc107; color: #000; }
+.badge-tc-expire { background: #dc3545; }
+.badge-tc-inconnu { background: #adb5bd; }
+@media (max-width: 575.98px) { .c-kpi .c-val { font-size: 1.15rem; } }

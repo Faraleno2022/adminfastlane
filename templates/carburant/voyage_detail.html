@@ -1,0 +1,71 @@
+{% extends "carburant/base_carburant.html" %}
+{% load carburant_extras %}
+{% block title %}Voyage {{ voyage.reference }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h1 class="h4 mb-0 me-auto">{{ voyage.reference }} — {{ voyage.lieu_chargement }} → {{ voyage.destination }}
+    {% include "carburant/_badge.html" with valeur=voyage.statut libelle=voyage.get_statut_display %}</h1>
+  <a class="btn btn-secondary" href="{% url 'carburant:voyages' %}">Retour</a>
+  <a class="btn btn-secondary" target="_blank" href="{% url 'carburant:bon' voyage.pk %}">Imprimer le bon de transport</a>
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'carburant:voyage_modifier' voyage.pk %}">Modifier</a>{% endif %}
+  {% if peut_supprimer and voyage.statut != 'en_route' and voyage.statut != 'livre' %}
+    <form method="post" action="{% url 'carburant:voyage_supprimer' voyage.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-danger" onclick="return confirm('Supprimer ce voyage ?')">Supprimer</button></form>
+  {% endif %}
+</div>
+
+<div class="c-etapes mb-3">
+  <div class="c-etape faite"><div class="c-lbl">1. Planifié</div>{{ voyage.date_prevue|date:"d/m/Y" }}<div class="small text-muted">{{ voyage.get_produit_display }} pour {{ voyage.client.nom }}</div></div>
+  <div class="c-etape {% if voyage.date_chargement %}faite{% endif %}"><div class="c-lbl">2. Chargement</div>
+    {% if voyage.date_chargement %}{{ voyage.date_chargement|date:"d/m/Y" }} — <strong>{{ voyage.quantite_chargee|floatformat:"0g" }} L</strong><div class="small text-muted">Bon n° {{ voyage.bon_chargement }}</div>{% else %}<span class="text-muted">À faire</span>{% endif %}
+    {% if peut_saisir and voyage.statut == 'planifie' or peut_saisir and voyage.statut == 'en_route' %}<div class="mt-1"><a class="btn btn-sm btn-outline-primary" href="{% url 'carburant:voyage_chargement' voyage.pk %}">{% if voyage.date_chargement %}Corriger{% else %}Saisir le chargement{% endif %}</a></div>{% endif %}
+  </div>
+  <div class="c-etape {% if voyage.date_livraison %}faite{% endif %}"><div class="c-lbl">3. Livraison</div>
+    {% if voyage.date_livraison %}{{ voyage.date_livraison|date:"d/m/Y" }} — <strong>{{ voyage.quantite_livree|floatformat:"0g" }} L</strong><div class="small text-muted">Bon n° {{ voyage.bon_livraison }}</div>{% else %}<span class="text-muted">À faire</span>{% endif %}
+    {% if peut_saisir and voyage.statut == 'en_route' or peut_saisir and voyage.statut == 'livre' %}<div class="mt-1"><a class="btn btn-sm {% if voyage.date_livraison %}btn-outline-primary{% else %}btn-success{% endif %}" href="{% url 'carburant:voyage_livraison' voyage.pk %}">{% if voyage.date_livraison %}Corriger{% else %}Saisir la livraison{% endif %}</a></div>{% endif %}
+  </div>
+</div>
+
+{% if voyage.facturable %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Écart chargé / livré</div><div class="c-val c-money">{{ voyage.ecart|floatformat:"0g" }} L</div><div class="small text-muted">{{ voyage.taux_ecart }} % — tolérance {{ voyage.tolerance_pct }} % ({{ voyage.tolerance_litres|floatformat:"0g" }} L)</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Manquant imputable</div><div class="c-val c-money {% if voyage.manquant_imputable > 0 %}c-neg{% endif %}">{{ voyage.manquant_imputable|floatformat:"0g" }} L</div><div class="small text-muted">pénalité : {{ voyage.penalite|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Net à facturer</div><div class="c-val c-money">{{ voyage.montant_net|gnf }}</div><div class="small text-muted">transport : {{ voyage.montant_transport|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Marge du voyage</div><div class="c-val c-money {% if voyage.marge < 0 %}c-neg{% else %}c-pos{% endif %}">{{ voyage.marge|gnf }}</div><div class="small text-muted">frais : {{ voyage.total_frais|gnf }}</div></div></div></div>
+</div>
+{% endif %}
+
+<div class="card mb-3"><div class="card-body"><div class="row g-3">
+  <div class="col-md-3"><span class="text-muted">Client</span><br><a href="{% url 'carburant:client_detail' voyage.client_id %}">{{ voyage.client.nom }}</a></div>
+  <div class="col-md-3"><span class="text-muted">Citerne</span><br><a href="{% url 'carburant:citerne_detail' voyage.citerne_id %}">{{ voyage.citerne }}</a></div>
+  <div class="col-md-3"><span class="text-muted">Tracteur</span><br>{% if voyage.vehicule %}<a href="{% url 'flotte:vehicule_detail' voyage.vehicule_id %}">{{ voyage.vehicule.immatriculation }}</a>{% else %}—{% endif %}</div>
+  <div class="col-md-3"><span class="text-muted">Chauffeur</span><br>{{ voyage.chauffeur.nom_prenoms|default:"—" }}{% if voyage.chauffeur.telephone %}<div class="small text-muted">{{ voyage.chauffeur.telephone }}</div>{% endif %}</div>
+  <div class="col-md-3"><span class="text-muted">Facturation</span><br>{{ voyage.get_base_facturation_display }}{% if voyage.base_facturation == 'forfait' %} : {{ voyage.forfait|gnf }}{% else %} : {{ voyage.tarif_litre|gnf }} / L{% endif %}</div>
+  <div class="col-md-3"><span class="text-muted">Prix du produit (manquants)</span><br>{% if voyage.prix_produit %}{{ voyage.prix_produit|gnf }} / L{% else %}<span class="text-warning">Non renseigné</span>{% endif %}</div>
+  <div class="col-md-3"><span class="text-muted">Saisi par</span><br>{{ voyage.agent|default:"—" }} le {{ voyage.created_at|date:"d/m/Y" }}</div>
+  {% if voyage.note %}<div class="col-12"><span class="text-muted">Note</span><br>{{ voyage.note|linebreaksbr }}</div>{% endif %}
+</div>
+{% if peut_saisir %}
+<hr>
+<form method="post" action="{% url 'carburant:voyage_statut' voyage.pk %}" class="d-flex flex-wrap gap-2 align-items-center">
+  {% csrf_token %}
+  {% if voyage.statut == 'planifie' or voyage.statut == 'en_route' %}<button name="action" value="annuler" class="btn btn-sm btn-outline-danger" onclick="return confirm('Annuler ce voyage ?')">Annuler le voyage</button>{% endif %}
+  {% if voyage.statut == 'annule' %}<button name="action" value="replanifier" class="btn btn-sm btn-outline-secondary">Remettre en planifié</button>{% endif %}
+</form>
+{% endif %}
+</div></div>
+
+<div class="card"><div class="card-header d-flex align-items-center">
+  <span class="me-auto">Frais de route</span>
+  {% if peut_saisir %}<a class="btn btn-sm btn-primary" href="{% url 'carburant:frais_nouveau' voyage.pk %}">Ajouter un frais</a>{% endif %}
+</div>
+<div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Date</th><th>Type</th><th>Détail</th><th class="c-num">Montant</th><th></th></tr></thead>
+  <tbody>
+  {% for f in frais %}
+    <tr><td class="text-nowrap">{{ f.date|date:"d/m/Y" }}</td><td>{{ f.get_type_display }}</td><td>{{ f.note }}</td><td class="c-num c-money">{{ f.montant|gnf }}</td>
+      <td class="text-end">{% if peut_supprimer %}<form method="post" action="{% url 'carburant:frais_supprimer' f.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce frais ?')">Supprimer</button></form>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucun frais : carburant du camion, péages, frais de mission…</td></tr>{% endfor %}
+  </tbody>
+  {% if frais %}<tfoot><tr><td colspan="3">Total</td><td class="c-num c-money">{{ voyage.total_frais|gnf }}</td><td></td></tr></tfoot>{% endif %}
+</table></div></div>
+{% endblock %}

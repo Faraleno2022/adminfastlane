@@ -1,0 +1,30 @@
+{% extends "carburant/base_carburant.html" %}
+{% block title %}Citernes{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'carburant:citerne_nouvelle' %}">Nouvelle citerne</a>{% endif %}
+  <h1 class="h4 mb-0">Citernes</h1>
+  <a class="ms-auto small" href="{% url 'flotte:vehicule_liste' %}">Tracteurs et chauffeurs : module Flotte</a>
+</div>
+<form class="row g-2 mb-3 c-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Citerne, tracteur, n° de barémage"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Rechercher</button></div>
+</form>
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Citerne</th><th>Tracteur habituel</th><th class="c-num">Capacité</th><th>Compart.</th><th>Barémage</th><th>Situation</th></tr></thead>
+  <tbody>
+  {% for c in page %}
+    <tr {% if not c.active %}class="text-muted"{% endif %}>
+      <td><a href="{% url 'carburant:citerne_detail' c.pk %}">{{ c.immatriculation }}</a></td>
+      <td>{{ c.vehicule.immatriculation|default:"—" }}</td>
+      <td class="c-num c-money">{{ c.capacite|floatformat:"0g" }} L</td>
+      <td>{{ c.nb_compartiments }}</td>
+      <td>{% include "carburant/_barremage.html" with citerne=c %}</td>
+      <td>{% if not c.active %}<span class="badge bg-secondary">Hors service</span>{% elif c.voyage_en_cours %}<span class="badge badge-tc-en_route">En route ({{ c.voyage_en_cours }})</span>{% else %}<span class="badge bg-success">Disponible</span>{% endif %}</td>
+    </tr>
+  {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Aucune citerne.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% include "carburant/_pagination.html" %}
+{% endblock %}

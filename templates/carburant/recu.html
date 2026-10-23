@@ -1,0 +1,21 @@
+{% load carburant_extras %}<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Reçu de paiement — {{ client.nom }}</title>
+{% include "carburant/_impression.html" %}
+</head>
+<body>
+  {% include "carburant/_entete.html" with titre="REÇU DE PAIEMENT" sous_titre="" %}
+  <table>
+    <tr><td>Reçu de</td><td>{{ client.nom }}</td></tr>
+    <tr><td>Date</td><td>{{ paiement.date|date:"d/m/Y" }}</td></tr>
+    <tr><td>Mode de paiement</td><td>{{ paiement.get_mode_display }}{% if paiement.reference %} — {{ paiement.reference }}{% endif %}</td></tr>
+    <tr><td>Objet</td><td>Règlement de prestations de transport de carburant{% if paiement.note %} — {{ paiement.note }}{% endif %}</td></tr>
+    <tr class="totaux"><td>Montant reçu</td><td>{{ paiement.montant|gnf }}</td></tr>
+    <tr><td>Solde restant dû</td><td>{{ solde|gnf }}</td></tr>
+  </table>
+  <div class="signatures"><div>Encaissé par : {{ paiement.agent }}</div><div>Signature et cachet</div></div>
+  <div class="pied">Reçu édité le {% now "d/m/Y à H:i" %}.</div>
+</body>
+</html>

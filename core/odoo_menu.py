@@ -364,6 +364,28 @@ APPS = [
         ],
     },
     {
+        'key': 'carburant', 'name': 'Transport de carburant', 'icon': 'bi-fuel-pump-fill',
+        'gradient': ('#f59f00', '#d9480f'), 'requires': None,
+        'home': 'carburant:tableau_de_bord',
+        'prefixes': ['/carburant/'],
+        'menus': [
+            ('Tableau de bord', 'carburant:tableau_de_bord'),
+            ('Voyages', [
+                ('Nouveau voyage', 'carburant:voyage_nouveau'),
+                ('Tous les voyages', 'carburant:voyages'),
+            ]),
+            ('Citernes', [
+                ('Citernes', 'carburant:citernes'),
+                ('Nouvelle citerne', 'carburant:citerne_nouvelle'),
+            ]),
+            ('Clients', [
+                ('Clients', 'carburant:clients'),
+                ('Nouveau client', 'carburant:client_nouveau'),
+            ]),
+            ('Rapports', 'carburant:rapports'),
+        ],
+    },
+    {
         'key': 'flotte', 'name': 'Flotte', 'icon': 'bi-truck',
         'gradient': ('#0d6efd', '#0a58ca'), 'requires': None,
         'home': 'flotte:accueil',

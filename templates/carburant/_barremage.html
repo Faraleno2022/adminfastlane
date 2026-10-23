@@ -1,0 +1,1 @@
+{% if citerne.etat_barremage == 'inconnu' %}<span class="badge badge-tc-inconnu">Non renseigné</span>{% else %}<span class="badge badge-tc-{{ citerne.etat_barremage }}">{% if citerne.etat_barremage == 'expire' %}Expiré{% elif citerne.etat_barremage == 'bientot' %}À renouveler{% else %}Valide{% endif %} — {{ citerne.expiration_barremage|date:"d/m/Y" }}</span>{% endif %}

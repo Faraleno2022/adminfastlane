@@ -1,0 +1,43 @@
+{% extends "carburant/base_carburant.html" %}
+{% load carburant_extras %}
+{% block title %}Citerne {{ citerne.immatriculation }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h1 class="h4 mb-0 me-auto">Citerne {{ citerne.immatriculation }} {% if not citerne.active %}<span class="badge bg-secondary">Hors service</span>{% endif %}</h1>
+  <a class="btn btn-secondary" href="{% url 'carburant:citernes' %}">Retour</a>
+  {% if peut_saisir %}
+    {% if citerne.active %}<a class="btn btn-primary" href="{% url 'carburant:voyage_nouveau' %}?citerne={{ citerne.pk }}">Nouveau voyage</a>{% endif %}
+    <a class="btn btn-secondary" href="{% url 'carburant:citerne_modifier' citerne.pk %}">Modifier</a>
+  {% endif %}
+  {% if peut_supprimer %}
+    <form method="post" action="{% url 'carburant:citerne_supprimer' citerne.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-danger" onclick="return confirm('Supprimer cette citerne ?')">Supprimer</button></form>
+  {% endif %}
+</div>
+
+<div class="card mb-3"><div class="card-body"><div class="row g-2">
+  <div class="col-md-3"><span class="text-muted">Capacité</span><br>{{ citerne.capacite|floatformat:"0g" }} L en {{ citerne.nb_compartiments }} compartiment(s)</div>
+  <div class="col-md-3"><span class="text-muted">Tracteur habituel</span><br>{% if citerne.vehicule %}<a href="{% url 'flotte:vehicule_detail' citerne.vehicule_id %}">{{ citerne.vehicule.immatriculation }}</a>{% else %}—{% endif %}</div>
+  <div class="col-md-3"><span class="text-muted">Barémage</span><br>{{ citerne.numero_barremage|default:"—" }}<br>{% include "carburant/_barremage.html" %}</div>
+  {% if citerne.note %}<div class="col-md-3"><span class="text-muted">Note</span><br>{{ citerne.note }}</div>{% endif %}
+</div></div></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Voyages livrés</div><div class="c-val">{{ nb_voyages }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Litres livrés</div><div class="c-val c-money">{{ totaux.livre|floatformat:"0g" }} L</div><div class="small text-muted">manquants : {{ totaux.manquant|floatformat:"0g" }} L</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Facturé (net)</div><div class="c-val c-money">{{ totaux.net|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card c-kpi h-100"><div class="card-body"><div class="c-lbl">Marge</div><div class="c-val c-money">{{ totaux.marge|gnf }}</div><div class="small text-muted">frais : {{ totaux.frais|gnf }}</div></div></div></div>
+</div>
+
+<div class="card"><div class="card-header">Derniers voyages</div><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Voyage</th><th>Date</th><th>Client</th><th>Trajet</th><th>Statut</th><th class="c-num">Livré (L)</th><th class="c-num">Manquant</th></tr></thead>
+  <tbody>
+  {% for v in voyages %}
+    <tr><td><a href="{% url 'carburant:voyage_detail' v.pk %}">{{ v.reference }}</a></td><td class="text-nowrap">{{ v.date_prevue|date:"d/m/Y" }}</td><td>{{ v.client.nom }}</td>
+      <td>{{ v.lieu_chargement }} → {{ v.destination }}</td><td>{% include "carburant/_badge.html" with valeur=v.statut libelle=v.get_statut_display %}</td>
+      <td class="c-num c-money">{{ v.quantite_livree|floatformat:"0g"|default:"—" }}</td>
+      <td class="c-num c-money {% if v.manquant_imputable > 0 %}c-neg{% endif %}">{% if v.facturable %}{{ v.manquant_imputable|floatformat:"0g" }}{% else %}—{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="7" class="text-center text-muted py-3">Aucun voyage.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

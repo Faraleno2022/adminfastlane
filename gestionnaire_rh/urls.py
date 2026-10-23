@@ -120,6 +120,7 @@ urlpatterns = [
     path('prets/', include('prets.urls')),
     path('agence/', include('agence.urls')),
     path('projets/', include('projets.urls')),
+    path('carburant/', include('carburant.urls')),
     # path('api/', include('api.urls')),  # TODO: Create api app
 ]
 

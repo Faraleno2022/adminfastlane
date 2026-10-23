@@ -1,0 +1,38 @@
+{% load carburant_extras %}<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Relevé de compte — {{ client.nom }}</title>
+{% include "carburant/_impression.html" %}
+</head>
+<body>
+  {% include "carburant/_entete.html" with titre="RELEVÉ DE COMPTE" sous_titre="" %}
+  <div class="bloc">
+    <div><strong>{{ client.nom }}</strong><br>{{ client.adresse }}<br>{{ client.telephone }}{% if client.nif %}<br>NIF : {{ client.nif }}{% endif %}</div>
+    <div style="text-align:right">Période du {{ debut|date:"d/m/Y" }} au {{ fin|date:"d/m/Y" }}</div>
+  </div>
+
+  <table><tr class="totaux"><td>Solde au {{ debut|date:"d/m/Y" }}</td><td class="r">{{ anterieur|gnf }}</td></tr></table>
+
+  <h2>Voyages livrés</h2>
+  <table>
+    <tr><th>Livré le</th><th>Voyage</th><th>Produit</th><th>Destination</th><th class="r">Chargé</th><th class="r">Livré</th><th class="r">Manquant</th><th class="r">Transport</th><th class="r">Pénalité</th><th class="r">Net</th></tr>
+    {% for v in voyages %}<tr><td>{{ v.date_livraison|date:"d/m/Y" }}</td><td>{{ v.reference }}{% if v.bon_livraison %}<br><small>BL {{ v.bon_livraison }}</small>{% endif %}</td><td>{{ v.get_produit_display }}</td><td>{{ v.destination }}</td>
+      <td class="r">{{ v.quantite_chargee|floatformat:"0g" }}</td><td class="r">{{ v.quantite_livree|floatformat:"0g" }}</td><td class="r">{{ v.manquant_imputable|floatformat:"0g" }}</td>
+      <td class="r">{{ v.montant_transport|gnf }}</td><td class="r">{{ v.penalite|gnf }}</td><td class="r">{{ v.montant_net|gnf }}</td></tr>
+    {% empty %}<tr><td colspan="10">Aucun voyage livré sur la période.</td></tr>{% endfor %}
+    <tr class="totaux"><td colspan="5">Total ({{ voyages|length }} voyage(s))</td><td class="r">{{ total_litres|floatformat:"0g" }}</td><td colspan="3"></td><td class="r">{{ total_voyages|gnf }}</td></tr>
+  </table>
+
+  <h2>Paiements reçus</h2>
+  <table>
+    <tr><th>Date</th><th>Mode</th><th>Référence</th><th class="r">Montant</th></tr>
+    {% for p in paiements %}<tr><td>{{ p.date|date:"d/m/Y" }}</td><td>{{ p.get_mode_display }}</td><td>{{ p.reference }}</td><td class="r">{{ p.montant|gnf }}</td></tr>
+    {% empty %}<tr><td colspan="4">Aucun paiement sur la période.</td></tr>{% endfor %}
+    <tr class="totaux"><td colspan="3">Total</td><td class="r">{{ total_paiements|gnf }}</td></tr>
+  </table>
+
+  <table><tr class="totaux"><td>Solde dû au {{ fin|date:"d/m/Y" }}</td><td class="r">{{ solde_final|gnf }}</td></tr></table>
+  <div class="pied">Relevé édité le {% now "d/m/Y à H:i" %}.</div>
+</body>
+</html>
