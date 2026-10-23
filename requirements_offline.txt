@@ -12,7 +12,7 @@ django-import-export>=3.3.0
 django-axes>=6.0
 django-cors-headers>=4.0
 django-celery-beat>=2.5.0
-django-csp>=3.8
+django-csp>=4.0
 django-timezone-field>=7.0
 
 # Configuration

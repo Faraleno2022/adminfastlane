@@ -176,9 +176,11 @@ if DB_ENGINE == 'postgresql':
             'PASSWORD': config('DB_PASSWORD', default=''),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='5432'),
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+            'OPTIONS': {
+                # Les bases hébergées exigent souvent SSL : 'require' pour l'imposer,
+                # 'prefer' (défaut) l'utilise quand le serveur le propose.
+                'sslmode': config('DB_SSLMODE', default='prefer'),
+            },
         }
     }
 elif DB_ENGINE == 'mysql':
@@ -405,24 +407,18 @@ PERMISSIONS_POLICY = {
     'fullscreen': ['self'],
 }
 
-# Content Security Policy (django-csp 4.0+ format)
-# Configuration assouplie pour la production
-# Note: 'unsafe-eval' est nécessaire pour certaines bibliothèques JS (ex: Chart.js, certains plugins Bootstrap)
-# Utilisez avec précaution et évitez eval() dans votre propre code
+# Content Security Policy (format django-csp 4.0).
+# Mêmes règles que la balise <meta> des gabarits de base (base.html, base_auth.html,
+# base_public.html) : modifier les deux ensemble.
 CONTENT_SECURITY_POLICY = {
     'DIRECTIVES': {
         'default-src': ("'self'",),
-        'script-src': ("'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://code.jquery.com", "https://stackpath.bootstrapcdn.com"),
-        'style-src': ("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com", "https://stackpath.bootstrapcdn.com"),
-        'font-src': ("'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"),
-        'img-src': ("'self'", "data:", "https:", "blob:"),
+        'script-src': ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com"),
+        'style-src': ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com"),
+        'font-src': ("'self'", "fonts.gstatic.com", "cdn.jsdelivr.net"),
+        'img-src': ("'self'", "data:", "blob:"),
         'connect-src': ("'self'",),
         'frame-ancestors': ("'none'",),
-        'base-uri': ("'self'",),
-        'form-action': ("'self'",),
-        'media-src': ("'self'", "data:", "https:"),
-        'object-src': ("'none'",),
-        'worker-src': ("'self'", "blob:"),
     }
 }
 
@@ -657,12 +653,3 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Pour les gros formulaires
 # Prefetch/Select related batch size
 PREFETCH_BATCH_SIZE = 1000
 
-
-# ── Content Security Policy ──
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com")
-CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com")
-CSP_FONT_SRC = ("'self'", "fonts.gstatic.com", "cdn.jsdelivr.net")
-CSP_IMG_SRC = ("'self'", "data:", "blob:")
-CSP_CONNECT_SRC = ("'self'",)
-CSP_FRAME_ANCESTORS = ("'none'",)
