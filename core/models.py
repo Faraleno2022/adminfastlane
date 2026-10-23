@@ -62,12 +62,18 @@ class Entreprise(models.Model):
     module_portail = models.BooleanField(default=False)
     acces_declarations_fiscales = models.BooleanField(default=False)
     acces_export_comptable = models.BooleanField(default=False)
+    # Applications choisies à l'inscription ou dans Paramètres > Applications (clés de
+    # core.odoo_menu). Liste vide = comptes antérieurs : règles fondées sur type_module.
+    applications = models.JSONField(default=list, blank=True, verbose_name='Applications installées')
 
     @property
     def has_rh(self):
         from core.licence_utils import licence_offline_valide
         if licence_offline_valide():
             return True
+        if self.applications:
+            from core.odoo_menu import CLES_RH
+            return any(cle in self.applications for cle in CLES_RH)
         return self.type_module in ['rh', 'both', 'all']
 
     @property
@@ -75,6 +81,8 @@ class Entreprise(models.Model):
         from core.licence_utils import licence_offline_valide
         if licence_offline_valide():
             return True
+        if self.applications:
+            return 'compta' in self.applications
         return self.type_module in ['compta', 'both', 'all']
 
     @property
@@ -153,7 +161,9 @@ class ProfilUtilisateur(models.Model):
 
 class Utilisateur(AbstractUser):
     """Modèle utilisateur personnalisé avec support multi-entreprise"""
-    email = models.EmailField(unique=True)
+    # L'identifiant de connexion est le nom d'utilisateur : un même e-mail peut servir
+    # à plusieurs comptes (par exemple un gérant inscrit dans plusieurs entreprises).
+    email = models.EmailField()
     telephone = models.CharField(max_length=20, blank=True, null=True)
     # SET_NULL : supprimer une entreprise ne doit JAMAIS supprimer ses
     # utilisateurs (ils gardent leur compte et leur historique)

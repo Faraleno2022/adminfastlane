@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.conf import settings
-from django.db import models, IntegrityError
+from django.db import models, IntegrityError, transaction
 import hmac
 import logging
 from .models import LogActivite, Utilisateur, TentativeCodeAcces
@@ -267,13 +267,14 @@ def register_entreprise(request):
         form = EntrepriseRegistrationForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                entreprise = form.save()
+                with transaction.atomic():
+                    entreprise = form.save()
             except IntegrityError as e:
-                if 'utilisateurs.email' in str(e):
-                    form.add_error('admin_email', 'Cet email est déjà utilisé par un autre compte.')
-                    return render(request, 'core/register_entreprise.html', {'form': form})
-                else:
-                    raise e
+                # Seul l'identifiant de connexion est unique (inscription simultanée du même identifiant).
+                if 'username' not in str(e):
+                    raise
+                form.add_error('admin_username', "Cet identifiant de connexion est déjà pris : choisissez-en un autre.")
+                return render(request, 'core/register_entreprise.html', _contexte_inscription(form))
             
             # Connecter automatiquement l'administrateur
             admin_user = entreprise.utilisateurs.filter(est_admin_entreprise=True).first()
@@ -283,19 +284,46 @@ def register_entreprise(request):
                     request,
                     f'Entreprise {entreprise.nom_entreprise} créée avec succès! Bienvenue {admin_user.get_full_name()}!'
                 )
-                # Rediriger selon le type de module choisi
-                if entreprise.type_module == 'secretariat':
-                    return redirect('secretariat:dashboard')
-                elif entreprise.type_module == 'stock':
-                    return redirect('stock:dashboard')
-                else:
-                    return redirect('dashboard:index')
+                # Comme Odoo : arrivée sur le lanceur, qui ne montre que les applications choisies
+                return redirect('core:home_menu')
         else:
             messages.error(request, 'Veuillez corriger les erreurs ci-dessous.')
     else:
-        form = EntrepriseRegistrationForm()
-    
-    return render(request, 'core/register_entreprise.html', {'form': form})
+        # ?apps=carburant,flotte pré-coche des applications (liens depuis la page d'accueil)
+        apps = [cle for cle in (request.GET.get('apps') or '').split(',') if cle]
+        form = EntrepriseRegistrationForm(initial={'applications': apps})
+
+    return render(request, 'core/register_entreprise.html', _contexte_inscription(form))
+
+
+def _contexte_inscription(form):
+    from .odoo_menu import catalogue
+    choisies = set(form['applications'].value() or [])
+    return {'form': form, 'categories': catalogue(), 'choisies': choisies}
+
+
+@login_required
+def applications_view(request):
+    """Paramètres > Applications : l'administrateur choisit les applications de l'entreprise."""
+    from .forms import ApplicationsForm, type_module_pour
+    from .odoo_menu import applications_actives, catalogue
+
+    entreprise = request.user.entreprise
+    if entreprise is None or not (request.user.est_admin_entreprise or request.user.is_superuser):
+        messages.error(request, "Seul l'administrateur de l'entreprise peut gérer les applications.")
+        return redirect('core:home_menu')
+
+    form = ApplicationsForm(request.POST or None,
+                            initial={'applications': entreprise.applications or applications_actives(entreprise)})
+    if request.method == 'POST' and form.is_valid():
+        entreprise.applications = form.cleaned_data['applications']
+        entreprise.type_module = type_module_pour(entreprise.applications)
+        entreprise.save(update_fields=['applications', 'type_module'])
+        messages.success(request, "Applications mises à jour.")
+        return redirect('core:home_menu')
+    choisies = set(form['applications'].value() or [])
+    return render(request, 'core/applications.html', {
+        'form': form, 'categories': catalogue(), 'choisies': choisies})
 
 
 @login_required

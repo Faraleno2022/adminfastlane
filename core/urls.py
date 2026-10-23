@@ -24,6 +24,7 @@ urlpatterns = [
     path('profile/', views.profile_view, name='profile'),
     path('users/', views.profile_view, name='users'),
     path('parametres/', views.profile_view, name='parametres'),
+    path('parametres/applications/', views.applications_view, name='applications'),
     
     # Multi-entreprise
     path('changer-societe/', views.changer_societe, name='changer_societe'),

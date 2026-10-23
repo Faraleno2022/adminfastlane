@@ -4,189 +4,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inscription Entreprise - Gestionnaire RH Guinée</title>
-    <!-- Bootstrap 5 CSS - LOCAL -->
+    <title>Créer un compte entreprise - Fastlane Logistic</title>
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
-    <!-- Bootstrap Icons - LOCAL -->
     <link rel="stylesheet" href="{% static 'css/bootstrap-icons.css' %}">
-    <!-- Font Awesome - LOCAL -->
-    <link rel="stylesheet" href="{% static 'css/fontawesome.min.css' %}">
+    <style>
+        body { background: #f3f4f6; }
+        .ins-entete { text-align: center; margin: 2rem 0 1.25rem; }
+        .ins-entete h1 { font-size: 1.6rem; font-weight: 700; }
+        .ins-etapes { display: flex; justify-content: center; gap: .5rem; margin-bottom: 1.25rem; font-size: .85rem; }
+        .ins-etape { padding: .3rem .8rem; border-radius: 999px; background: #e5e7eb; color: #4b5563; }
+        .ins-etape.active { background: #714B67; color: #fff; }
+        .ins-barre { position: sticky; bottom: 0; background: #fff; border-top: 1px solid #dee2e6; padding: .75rem 0; margin-top: 1.25rem; z-index: 5; }
+        .btn-ins { background: #714B67; border-color: #714B67; color: #fff; }
+        .btn-ins:hover { background: #5d3d55; border-color: #5d3d55; color: #fff; }
+    </style>
 </head>
-<body class="bg-light">
-    <div class="container">
-        <div class="row justify-content-center mt-5">
-            <div class="col-md-8">
-                <div class="card shadow">
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #EF7707 0%, #FF8C00 100%);">
-                        <h4 class="mb-0"><i class="bi bi-building"></i> Inscription Entreprise</h4>
-                    </div>
-                    <div class="card-body">
-                        {% if messages %}
-                            {% for message in messages %}
-                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                </div>
-                            {% endfor %}
-                        {% endif %}
+<body>
+<div class="container" style="max-width: 1040px;">
+    <div class="ins-entete">
+        <h1>Créez le compte de votre entreprise</h1>
+        <p class="text-muted mb-0">Choisissez les applications dont vous avez besoin. Vous pourrez en ajouter ou en retirer plus tard dans Paramètres.</p>
+    </div>
+    <div class="ins-etapes">
+        <span class="ins-etape active" id="pastille-1">1. Applications</span>
+        <span class="ins-etape" id="pastille-2">2. Vos informations</span>
+    </div>
 
-                        <form method="post" enctype="multipart/form-data" novalidate>
-                            {% csrf_token %}
-                            
-                            <h5 class="mb-3"><i class="bi bi-building-fill"></i> Informations de l'entreprise</h5>
-                            
-                            <!-- Type de compte -->
-                            <div class="mb-4">
-                                <label for="{{ form.type_module.id_for_label }}" class="form-label fw-bold">
-                                    <i class="bi bi-grid-fill me-1"></i>{{ form.type_module.label }} *
-                                </label>
-                                {{ form.type_module }}
-                                {% if form.type_module.errors %}
-                                    <div class="text-danger">{{ form.type_module.errors }}</div>
-                                {% endif %}
-                                <div class="mt-2">
-                                    <small class="text-muted">
-                                        <i class="bi bi-info-circle me-1"></i>
-                                        <strong>RH</strong> = Gestion des employés, paie, congés |
-                                        <strong>Comptabilité</strong> = Plan comptable, écritures, factures |
-                                        <strong>Gestion de Stock</strong> = Articles, mouvements, inventaires, fournisseurs |
-                                        <strong>RH + Comptabilité</strong> = Tous les modules<br>
-                                        <i class="bi bi-folder-open me-1"></i>Le module <strong>Secrétariat</strong> (courrier, rendez-vous, visiteurs, appels, documents, tâches, contacts, réunions) est inclus dans tous les comptes.
-                                    </small>
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.nom_entreprise.id_for_label }}" class="form-label">{{ form.nom_entreprise.label }} *</label>
-                                    {{ form.nom_entreprise }}
-                                    {% if form.nom_entreprise.errors %}
-                                        <div class="text-danger">{{ form.nom_entreprise.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }} *</label>
-                                    {{ form.email }}
-                                    {% if form.email.errors %}
-                                        <div class="text-danger">{{ form.email.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.telephone.id_for_label }}" class="form-label">{{ form.telephone.label }}</label>
-                                    {{ form.telephone }}
-                                    {% if form.telephone.errors %}
-                                        <div class="text-danger">{{ form.telephone.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.ville.id_for_label }}" class="form-label">{{ form.ville.label }}</label>
-                                    {{ form.ville }}
-                                    {% if form.ville.errors %}
-                                        <div class="text-danger">{{ form.ville.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.pays.id_for_label }}" class="form-label">{{ form.pays.label }}</label>
-                                    {{ form.pays }}
-                                    {% if form.pays.errors %}
-                                        <div class="text-danger">{{ form.pays.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.plan_abonnement.id_for_label }}" class="form-label">{{ form.plan_abonnement.label }}</label>
-                                    {{ form.plan_abonnement }}
-                                    {% if form.plan_abonnement.errors %}
-                                        <div class="text-danger">{{ form.plan_abonnement.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="{{ form.logo.id_for_label }}" class="form-label">{{ form.logo.label }} (optionnel)</label>
-                                {{ form.logo }}
-                                {% if form.logo.errors %}
-                                    <div class="text-danger">{{ form.logo.errors }}</div>
-                                {% endif %}
-                                <small class="form-text text-muted">Le logo sera affiché en en-tête et sur tous les documents.</small>
-                            </div>
-                            
-                            <hr class="my-4">
-                            
-                            <h5 class="mb-3"><i class="bi bi-person-fill"></i> Compte Administrateur</h5>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.admin_first_name.id_for_label }}" class="form-label">{{ form.admin_first_name.label }} *</label>
-                                    {{ form.admin_first_name }}
-                                    {% if form.admin_first_name.errors %}
-                                        <div class="text-danger">{{ form.admin_first_name.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.admin_last_name.id_for_label }}" class="form-label">{{ form.admin_last_name.label }} *</label>
-                                    {{ form.admin_last_name }}
-                                    {% if form.admin_last_name.errors %}
-                                        <div class="text-danger">{{ form.admin_last_name.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.admin_username.id_for_label }}" class="form-label">{{ form.admin_username.label }} *</label>
-                                    {{ form.admin_username }}
-                                    {% if form.admin_username.errors %}
-                                        <div class="text-danger">{{ form.admin_username.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.admin_email.id_for_label }}" class="form-label">{{ form.admin_email.label }} *</label>
-                                    {{ form.admin_email }}
-                                    {% if form.admin_email.errors %}
-                                        <div class="text-danger">{{ form.admin_email.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.admin_password.id_for_label }}" class="form-label">{{ form.admin_password.label }} *</label>
-                                    {{ form.admin_password }}
-                                    {% if form.admin_password.errors %}
-                                        <div class="text-danger">{{ form.admin_password.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.admin_password_confirm.id_for_label }}" class="form-label">{{ form.admin_password_confirm.label }} *</label>
-                                    {{ form.admin_password_confirm }}
-                                    {% if form.admin_password_confirm.errors %}
-                                        <div class="text-danger">{{ form.admin_password_confirm.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="d-grid gap-2 mt-4">
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="bi bi-check-circle"></i> Créer mon entreprise
-                                </button>
-                                <a href="{% url 'core:login' %}" class="btn btn-outline-secondary">
-                                    <i class="bi bi-arrow-left"></i> Retour à la connexion
-                                </a>
-                            </div>
-                        </form>
-                    </div>
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+
+    <form method="post" enctype="multipart/form-data" novalidate id="form-inscription">
+        {% csrf_token %}
+
+        <section id="etape-1" class="card shadow-sm mb-3"><div class="card-body">
+            <h5 class="mb-0"><i class="bi bi-grid-3x3-gap-fill me-1"></i> Quelles applications voulez-vous utiliser ?</h5>
+            {% if form.applications.errors %}<div class="alert alert-danger py-2 mt-2 mb-0">{{ form.applications.errors|join:" " }}</div>{% endif %}
+            {% include "core/_grille_applications.html" %}
+            <div class="ins-barre d-flex align-items-center gap-2" id="barre-1">
+                <span class="text-muted me-auto"><strong id="compteur">0</strong> application(s) sélectionnée(s)</span>
+                <button type="button" class="btn btn-ins btn-lg" id="continuer">Continuer <i class="bi bi-arrow-right"></i></button>
+            </div>
+        </div></section>
+
+        <section id="etape-2" class="card shadow-sm mb-4"><div class="card-body">
+            <div class="d-flex align-items-center mb-3">
+                <h5 class="mb-0 me-auto"><i class="bi bi-building-fill me-1"></i> Votre entreprise</h5>
+                <button type="button" class="btn btn-link p-0" id="retour"><i class="bi bi-arrow-left"></i> Modifier les applications</button>
+            </div>
+            <div class="row g-3">
+                {% for field in form %}{% if field.name == 'nom_entreprise' or field.name == 'email' or field.name == 'telephone' or field.name == 'ville' or field.name == 'pays' or field.name == 'plan_abonnement' %}
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+                    {{ field }}
+                    {% for err in field.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                {% endif %}{% endfor %}
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.logo.id_for_label }}">{{ form.logo.label }} (optionnel)</label>
+                    {{ form.logo }}
+                    {% for err in form.logo.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- Bootstrap 5 JS Bundle - LOCAL -->
-    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+
+            <h5 class="mt-4 mb-1"><i class="bi bi-person-badge-fill me-1"></i> Administrateur du compte</h5>
+            <p class="text-muted small mb-3">Le nom, l'e-mail et le téléphone peuvent déjà être utilisés pour un autre compte. Seul l'identifiant de connexion doit être unique.</p>
+            <div class="row g-3">
+                {% for field in form %}{% if field.name == 'admin_first_name' or field.name == 'admin_last_name' or field.name == 'admin_email' or field.name == 'admin_username' or field.name == 'admin_password' or field.name == 'admin_password_confirm' %}
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }} *</label>
+                    {{ field }}
+                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                    {% for err in field.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                {% endif %}{% endfor %}
+            </div>
+            {% if form.non_field_errors %}<div class="alert alert-danger mt-3">{{ form.non_field_errors }}</div>{% endif %}
+
+            <div class="d-grid gap-2 mt-4">
+                <button type="submit" class="btn btn-ins btn-lg"><i class="bi bi-check-circle"></i> Créer mon compte</button>
+                <a href="{% url 'core:login' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Retour à la connexion</a>
+            </div>
+        </div></section>
+    </form>
+</div>
+
+<script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+<script>
+(function () {
+    // Sans JavaScript, les deux étapes restent affichées l'une sous l'autre.
+    var etape1 = document.getElementById('etape-1'), etape2 = document.getElementById('etape-2');
+    var compteur = document.getElementById('compteur');
+    var cases = document.querySelectorAll('#etape-1 input[name="applications"]');
+    var erreursEtape2 = {% if form.is_bound and not form.applications.errors %}true{% else %}false{% endif %};
+
+    function compter() {
+        var n = 0;
+        cases.forEach(function (c) { if (c.checked) n++; });
+        compteur.textContent = n;
+        return n;
+    }
+    function afficher(numero) {
+        etape1.hidden = numero !== 1;
+        etape2.hidden = numero !== 2;
+        document.getElementById('pastille-1').classList.toggle('active', numero === 1);
+        document.getElementById('pastille-2').classList.toggle('active', numero === 2);
+        window.scrollTo(0, 0);
+    }
+    cases.forEach(function (c) { c.addEventListener('change', compter); });
+    document.getElementById('continuer').addEventListener('click', function () {
+        if (compter() === 0) { alert('Choisissez au moins une application.'); return; }
+        afficher(2);
+    });
+    document.getElementById('retour').addEventListener('click', function () { afficher(1); });
+    compter();
+    afficher(erreursEtape2 ? 2 : 1);
+})();
+</script>
 </body>
 </html>
-

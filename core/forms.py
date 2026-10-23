@@ -5,17 +5,52 @@ from .models import Entreprise, Utilisateur, ProfilUtilisateur
 from .widgets import ScrollableSelectWidget
 
 
+def choix_applications():
+    from .odoo_menu import _PAR_CLE, cles_selectionnables
+    return [(cle, _PAR_CLE[cle]['name']) for cle in cles_selectionnables()]
+
+
+def type_module_pour(applications):
+    """Type de compte historique déduit des applications choisies (redirections, rapports)."""
+    from .odoo_menu import CLES_RH
+    rh = any(cle in applications for cle in CLES_RH)
+    compta = 'compta' in applications
+    if rh and compta:
+        return 'both'
+    if rh:
+        return 'rh'
+    if compta:
+        return 'compta'
+    return 'stock' if 'stock' in applications else 'secretariat'
+
+
 class EntrepriseRegistrationForm(forms.ModelForm):
-    """Formulaire d'inscription d'une nouvelle entreprise"""
-    
+    """Inscription d'une entreprise façon Odoo : applications au choix, puis coordonnées.
+
+    Le nom, l'e-mail et le téléphone peuvent déjà exister dans d'autres comptes ;
+    seul l'identifiant de connexion (admin_username) doit être libre.
+    """
+
+    field_order = [
+        'applications', 'nom_entreprise', 'email', 'telephone', 'ville', 'pays', 'plan_abonnement', 'logo',
+        'admin_first_name', 'admin_last_name', 'admin_email', 'admin_username', 'admin_password',
+        'admin_password_confirm',
+    ]
+
+    applications = forms.MultipleChoiceField(
+        label="Applications", choices=choix_applications, widget=forms.CheckboxSelectMultiple,
+        error_messages={'required': "Choisissez au moins une application."},
+    )
     # Champs pour l'administrateur
     admin_username = forms.CharField(
         max_length=150,
-        label="Nom d'utilisateur administrateur",
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'admin'})
+        label="Identifiant de connexion",
+        help_text="Sert à se connecter : il doit être unique (ex. prenom.entreprise).",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'prenom.entreprise',
+                                      'autocomplete': 'username'})
     )
     admin_email = forms.EmailField(
-        label="Email administrateur",
+        label="E-mail de l'administrateur",
         widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'admin@entreprise.com'})
     )
     admin_password = forms.CharField(
@@ -39,10 +74,9 @@ class EntrepriseRegistrationForm(forms.ModelForm):
     
     class Meta:
         model = Entreprise
-        fields = ['nom_entreprise', 'type_module', 'email', 'telephone', 'ville', 'pays', 'plan_abonnement', 'logo']
+        fields = ['nom_entreprise', 'email', 'telephone', 'ville', 'pays', 'plan_abonnement', 'logo']
         widgets = {
             'nom_entreprise': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom de votre entreprise'}),
-            'type_module': ScrollableSelectWidget(attrs={'class': 'form-select'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'contact@entreprise.com'}),
             'telephone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+224 XXX XX XX XX'}),
             'ville': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Conakry'}),
@@ -51,9 +85,10 @@ class EntrepriseRegistrationForm(forms.ModelForm):
             'logo': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         }
         labels = {
-            'type_module': 'Type de compte',
+            'nom_entreprise': "Nom de l'entreprise", 'email': "E-mail de l'entreprise", 'telephone': 'Téléphone',
+            'ville': 'Ville', 'pays': 'Pays', 'plan_abonnement': 'Formule', 'logo': 'Logo',
         }
-    
+
     def clean_admin_password_confirm(self):
         password = self.cleaned_data.get('admin_password')
         password_confirm = self.cleaned_data.get('admin_password_confirm')
@@ -65,19 +100,20 @@ class EntrepriseRegistrationForm(forms.ModelForm):
     
     def clean_admin_username(self):
         username = self.cleaned_data.get('admin_username')
-        if Utilisateur.objects.filter(username=username).exists():
-            raise forms.ValidationError("Ce nom d'utilisateur existe déjà.")
+        if Utilisateur.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("Cet identifiant de connexion est déjà pris : choisissez-en un autre.")
         return username
-    
-    def clean_admin_email(self):
-        email = self.cleaned_data.get('admin_email')
-        if Utilisateur.objects.filter(email=email).exists():
-            raise forms.ValidationError("Cet email est déjà utilisé.")
-        return email
-    
+
+    def clean_applications(self):
+        from .odoo_menu import cles_selectionnables
+        choisies = set(self.cleaned_data['applications'])
+        return [cle for cle in cles_selectionnables() if cle in choisies]  # ordre du catalogue
+
     def save(self, commit=True):
         # Créer l'entreprise
         entreprise = super().save(commit=False)
+        entreprise.applications = self.cleaned_data['applications']
+        entreprise.type_module = type_module_pour(entreprise.applications)
         
         # Générer un slug unique
         base_slug = slugify(entreprise.nom_entreprise)
@@ -105,6 +141,7 @@ class EntrepriseRegistrationForm(forms.ModelForm):
             admin_user = Utilisateur(
                 username=self.cleaned_data['admin_username'],
                 email=self.cleaned_data['admin_email'],
+                telephone=entreprise.telephone,
                 first_name=self.cleaned_data['admin_first_name'],
                 last_name=self.cleaned_data['admin_last_name'],
                 entreprise=entreprise,
@@ -119,6 +156,20 @@ class EntrepriseRegistrationForm(forms.ModelForm):
             admin_user.save()
         
         return entreprise
+
+
+class ApplicationsForm(forms.Form):
+    """Paramètres > Applications : ajouter ou retirer des applications de l'entreprise."""
+
+    applications = forms.MultipleChoiceField(
+        label="Applications", choices=choix_applications, widget=forms.CheckboxSelectMultiple,
+        error_messages={'required': "Gardez au moins une application."},
+    )
+
+    def clean_applications(self):
+        from .odoo_menu import cles_selectionnables
+        choisies = set(self.cleaned_data['applications'])
+        return [cle for cle in cles_selectionnables() if cle in choisies]
 
 
 class ReauthForm(forms.Form):

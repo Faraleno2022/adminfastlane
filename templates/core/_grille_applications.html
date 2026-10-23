@@ -1,0 +1,28 @@
+{# Grille d'applications à cocher, par catégorie (inscription et Paramètres > Applications). #}
+<style>
+  .ga-cat { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; font-weight: 600; margin: 1.1rem 0 .5rem; }
+  .ga-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: .6rem; }
+  .ga-app { position: relative; display: flex; gap: .7rem; align-items: flex-start; padding: .7rem; border: 1px solid #dee2e6; border-radius: 10px; background: #fff; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+  .ga-app:hover { border-color: #adb5bd; }
+  .ga-app input { position: absolute; opacity: 0; pointer-events: none; }
+  .ga-app:has(input:checked) { border-color: #714B67; box-shadow: 0 0 0 2px rgba(113, 75, 103, .25); background: #faf6f9; }
+  .ga-app:has(input:focus-visible) { outline: 2px solid #714B67; outline-offset: 2px; }
+  .ga-ico { flex: 0 0 40px; height: 40px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.2rem; }
+  .ga-nom { font-weight: 600; font-size: .95rem; line-height: 1.2; }
+  .ga-desc { font-size: .78rem; color: #6b7280; line-height: 1.3; margin-top: .15rem; }
+  .ga-coche { margin-left: auto; color: #714B67; font-size: 1.1rem; visibility: hidden; }
+  .ga-app:has(input:checked) .ga-coche { visibility: visible; }
+</style>
+{% for titre, apps in categories %}
+  <div class="ga-cat">{{ titre }}</div>
+  <div class="ga-grille">
+    {% for app in apps %}
+      <label class="ga-app">
+        <input type="checkbox" name="applications" value="{{ app.key }}" {% if app.key in choisies %}checked{% endif %}>
+        <span class="ga-ico" style="background: linear-gradient(180deg, {{ app.gradient.0 }}, {{ app.gradient.1 }});"><i class="bi {{ app.icon }}"></i></span>
+        <span><span class="ga-nom d-block">{{ app.name }}</span><span class="ga-desc d-block">{{ app.description }}</span></span>
+        <i class="bi bi-check-circle-fill ga-coche"></i>
+      </label>
+    {% endfor %}
+  </div>
+{% endfor %}

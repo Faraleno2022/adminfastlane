@@ -527,6 +527,7 @@ APPS = [
             ('Général', [
                 ('Mon profil', 'core:profile'),
                 ('Paramètres de l\'entreprise', 'core:entreprise_settings', None, 'admin'),
+                ('Applications', 'core:applications', None, 'admin'),
                 ('Changer de société', 'core:changer_societe'),
             ]),
             ('Utilisateurs', [
@@ -579,7 +580,64 @@ def _resolve(spec):
             'admin': len(spec) > 3 and spec[3] == 'admin'}
 
 
+# --------------------------------------------------------------------------
+# Catalogue proposé à l'inscription et dans Paramètres > Applications
+# (façon « essai » Odoo : l'entreprise coche les applications qu'elle utilise)
+# --------------------------------------------------------------------------
+CATEGORIES = [
+    ('Ressources humaines', [
+        ('rh', "Dossiers du personnel, contrats et organigramme"),
+        ('temps', "Présences, congés, absences et heures supplémentaires"),
+        ('paie', "Bulletins, cotisations CNSS, RTS et déclarations"),
+        ('recrutement', "Offres d'emploi, candidatures et entretiens"),
+        ('formation', "Catalogue, sessions et évaluations des formations"),
+        ('conformite', "CNSS, inspection du travail et obligations légales"),
+        ('portail', "Espace en libre-service pour les salariés"),
+    ]),
+    ('Finance', [
+        ('compta', "Plan SYSCOHADA, journaux, TVA et états financiers"),
+        ('prets', "Prêts accordés, échéanciers et remboursements"),
+    ]),
+    ('Ventes & stock', [
+        ('ventes', "Caisse, factures et encaissements clients"),
+        ('stock', "Articles, dépôts, inventaires et fournisseurs"),
+    ]),
+    ('Services', [
+        ('projets', "Projets, tâches, équipe et budget"),
+        ('agence', "Dossiers de voyage, billets, hôtels et visas"),
+        ('secretariat', "Courrier, rendez-vous, visiteurs et documents"),
+    ]),
+    ('Logistique', [
+        ('flotte', "Véhicules, chauffeurs, entretiens et carburant"),
+        ('carburant', "Citernes, chargements, livraisons et manquants"),
+    ]),
+]
+# Toujours disponibles, quelle que soit la sélection.
+APPLICATIONS_SOCLE = ('abonnement', 'parametres')
+CLES_RH = ('rh', 'temps', 'paie', 'recrutement', 'formation', 'conformite', 'portail')
+_PAR_CLE = {app['key']: app for app in APPS}
+
+
+def catalogue():
+    """Catégories d'applications sélectionnables, avec nom, icône et description."""
+    return [
+        (titre, [dict(_PAR_CLE[cle], description=desc) for cle, desc in apps if cle in _PAR_CLE])
+        for titre, apps in CATEGORIES
+    ]
+
+
+def cles_selectionnables():
+    return [cle for _, apps in CATEGORIES for cle, _ in apps if cle in _PAR_CLE]
+
+
+def applications_actives(entreprise):
+    """Clés des applications affichées pour l'entreprise (règles historiques si aucun choix)."""
+    return [a['key'] for a in APPS if a['key'] not in APPLICATIONS_SOCLE and _visible(a, entreprise)]
+
+
 def _visible(app, entreprise):
+    if entreprise is not None and getattr(entreprise, 'applications', None):
+        return app['key'] in APPLICATIONS_SOCLE or app['key'] in entreprise.applications
     req = app['requires']
     if req is None:
         return True

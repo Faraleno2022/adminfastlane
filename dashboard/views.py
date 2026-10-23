@@ -252,7 +252,11 @@ def _build_risque_fiscal_paie(bulletins, effectif_total):
 def index(request):
     """Tableau de bord principal - Optimisé pour rapidité"""
     entreprise = request.user.entreprise
-    
+
+    # Entreprise qui n'a pas choisi l'application Employés : retour au lanceur
+    if entreprise and entreprise.applications and 'rh' not in entreprise.applications:
+        return redirect('core:home_menu')
+
     # Rediriger les utilisateurs comptabilité vers le module comptabilité
     if entreprise and entreprise.type_module == 'compta':
         return redirect('comptabilite:compte-bancaire-list')
