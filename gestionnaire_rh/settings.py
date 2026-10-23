@@ -94,6 +94,7 @@ INSTALLED_APPS = [
     'ventes',
     'prets',
     'agence',
+    'projets',
 ]
 
 MIDDLEWARE = [

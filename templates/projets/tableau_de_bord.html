@@ -1,0 +1,58 @@
+{% extends "projets/base_projets.html" %}
+{% load projets_extras %}
+{% block title %}Tableau de bord — Gestion de projet{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Gestion de projet</h1>
+
+{% if nb_taches_retard %}
+<div class="alert alert-warning py-2">
+  {{ nb_taches_retard }} tâche(s) ont dépassé leur échéance. <a href="{% url 'projets:taches' %}?filtre=retard">Voir le planning</a>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Projets ouverts</div><div class="p-val">{{ nb_ouverts }}</div><div class="small text-muted">dont {{ nb_en_cours }} en cours</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Projets terminés</div><div class="p-val">{{ nb_termines }}</div><div class="small text-muted">sur {{ nb_projets }} projet(s)</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Budget des projets ouverts</div><div class="p-val p-money">{{ budget|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Dépensé (projets ouverts)</div><div class="p-val p-money">{{ depenses|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Solde disponible</div><div class="p-val p-money {% if solde < 0 %}p-neg{% else %}p-pos{% endif %}">{{ solde|gnf }}</div><div class="small text-muted">budget + dépôts − retraits − dépenses</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Dépenses du mois</div><div class="p-val p-money">{{ depenses_mois|gnf }}</div><a class="small" href="{% url 'projets:mouvements' %}?type=depense">Voir les mouvements</a></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Dépôts du mois</div><div class="p-val p-money">{{ depots_mois|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Clients</div><div class="p-val">{{ nb_clients }}</div><a class="small" href="{% url 'projets:clients' %}">Voir les clients</a></div></div></div>
+</div>
+
+{% if peut_saisir %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="btn btn-primary" href="{% url 'projets:projet_nouveau' %}">Nouveau projet</a>
+  <a class="btn btn-secondary" href="{% url 'projets:client_nouveau' %}">Nouveau client</a>
+  <a class="btn btn-secondary" href="{% url 'projets:taches' %}?statut=ouvertes">Planning des tâches</a>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header">Projets en cours</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Projet</th><th>Fin prévue</th><th style="width:30%">Avancement</th><th class="p-num">Solde</th></tr></thead><tbody>
+      {% for p in en_cours %}<tr><td><a href="{% url 'projets:projet_detail' p.pk %}">{{ p.reference }}</a><div class="small text-muted">{{ p.nom }}</div></td>
+        <td class="text-nowrap {% if p.en_retard %}p-neg{% endif %}">{{ p.date_fin_prevue|date:"d/m/Y"|default:"—" }}</td>
+        <td>{% include "projets/_progression.html" with valeur=p.progression %}</td>
+        <td class="p-num p-money {% if p.budget_depasse %}p-neg{% endif %}">{{ p.solde_disponible|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucun projet en cours.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Échéances des 14 prochains jours</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Échéance</th><th>Tâche</th><th>Projet</th><th>Responsable</th></tr></thead><tbody>
+      {% for t in echeances %}<tr><td class="text-nowrap">{{ t.date_fin_prevue|date:"d/m/Y" }}</td><td>{{ t.titre }}</td><td><a href="{% url 'projets:projet_detail' t.projet_id %}">{{ t.projet.reference }}</a></td><td>{{ t.responsable|default:"—" }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucune échéance proche.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Tâches en retard</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Tâche</th><th>Projet</th><th>Échéance</th><th class="p-num">Retard</th></tr></thead><tbody>
+      {% for t in taches_retard %}<tr><td>{{ t.titre }}</td><td><a href="{% url 'projets:projet_detail' t.projet_id %}">{{ t.projet.reference }}</a></td><td class="text-nowrap">{{ t.date_fin_prevue|date:"d/m/Y" }}</td><td class="p-num p-neg">{{ t.jours_retard }} j</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucune tâche en retard.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Projets à surveiller</div>
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle"><thead><tr><th>Projet</th><th>Alerte</th></tr></thead><tbody>
+      {% for p in projets_retard %}<tr><td><a href="{% url 'projets:projet_detail' p.pk %}">{{ p.reference }}</a> — {{ p.nom }}</td><td><span class="badge bg-warning text-dark">Fin prévue dépassée ({{ p.date_fin_prevue|date:"d/m/Y" }})</span></td></tr>{% endfor %}
+      {% for p in projets_depasses %}<tr><td><a href="{% url 'projets:projet_detail' p.pk %}">{{ p.reference }}</a> — {{ p.nom }}</td><td><span class="badge bg-danger">Budget dépassé : {{ p.solde_disponible|gnf }}</span></td></tr>{% endfor %}
+      {% if not projets_retard and not projets_depasses %}<tr><td colspan="2" class="text-center text-muted py-3">Aucun projet en alerte.</td></tr>{% endif %}
+    </tbody></table></div></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "projets/base_projets.html" %}
+{% block title %}Planning des tâches{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Planning des tâches</h1>
+
+<form class="row g-2 mb-3 p-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Tâche, responsable, projet"></div>
+  <div class="col-auto">
+    <select class="form-select" name="projet">
+      <option value="">Tous les projets</option>
+      {% for p in liste_projets %}<option value="{{ p.pk }}" {% if projet == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.reference }} — {{ p.nom|truncatechars:40 }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="statut">
+      <option value="">Tous les statuts</option>
+      <option value="ouvertes" {% if statut == 'ouvertes' %}selected{% endif %}>Non terminées</option>
+      {% for code, libelle in statuts %}<option value="{{ code }}" {% if statut == code %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="priorite">
+      <option value="">Toutes priorités</option>
+      {% for code, libelle in priorites %}<option value="{{ code }}" {% if priorite == code %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="filtre">
+      <option value="">Toutes échéances</option>
+      <option value="retard" {% if filtre == 'retard' %}selected{% endif %}>En retard</option>
+      <option value="semaine" {% if filtre == 'semaine' %}selected{% endif %}>Échéance sous 7 jours</option>
+    </select>
+  </div>
+  <div class="col-auto"><button class="btn btn-secondary">Filtrer</button></div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-secondary" href="?{% if page.qs %}{{ page.qs }}&{% endif %}export=xlsx">Excel</a>
+    <a class="btn btn-secondary" href="?{% if page.qs %}{{ page.qs }}&{% endif %}export=pdf">PDF</a>
+  </div>
+</form>
+
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Échéance</th><th>Tâche</th><th>Projet</th><th>Responsable</th><th>Priorité</th><th>Statut</th><th style="min-width:130px">Progression</th><th></th></tr></thead>
+  <tbody>
+  {% for t in page %}
+    <tr {% if t.statut == 'annulee' %}class="text-muted"{% endif %}>
+      <td class="text-nowrap {% if t.en_retard %}p-neg{% endif %}">{{ t.date_fin_prevue|date:"d/m/Y"|default:"—" }}{% if t.en_retard %}<div class="small">{{ t.jours_retard }} j de retard</div>{% endif %}</td>
+      <td>{{ t.titre }}</td>
+      <td><a href="{% url 'projets:projet_detail' t.projet_id %}">{{ t.projet.reference }}</a><div class="small text-muted">{{ t.projet.nom|truncatechars:40 }}</div></td>
+      <td>{{ t.responsable|default:"—" }}</td>
+      <td>{% include "projets/_badge.html" with valeur=t.priorite libelle=t.get_priorite_display %}</td>
+      <td>{% include "projets/_badge.html" with valeur=t.statut libelle=t.get_statut_display %}</td>
+      <td>{% include "projets/_progression.html" with valeur=t.progression %}</td>
+      <td class="text-end text-nowrap">
+        {% if peut_saisir %}
+          {% if t.statut != 'terminee' and t.statut != 'annulee' %}<form method="post" action="{% url 'projets:tache_statut' t.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="retour" value="planning"><button name="statut" value="terminee" class="btn btn-sm btn-outline-success">Terminer</button></form>{% endif %}
+          <a class="btn btn-sm btn-secondary" href="{% url 'projets:tache_modifier' t.pk %}?retour=planning">Modifier</a>
+        {% endif %}
+      </td>
+    </tr>
+  {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">Aucune tâche.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="8">{{ nb }} tâche(s)</td></tr></tfoot>
+</table></div></div>
+{% include "projets/_pagination.html" %}
+{% endblock %}

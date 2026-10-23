@@ -1,0 +1,136 @@
+{% extends "projets/base_projets.html" %}
+{% load projets_extras %}
+{% block title %}Projet {{ projet.reference }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h1 class="h4 mb-0 me-auto">{{ projet.reference }} — {{ projet.nom }}
+    {% include "projets/_badge.html" with valeur=projet.statut libelle=projet.get_statut_display %}</h1>
+  <a class="btn btn-secondary" href="{% url 'projets:projets' %}">Retour</a>
+  <a class="btn btn-secondary" target="_blank" href="{% url 'projets:fiche' projet.pk %}">Imprimer la fiche</a>
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'projets:projet_modifier' projet.pk %}">Modifier</a>{% endif %}
+  {% if peut_supprimer %}
+    <form method="post" action="{% url 'projets:projet_supprimer' projet.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-danger" onclick="return confirm('Supprimer ce projet et ses tâches ?')">Supprimer</button></form>
+  {% endif %}
+</div>
+
+{% if projet.budget_depasse %}<div class="alert alert-danger py-2">Budget dépassé : le solde disponible est négatif.</div>{% endif %}
+{% if projet.en_retard %}<div class="alert alert-warning py-2">La date de fin prévue ({{ projet.date_fin_prevue|date:"d/m/Y" }}) est dépassée.</div>{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Budget prévu</div><div class="p-val p-money">{{ projet.budget|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Dépôts reçus</div><div class="p-val p-money p-pos">{{ projet.total_depots|gnf }}</div><div class="small text-muted">Retraits : {{ projet.total_retraits|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Dépenses</div><div class="p-val p-money">{{ projet.total_depenses|gnf }}</div><div class="small text-muted">{{ projet.budget_consomme_pct }} % de l'enveloppe</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Solde disponible</div><div class="p-val p-money {% if projet.budget_depasse %}p-neg{% else %}p-pos{% endif %}">{{ projet.solde_disponible|gnf }}</div><div class="small text-muted">budget + dépôts − retraits − dépenses</div></div></div></div>
+</div>
+
+<div class="card mb-3"><div class="card-body"><div class="row g-3">
+  <div class="col-md-3"><span class="text-muted">Client</span><br>{% if projet.client %}<a href="{% url 'projets:client_detail' projet.client_id %}">{{ projet.client.nom }}</a>{% else %}—{% endif %}</div>
+  <div class="col-md-3"><span class="text-muted">Chef de projet</span><br>{{ projet.responsable|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">Début → fin prévue</span><br>{{ projet.date_debut|date:"d/m/Y"|default:"—" }} → {{ projet.date_fin_prevue|date:"d/m/Y"|default:"—" }}
+    {% if projet.jours_restants is not None and projet.jours_restants >= 0 %}<div class="small text-muted">{{ projet.jours_restants }} jour(s) restant(s)</div>{% endif %}</div>
+  <div class="col-md-3"><span class="text-muted">Fin réelle</span><br>{{ projet.date_fin_reelle|date:"d/m/Y"|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">Lieu</span><br>{{ projet.lieu|default:"—" }}{% if projet.ville %}, {{ projet.ville }}{% endif %}</div>
+  <div class="col-md-6"><span class="text-muted">Avancement{% if taches %} (moyenne des tâches){% endif %}</span><br>{% include "projets/_progression.html" with valeur=projet.progression %}</div>
+  <div class="col-md-3"><span class="text-muted">Créé par</span><br>{{ projet.cree_par|default:"—" }} le {{ projet.created_at|date:"d/m/Y" }}</div>
+  {% if projet.description %}<div class="col-12"><span class="text-muted">Description</span><br>{{ projet.description|linebreaksbr }}</div>{% endif %}
+</div>
+{% if peut_saisir %}
+<hr>
+<form method="post" action="{% url 'projets:projet_statut' projet.pk %}" class="d-flex flex-wrap gap-2 align-items-center">
+  {% csrf_token %}
+  <span class="text-muted">Changer le statut :</span>
+  {% for code, libelle in statuts %}{% if code != projet.statut %}
+    <button name="statut" value="{{ code }}" class="btn btn-sm btn-outline-secondary" {% if code == 'annule' %}onclick="return confirm('Annuler ce projet ?')"{% endif %}>{{ libelle }}</button>
+  {% endif %}{% endfor %}
+</form>
+{% endif %}
+</div></div>
+
+<div class="card mb-3"><div class="card-header d-flex align-items-center">
+  <span class="me-auto">Tâches ({{ taches|length }}){% if projet.nb_taches_en_retard %} <span class="badge bg-danger">{{ projet.nb_taches_en_retard }} en retard</span>{% endif %}</span>
+  {% if peut_saisir %}<a class="btn btn-sm btn-primary" href="{% url 'projets:tache_nouvelle' projet.pk %}">Ajouter une tâche</a>{% endif %}
+</div>
+<div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>#</th><th>Tâche</th><th>Responsable</th><th>Priorité</th><th>Statut</th><th>Début</th><th>Échéance</th><th style="min-width:130px">Progression</th><th></th></tr></thead>
+  <tbody>
+  {% for t in taches %}
+    <tr {% if t.statut == 'annulee' %}class="text-muted"{% endif %}>
+      <td>{{ t.ordre }}</td>
+      <td>{{ t.titre }}{% if t.description %}<div class="small text-muted">{{ t.description|truncatechars:90 }}</div>{% endif %}</td>
+      <td>{{ t.responsable|default:"—" }}</td>
+      <td>{% include "projets/_badge.html" with valeur=t.priorite libelle=t.get_priorite_display %}</td>
+      <td>{% include "projets/_badge.html" with valeur=t.statut libelle=t.get_statut_display %}</td>
+      <td class="text-nowrap">{{ t.date_debut|date:"d/m/Y"|default:"—" }}</td>
+      <td class="text-nowrap {% if t.en_retard %}p-neg{% endif %}">{{ t.date_fin_prevue|date:"d/m/Y"|default:"—" }}{% if t.en_retard %}<div class="small">{{ t.jours_retard }} j de retard</div>{% elif t.date_fin_reelle %}<div class="small text-muted">faite le {{ t.date_fin_reelle|date:"d/m/Y" }}</div>{% endif %}</td>
+      <td>{% include "projets/_progression.html" with valeur=t.progression %}</td>
+      <td class="text-end text-nowrap">
+        {% if peut_saisir %}
+          {% if t.statut == 'a_faire' or t.statut == 'en_pause' or t.statut == 'bloquee' %}<form method="post" action="{% url 'projets:tache_statut' t.pk %}" class="d-inline">{% csrf_token %}<button name="statut" value="en_cours" class="btn btn-sm btn-outline-primary">Démarrer</button></form>{% endif %}
+          {% if t.statut != 'terminee' and t.statut != 'annulee' %}<form method="post" action="{% url 'projets:tache_statut' t.pk %}" class="d-inline">{% csrf_token %}<button name="statut" value="terminee" class="btn btn-sm btn-outline-success">Terminer</button></form>{% endif %}
+          <a class="btn btn-sm btn-secondary" href="{% url 'projets:tache_modifier' t.pk %}">Modifier</a>
+        {% endif %}
+        {% if peut_supprimer %}<form method="post" action="{% url 'projets:tache_supprimer' t.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer cette tâche ?')">Supprimer</button></form>{% endif %}
+      </td>
+    </tr>
+  {% empty %}<tr><td colspan="9" class="text-center text-muted py-3">Aucune tâche : découpez le projet en étapes pour suivre son avancement.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+
+<div class="card mb-3"><div class="card-header d-flex flex-wrap gap-2 align-items-center">
+  <span class="me-auto">Mouvements financiers</span>
+  {% if peut_saisir %}
+    <a class="btn btn-sm btn-outline-success" href="{% url 'projets:mouvement_nouveau' projet.pk %}?type=depot">Dépôt</a>
+    <a class="btn btn-sm btn-outline-warning" href="{% url 'projets:mouvement_nouveau' projet.pk %}?type=retrait">Retrait</a>
+    <a class="btn btn-sm btn-primary" href="{% url 'projets:mouvement_nouveau' projet.pk %}?type=depense">Dépense</a>
+  {% endif %}
+  <a class="btn btn-sm btn-secondary" href="{% url 'projets:mouvements' %}?projet={{ projet.pk }}">Journal complet</a>
+</div>
+<div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Date</th><th>Type</th><th>Libellé</th><th>Bénéficiaire</th><th>Mode / réf.</th><th class="p-num">Montant</th><th></th></tr></thead>
+  <tbody>
+  {% for m in mouvements %}
+    <tr>
+      <td class="text-nowrap">{{ m.date|date:"d/m/Y" }}</td>
+      <td>{% include "projets/_badge.html" with valeur=m.type libelle=m.get_type_display %}{% if m.categorie %}<div class="small text-muted">{{ m.get_categorie_display }}</div>{% endif %}</td>
+      <td>{{ m.libelle }}{% if m.saisi_par %}<div class="small text-muted">saisi par {{ m.saisi_par }}</div>{% endif %}</td>
+      <td>{{ m.beneficiaire|default:"—" }}</td>
+      <td>{{ m.get_mode_display }}{% if m.reference %}<div class="small text-muted">{{ m.reference }}</div>{% endif %}</td>
+      <td class="p-num p-money {% if m.type == 'depot' %}p-pos{% else %}p-neg{% endif %}">{% if m.type == 'depot' %}+{% else %}−{% endif %} {{ m.montant|gnf }}</td>
+      <td class="text-end text-nowrap">
+        {% if m.piece %}<a class="btn btn-sm btn-outline-secondary" target="_blank" href="{% url 'projets:mouvement_piece' m.pk %}">Pièce</a>{% endif %}
+        {% if peut_saisir %}<a class="btn btn-sm btn-secondary" href="{% url 'projets:mouvement_modifier' m.pk %}">Modifier</a>{% endif %}
+        {% if peut_supprimer %}<form method="post" action="{% url 'projets:mouvement_supprimer' m.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce mouvement ?')">Supprimer</button></form>{% endif %}
+      </td>
+    </tr>
+  {% empty %}<tr><td colspan="7" class="text-center text-muted py-3">Aucun mouvement : enregistrez les fonds reçus et les dépenses du projet.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card h-100"><div class="card-header d-flex align-items-center">
+    <span class="me-auto">Équipe</span>
+    {% if peut_saisir %}<a class="btn btn-sm btn-primary" href="{% url 'projets:membre_nouveau' projet.pk %}">Affecter une personne</a>{% endif %}
+  </div>
+  <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+    <thead><tr><th>Nom</th><th>Rôle</th><th>Téléphone</th><th>Période</th><th></th></tr></thead>
+    <tbody>
+    {% for m in membres %}
+      <tr {% if not m.actif %}class="text-muted"{% endif %}><td>{{ m.nom }}</td><td>{{ m.role|default:"—" }}</td><td>{{ m.telephone }}</td>
+        <td class="text-nowrap">{{ m.date_debut|date:"d/m/Y" }}{% if m.date_fin %} → {{ m.date_fin|date:"d/m/Y" }}{% endif %}{% if not m.actif %} <span class="badge bg-secondary">Terminée</span>{% endif %}</td>
+        <td class="text-end text-nowrap">
+          {% if peut_saisir %}<a class="btn btn-sm btn-secondary" href="{% url 'projets:membre_modifier' m.pk %}">Modifier</a>{% endif %}
+          {% if peut_supprimer %}<form method="post" action="{% url 'projets:membre_supprimer' m.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Retirer cette personne ?')">Retirer</button></form>{% endif %}
+        </td></tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Personne n'est affecté à ce projet.</td></tr>{% endfor %}
+    </tbody>
+  </table></div></div></div>
+
+  <div class="col-lg-5"><div class="card h-100"><div class="card-header">Dépenses par catégorie</div>
+  <div class="table-responsive"><table class="table mb-0 align-middle">
+    <tbody>
+    {% for nom, total in par_categorie %}<tr><td>{{ nom }}</td><td class="p-num p-money">{{ total|gnf }}</td></tr>
+    {% empty %}<tr><td class="text-center text-muted py-3">Aucune dépense.</td></tr>{% endfor %}
+    </tbody>
+  </table></div></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "projets/base_projets.html" %}
+{% load projets_extras %}
+{% block title %}Mouvements financiers des projets{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Mouvements financiers</h1>
+
+<form class="row g-2 mb-3 p-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Libellé, bénéficiaire, réf."></div>
+  <div class="col-auto">
+    <select class="form-select" name="projet">
+      <option value="">Tous les projets</option>
+      {% for p in liste_projets %}<option value="{{ p.pk }}" {% if projet == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.reference }} — {{ p.nom|truncatechars:40 }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="type">
+      <option value="">Tous les types</option>
+      {% for code, libelle in types %}<option value="{{ code }}" {% if type == code %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="categorie">
+      <option value="">Toutes catégories</option>
+      {% for code, libelle in categories %}<option value="{{ code }}" {% if categorie == code %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_from" value="{{ date_from }}" title="Du"></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_to" value="{{ date_to }}" title="Au"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Filtrer</button></div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-secondary" href="?{% if page.qs %}{{ page.qs }}&{% endif %}export=xlsx">Excel</a>
+    <a class="btn btn-secondary" href="?{% if page.qs %}{{ page.qs }}&{% endif %}export=pdf">PDF</a>
+  </div>
+</form>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Dépôts</div><div class="p-val p-money p-pos">{{ totaux.depot|gnf }}</div></div></div></div>
+  <div class="col-md-4"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Retraits</div><div class="p-val p-money">{{ totaux.retrait|gnf }}</div></div></div></div>
+  <div class="col-md-4"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Dépenses</div><div class="p-val p-money p-neg">{{ totaux.depense|gnf }}</div></div></div></div>
+</div>
+
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Date</th><th>Projet</th><th>Type</th><th>Libellé</th><th>Bénéficiaire</th><th>Mode / réf.</th><th class="p-num">Montant</th><th></th></tr></thead>
+  <tbody>
+  {% for m in page %}
+    <tr>
+      <td class="text-nowrap">{{ m.date|date:"d/m/Y" }}</td>
+      <td><a href="{% url 'projets:projet_detail' m.projet_id %}">{{ m.projet.reference }}</a></td>
+      <td>{% include "projets/_badge.html" with valeur=m.type libelle=m.get_type_display %}{% if m.categorie %}<div class="small text-muted">{{ m.get_categorie_display }}</div>{% endif %}</td>
+      <td>{{ m.libelle }}</td>
+      <td>{{ m.beneficiaire|default:"—" }}</td>
+      <td>{{ m.get_mode_display }}{% if m.reference %}<div class="small text-muted">{{ m.reference }}</div>{% endif %}</td>
+      <td class="p-num p-money {% if m.type == 'depot' %}p-pos{% else %}p-neg{% endif %}">{% if m.type == 'depot' %}+{% else %}−{% endif %} {{ m.montant|gnf }}</td>
+      <td class="text-end">{% if m.piece %}<a class="btn btn-sm btn-outline-secondary" target="_blank" href="{% url 'projets:mouvement_piece' m.pk %}">Pièce</a>{% endif %}</td>
+    </tr>
+  {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">Aucun mouvement.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="8">{{ nb }} mouvement(s)</td></tr></tfoot>
+</table></div></div>
+{% include "projets/_pagination.html" %}
+{% endblock %}

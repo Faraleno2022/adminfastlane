@@ -1,0 +1,57 @@
+{% extends "projets/base_projets.html" %}
+{% load projets_extras %}
+{% block title %}Projets{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'projets:projet_nouveau' %}">Nouveau projet</a>{% endif %}
+  <h1 class="h4 mb-0">Projets</h1>
+</div>
+
+<form class="row g-2 mb-3 p-filtres" method="get">
+  <div class="col-auto"><input class="form-control" name="q" value="{{ q }}" placeholder="Code, projet, client, ville"></div>
+  <div class="col-auto">
+    <select class="form-select" name="statut">
+      <option value="">Tous les statuts</option>
+      {% for code, libelle in statuts %}<option value="{{ code }}" {% if statut == code %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select class="form-select" name="filtre">
+      <option value="">Tous</option>
+      <option value="retard" {% if filtre == 'retard' %}selected{% endif %}>En retard</option>
+      <option value="depasse" {% if filtre == 'depasse' %}selected{% endif %}>Budget dépassé</option>
+    </select>
+  </div>
+  <div class="col-auto"><button class="btn btn-secondary">Filtrer</button></div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-secondary" href="?{% if page.qs %}{{ page.qs }}&{% endif %}export=xlsx">Excel</a>
+    <a class="btn btn-secondary" href="?{% if page.qs %}{{ page.qs }}&{% endif %}export=pdf">PDF</a>
+  </div>
+</form>
+
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Code</th><th>Projet</th><th>Client</th><th>Statut</th><th>Fin prévue</th><th style="min-width:140px">Avancement</th><th class="p-num">Budget</th><th class="p-num">Dépenses</th><th class="p-num">Solde</th></tr></thead>
+  <tbody>
+  {% for p in page %}
+    <tr {% if p.statut == 'annule' %}class="text-muted"{% endif %}>
+      <td><a href="{% url 'projets:projet_detail' p.pk %}">{{ p.reference }}</a></td>
+      <td>{{ p.nom }}{% if p.responsable %}<div class="small text-muted">{{ p.responsable }}</div>{% endif %}</td>
+      <td>{{ p.client.nom|default:"—" }}</td>
+      <td>{% include "projets/_badge.html" with valeur=p.statut libelle=p.get_statut_display %}</td>
+      <td class="text-nowrap {% if p.en_retard %}p-neg{% endif %}">{{ p.date_fin_prevue|date:"d/m/Y"|default:"—" }}</td>
+      <td>{% include "projets/_progression.html" with valeur=p.progression %}</td>
+      <td class="p-num p-money">{{ p.budget|gnf }}</td>
+      <td class="p-num p-money">{{ p.total_depenses|gnf }}</td>
+      <td class="p-num p-money {% if p.budget_depasse %}p-neg{% endif %}">{{ p.solde_disponible|gnf }}</td>
+    </tr>
+  {% empty %}<tr><td colspan="9" class="text-center text-muted py-4">Aucun projet.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr>
+    <td colspan="6">Total hors projets annulés ({{ nb }} projet(s))</td>
+    <td class="p-num p-money">{{ totaux.budget|gnf }}</td><td class="p-num p-money">{{ totaux.depenses|gnf }}</td>
+    <td class="p-num p-money">{{ totaux.solde|gnf }}</td>
+  </tr></tfoot>
+</table></div></div>
+{% include "projets/_pagination.html" %}
+{% endblock %}

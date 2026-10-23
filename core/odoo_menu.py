@@ -342,6 +342,28 @@ APPS = [
         ],
     },
     {
+        'key': 'projets', 'name': 'Gestion de projet', 'icon': 'bi-kanban-fill',
+        'gradient': ('#d6336c', '#a61e4d'), 'requires': None,
+        'home': 'projets:tableau_de_bord',
+        'prefixes': ['/projets/'],
+        'menus': [
+            ('Tableau de bord', 'projets:tableau_de_bord'),
+            ('Projets', [
+                ('Nouveau projet', 'projets:projet_nouveau'),
+                ('Tous les projets', 'projets:projets'),
+            ]),
+            ('Planning', 'projets:taches'),
+            ('Finances', [
+                ('Mouvements financiers', 'projets:mouvements'),
+                ('Rapports', 'projets:rapports'),
+            ]),
+            ('Clients', [
+                ('Clients', 'projets:clients'),
+                ('Nouveau client', 'projets:client_nouveau'),
+            ]),
+        ],
+    },
+    {
         'key': 'flotte', 'name': 'Flotte', 'icon': 'bi-truck',
         'gradient': ('#0d6efd', '#0a58ca'), 'requires': None,
         'home': 'flotte:accueil',

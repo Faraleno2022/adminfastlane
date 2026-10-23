@@ -1,0 +1,37 @@
+{% extends "projets/base_projets.html" %}
+{% load projets_extras %}
+{% block title %}Rapports — Gestion de projet{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Rapports</h1>
+
+<form class="row g-2 mb-3 p-filtres" method="get">
+  <div class="col-auto"><input class="form-control" type="date" name="date_from" value="{{ date_from }}"></div>
+  <div class="col-auto"><input class="form-control" type="date" name="date_to" value="{{ date_to }}"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Afficher</button></div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-secondary" href="?date_from={{ date_from }}&date_to={{ date_to }}&export=xlsx">Excel</a>
+    <a class="btn btn-secondary" href="?date_from={{ date_from }}&date_to={{ date_to }}&export=pdf">PDF</a>
+  </div>
+</form>
+<p class="text-muted">Mouvements financiers enregistrés {{ periode }}.</p>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Dépôts reçus</div><div class="p-val p-money p-pos">{{ total_depots|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Retraits</div><div class="p-val p-money">{{ total_retraits|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Dépenses</div><div class="p-val p-money p-neg">{{ total_depenses|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Projets terminés</div><div class="p-val">{{ nb_termines }}</div></div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card"><div class="card-header">Par projet</div>
+    <div class="table-responsive"><table class="table mb-0 align-middle"><thead><tr><th>Projet</th><th class="p-num">Dépôts</th><th class="p-num">Retraits</th><th class="p-num">Dépenses</th></tr></thead><tbody>
+      {% for p, d, r, dep in lignes_projet %}<tr><td><a href="{% url 'projets:projet_detail' p.pk %}">{{ p.reference }}</a> — {{ p.nom }}</td><td class="p-num p-money">{{ d|gnf }}</td><td class="p-num p-money">{{ r|gnf }}</td><td class="p-num p-money">{{ dep|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucun mouvement sur la période.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-5"><div class="card"><div class="card-header">Dépenses par catégorie</div>
+    <div class="table-responsive"><table class="table mb-0 align-middle"><thead><tr><th>Catégorie</th><th class="p-num">Montant</th></tr></thead><tbody>
+      {% for nom, total in lignes_categorie %}<tr><td>{{ nom }}</td><td class="p-num p-money">{{ total|gnf }}</td></tr>
+      {% empty %}<tr><td colspan="2" class="text-center text-muted py-3">Aucune dépense sur la période.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+/* Module Gestion de projet — composants propres (le thème général est dans odoo.css) */
+.p-kpi { border-radius: 8px; }
+.p-kpi .p-val { font-size: 1.45rem; font-weight: 700; }
+.p-kpi .p-lbl { font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; }
+.p-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p-num { text-align: right; }
+.p-filtres .form-control, .p-filtres .form-select { min-width: 140px; }
+.p-pos { color: #198754; }
+.p-neg { color: #dc3545; }
+.p-progress { height: 8px; min-width: 80px; }
+.badge-pj-planifie, .badge-pj-a_faire { background: #6c757d; }
+.badge-pj-en_cours { background: #0d6efd; }
+.badge-pj-suspendu, .badge-pj-en_pause { background: #fd7e14; }
+.badge-pj-bloquee { background: #a61e4d; }
+.badge-pj-termine, .badge-pj-terminee { background: #198754; }
+.badge-pj-annule, .badge-pj-annulee { background: #343a40; }
+.badge-pj-basse { background: #0dcaf0; color: #000; }
+.badge-pj-moyenne { background: #6c757d; }
+.badge-pj-haute { background: #ffc107; color: #000; }
+.badge-pj-critique { background: #dc3545; }
+.badge-pj-depot { background: #198754; }
+.badge-pj-retrait { background: #fd7e14; }
+.badge-pj-depense { background: #dc3545; }
+@media (max-width: 575.98px) { .p-kpi .p-val { font-size: 1.15rem; } }

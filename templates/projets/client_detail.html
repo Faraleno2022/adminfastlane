@@ -1,0 +1,44 @@
+{% extends "projets/base_projets.html" %}
+{% load projets_extras %}
+{% block title %}{{ client.nom }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h1 class="h4 mb-0 me-auto">{{ client.nom }}</h1>
+  <a class="btn btn-secondary" href="{% url 'projets:clients' %}">Retour</a>
+  {% if peut_saisir %}
+    <a class="btn btn-primary" href="{% url 'projets:projet_nouveau' %}?client={{ client.pk }}">Nouveau projet</a>
+    <a class="btn btn-secondary" href="{% url 'projets:client_modifier' client.pk %}">Modifier</a>
+  {% endif %}
+  {% if peut_supprimer %}
+    <form method="post" action="{% url 'projets:client_supprimer' client.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-danger" onclick="return confirm('Supprimer ce client ?')">Supprimer</button></form>
+  {% endif %}
+</div>
+
+<div class="card mb-3"><div class="card-body"><div class="row g-2">
+  <div class="col-md-3"><span class="text-muted">Contact</span><br>{{ client.contact|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">Téléphone</span><br>{{ client.telephone|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">E-mail</span><br>{{ client.email|default:"—" }}</div>
+  <div class="col-md-3"><span class="text-muted">NIF</span><br>{{ client.nif|default:"—" }}</div>
+  {% if client.adresse %}<div class="col-12"><span class="text-muted">Adresse</span><br>{{ client.adresse }}</div>{% endif %}
+  {% if client.note %}<div class="col-12"><span class="text-muted">Note</span><br>{{ client.note|linebreaksbr }}</div>{% endif %}
+</div></div></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Budget des projets</div><div class="p-val p-money">{{ budget|gnf }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card p-kpi h-100"><div class="card-body"><div class="p-lbl">Dépôts reçus</div><div class="p-val p-money">{{ depots|gnf }}</div></div></div></div>
+</div>
+
+<div class="card"><div class="card-header">Projets</div><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Code</th><th>Projet</th><th>Statut</th><th style="min-width:140px">Avancement</th><th class="p-num">Budget</th><th class="p-num">Solde</th></tr></thead>
+  <tbody>
+  {% for p in projets %}
+    <tr><td><a href="{% url 'projets:projet_detail' p.pk %}">{{ p.reference }}</a></td><td>{{ p.nom }}</td>
+      <td>{% include "projets/_badge.html" with valeur=p.statut libelle=p.get_statut_display %}</td>
+      <td>{% include "projets/_progression.html" with valeur=p.progression %}</td>
+      <td class="p-num p-money">{{ p.budget|gnf }}</td>
+      <td class="p-num p-money {% if p.budget_depasse %}p-neg{% endif %}">{{ p.solde_disponible|gnf }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Aucun projet pour ce client.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}
