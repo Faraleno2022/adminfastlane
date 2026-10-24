@@ -1152,6 +1152,19 @@ class TentativeCodeAcces(models.Model):
 # ---------------------------------------------------------------------------
 # Enregistrement des modèles de licence (définis dans models_licence.py)
 # ---------------------------------------------------------------------------
+class DonneeDemo(models.Model):
+    """Objet créé par la commande ``charger_demo`` (permet de supprimer la démonstration)."""
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='donnees_demo')
+    content_type = models.ForeignKey('contenttypes.ContentType', on_delete=models.CASCADE)
+    object_id = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Donnée de démonstration'
+        verbose_name_plural = 'Données de démonstration'
+        ordering = ['id']
+
+
 # Ces modèles vivent dans un module séparé importé seulement par les vues.
 # On les importe ici pour qu'ils soient enregistrés dans l'app `core` dès le
 # chargement : sinon `makemigrations` ne les « voit » pas et génère à tort une
