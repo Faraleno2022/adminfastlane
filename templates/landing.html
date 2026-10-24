@@ -111,7 +111,7 @@
             <a class="lo-l-app" href="{% url 'core:login' %}?next=/secretariat/" data-name="secrétariat"><span class="lo-l-ico" style="--c:#e5588b;"><i class="bi bi-folder-fill"></i></span><span class="lo-l-cap">Secrétariat</span></a>
             <a class="lo-l-app" href="{% url 'core:login' %}?next=/cnss/" data-name="conformité"><span class="lo-l-ico" style="--c:#5b6bbf;"><i class="bi bi-shield-check"></i></span><span class="lo-l-cap">Conformité</span></a>
             <a class="lo-l-app" href="{% url 'core:login' %}?next=/portail/" data-name="portail employé"><span class="lo-l-ico" style="--c:#17a2b8;"><i class="bi bi-person-workspace"></i></span><span class="lo-l-cap">Portail employé</span></a>
-            <a class="lo-l-app" href="{% url 'core:login' %}?next=/payments/plans/" data-name="abonnements"><span class="lo-l-ico" style="--c:#9b59b6;"><i class="bi bi-gem"></i></span><span class="lo-l-cap">Abonnements</span></a>
+            {% if abonnements_actifs %}<a class="lo-l-app" href="{% url 'core:login' %}?next=/payments/plans/" data-name="abonnements"><span class="lo-l-ico" style="--c:#9b59b6;"><i class="bi bi-gem"></i></span><span class="lo-l-cap">Abonnements</span></a>{% endif %}
             <a class="lo-l-app" href="{% url 'core:login' %}?next=/profile/" data-name="paramètres"><span class="lo-l-ico" style="--c:#6c757d;"><i class="bi bi-gear-fill"></i></span><span class="lo-l-cap">Paramètres</span></a>
         </div>
         <p class="lo-l-empty" id="loEmpty" hidden>Aucune application ne correspond à votre recherche.</p>

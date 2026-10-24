@@ -40,6 +40,11 @@ REGISTRATION_DISABLED = config('REGISTRATION_DISABLED', default=True, cast=bool)
 # LICENCE_ENFORCEMENT (True/False).
 LICENCE_ENFORCEMENT = config('LICENCE_ENFORCEMENT', default=PYINSTALLER_MODE, cast=bool)
 
+# Plans d'abonnement (Starter / Pro / Premium) : modules réservés, quotas d'utilisateurs
+# et d'employés, expiration. Désactivés pour le moment : tout est accessible et l'application
+# Abonnements est masquée. Mettre ABONNEMENTS_ACTIFS=True pour les rétablir.
+ABONNEMENTS_ACTIFS = config('ABONNEMENTS_ACTIFS', default=False, cast=bool)
+
 # Code de vérification administrateur pour créer un compte
 ADMIN_REGISTRATION_CODE = config('ADMIN_REGISTRATION_CODE', default='625196629')
 

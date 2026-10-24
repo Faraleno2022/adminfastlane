@@ -180,6 +180,7 @@ def index_view(request):
         'offres_emploi': offres_emploi,
         'formations': formations,
         'today': date.today(),
+        'abonnements_actifs': settings.ABONNEMENTS_ACTIFS,
     })
 
 

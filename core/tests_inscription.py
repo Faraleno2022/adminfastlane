@@ -50,7 +50,7 @@ class InscriptionTests(TestCase):
         self.assertTrue(admin.est_admin_entreprise)
         self.assertEqual(admin.telephone, "620000000")
         cles = self._lanceur(admin)
-        self.assertEqual(cles, ["paie", "projets", "carburant", "abonnement", "parametres"])
+        self.assertEqual(cles, ["paie", "projets", "carburant", "parametres"])
 
     def test_email_nom_et_telephone_reutilisables(self):
         self.client.post(reverse("core:register_entreprise"), _donnees())
@@ -122,7 +122,7 @@ class ApplicationsTests(TestCase):
         self.assertTrue(self.entreprise.has_compta)
         rep = self.client.get(reverse("core:home_menu"))
         cles = [a["key"] for a in rep.context["odoo_apps"]]
-        self.assertEqual(cles, ["compta", "flotte", "abonnement", "parametres"])
+        self.assertEqual(cles, ["compta", "flotte", "parametres"])
         # Le tableau de bord RH renvoie au lanceur quand Employés n'est pas installé
         self.assertRedirects(self.client.get(reverse("dashboard:index")), reverse("core:home_menu"),
                              fetch_redirect_response=False)

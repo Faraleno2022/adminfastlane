@@ -11,6 +11,7 @@ Format d'un menu :
     '-'                                             -> séparateur
     '= Titre de section'                            -> titre de section
 """
+from django.conf import settings
 from django.urls import reverse, NoReverseMatch
 
 # --------------------------------------------------------------------------
@@ -636,6 +637,8 @@ def applications_actives(entreprise):
 
 
 def _visible(app, entreprise):
+    if app['key'] == 'abonnement' and not getattr(settings, 'ABONNEMENTS_ACTIFS', True):
+        return False
     if entreprise is not None and getattr(entreprise, 'applications', None):
         return app['key'] in APPLICATIONS_SOCLE or app['key'] in entreprise.applications
     req = app['requires']
@@ -722,6 +725,8 @@ def build_shell(request):
     if current is not None:
         menus = [m for m in (_resolve(s) for s in current['menus']) if m]
         menus = [m for m in (_filter_admin(m, is_admin) for m in menus) if m]
+        if not getattr(settings, 'ABONNEMENTS_ACTIFS', True):
+            menus = [m for m in menus if m.get('label') != 'Licence']
         active = _mark_active(menus, path)
         context['odoo_app'] = {
             'key': current['key'], 'name': current['name'], 'icon': current['icon'],
