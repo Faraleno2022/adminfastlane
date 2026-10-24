@@ -16,7 +16,7 @@ class VerifierCalculsTests(TestCase):
         cls.entreprise = Entreprise.objects.create(nom_entreprise="Myschool", slug="myschool", email="a@myschool.test")
         Utilisateur.objects.create_user(username="Myschool", email="a@myschool.test", password="Mdp-tres-solide-2026",
                                         entreprise=cls.entreprise, est_admin_entreprise=True)
-        call_command("charger_demo", utilisateur="Myschool", stdout=StringIO())
+        call_command("charger_demo", utilisateur="Myschool", volume="standard", stdout=StringIO())
 
     def _verifier(self):
         sortie = StringIO()
@@ -27,7 +27,7 @@ class VerifierCalculsTests(TestCase):
         sortie = self._verifier()
         self.assertIn("Résultat : aucun écart", sortie, sortie)
         for section in ("Paie (bulletins)", "Transport de carburant", "Gestion de projet", "Agence de voyage",
-                        "Suivi des prêts", "Flotte", "Ventes (comptes et stock)"):
+                        "Suivi des prêts", "Flotte", "Ventes (comptes et stock)", "Comptabilité"):
             self.assertIn(f"[OK] {section}", sortie)
 
     def test_montants_faux_detectes(self):
@@ -47,6 +47,18 @@ class VerifierCalculsTests(TestCase):
         self.assertIn("[!!] Ventes (comptes et stock)", sortie)
         self.assertIn("90 000 L chargés pour une citerne", sortie)
         self.assertNotIn("Résultat : aucun écart", sortie)
+
+    def test_anomalies_comptables_detectees(self):
+        from comptabilite.models import Facture, LigneEcriture
+        ligne = LigneEcriture.objects.filter(ecriture__entreprise=self.entreprise, montant_debit__gt=0).first()
+        LigneEcriture.objects.filter(pk=ligne.pk).update(montant_debit=F("montant_debit") + 500)
+        facture = Facture.objects.filter(entreprise=self.entreprise, type_facture="vente").first()
+        Facture.objects.filter(pk=facture.pk).update(montant_tva=F("montant_tva") + 1000)
+        sortie = self._verifier()
+        self.assertIn("[!!] Comptabilité", sortie)
+        self.assertIn(f"{ligne.ecriture.numero_ecriture} — équilibre débit / crédit", sortie)
+        self.assertIn("Balance générale", sortie)
+        self.assertIn(f"Facture {facture.numero} — total TVA", sortie)
 
     def test_lecture_seule(self):
         from paie.models import BulletinPaie

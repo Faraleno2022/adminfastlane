@@ -86,7 +86,7 @@ class Command(BaseCommand):
         rapport = Rapport()
         with pour_entreprise(entreprise):
             for controle in (self._paie, self._carburant, self._projets, self._agence, self._prets, self._flotte,
-                             self._ventes):
+                             self._ventes, self._comptabilite):
                 controle(rapport, entreprise)
 
         self.stdout.write(f"Contrôle des calculs — {entreprise.nom_entreprise}")
@@ -309,3 +309,106 @@ class Command(BaseCommand):
                 controler(bloc, f"Stock de « {produit.nom} »", produit.quantite_stock, dernier.stock_apres,
                           tolerance=D("0.001"), detail="dernier mouvement enregistré")
             signaler(bloc, produit.quantite_stock >= 0, f"Stock négatif pour « {produit.nom} »")
+
+    # ------------------------------------------------------------------
+    # Comptabilité (SYSCOHADA)
+    # ------------------------------------------------------------------
+    def _comptabilite(self, rapport, entreprise):
+        from comptabilite.models import EcritureComptable, Facture, Reglement, Tiers
+        from paie.models import BulletinPaie
+
+        bloc = rapport.section("Comptabilité")
+        centime = D("0.01")
+        ecritures = list(EcritureComptable.objects.filter(entreprise=entreprise)
+                         .select_related("exercice", "journal").prefetch_related("lignes__compte"))
+        total_debit = total_credit = ZERO
+        par_compte = defaultdict(lambda: ZERO)  # solde débiteur (D − C) par compte
+        paie = defaultdict(lambda: {"brut": ZERO, "net": ZERO})
+        for ec in ecritures:
+            lignes = list(ec.lignes.all())
+            debit = sum((l.montant_debit for l in lignes), ZERO)
+            credit = sum((l.montant_credit for l in lignes), ZERO)
+            signaler(bloc, len(lignes) >= 2, f"{ec.numero_ecriture} — écriture de moins de deux lignes")
+            controler(bloc, f"{ec.numero_ecriture} — équilibre débit / crédit", debit, credit, tolerance=centime,
+                      detail=ec.libelle[:60])
+            signaler(bloc, ec.exercice.date_debut <= ec.date_ecriture <= ec.exercice.date_fin,
+                     f"{ec.numero_ecriture} — datée du {ec.date_ecriture:%d/%m/%Y}, hors de l'exercice {ec.exercice}")
+            for l in lignes:
+                signaler(bloc, l.montant_debit >= 0 and l.montant_credit >= 0
+                         and not (l.montant_debit > 0 and l.montant_credit > 0),
+                         f"{ec.numero_ecriture} — ligne {l.compte.numero_compte} à la fois au débit et au crédit ou négative")
+                par_compte[l.compte_id] += l.montant_debit - l.montant_credit
+                if ec.journal.type_journal == "SA" and l.compte.numero_compte == "6611":
+                    paie[(ec.date_ecriture.year, ec.date_ecriture.month)]["brut"] += l.montant_debit
+                if ec.journal.type_journal == "SA" and l.compte.numero_compte == "4221":
+                    paie[(ec.date_ecriture.year, ec.date_ecriture.month)]["net"] += l.montant_credit
+            total_debit += debit
+            total_credit += credit
+        if ecritures:
+            controler(bloc, "Balance générale — total des débits = total des crédits", total_debit, total_credit,
+                      tolerance=centime)
+
+        # Factures : calculs HT / TVA / TTC, paiements, concordance avec l'écriture générée
+        sens = {"vente": (1, "7", "443", "41"), "acompte": (1, "7", "443", "41"),
+                "avoir_client": (-1, "7", "443", "41"), "achat": (-1, "6", "445", "40"),
+                "avoir_fournisseur": (1, "6", "445", "40")}
+        for f in Facture.objects.filter(entreprise=entreprise).prefetch_related("lignes", "reglements"):
+            lignes = list(f.lignes.all())
+            for l in lignes:
+                ht = (l.quantite * l.prix_unitaire).quantize(centime)
+                tva = (ht * l.taux_tva / 100).quantize(centime)
+                nom = f"Facture {f.numero} — ligne « {l.designation[:40]} »"
+                controler(bloc, f"{nom} HT", l.montant_ht, ht, tolerance=centime)
+                controler(bloc, f"{nom} TVA {l.taux_tva} %", l.montant_tva, tva, tolerance=centime)
+                controler(bloc, f"{nom} TTC", l.montant_ttc, ht + tva, tolerance=centime)
+            if lignes:
+                controler(bloc, f"Facture {f.numero} — total HT", f.montant_ht,
+                          sum((l.montant_ht for l in lignes), ZERO), tolerance=centime)
+                controler(bloc, f"Facture {f.numero} — total TVA", f.montant_tva,
+                          sum((l.montant_tva for l in lignes), ZERO), tolerance=centime)
+                controler(bloc, f"Facture {f.numero} — total TTC", f.montant_ttc, f.montant_ht + f.montant_tva,
+                          tolerance=centime)
+            paye = sum((r.montant for r in f.reglements.all()), ZERO)
+            controler(bloc, f"Facture {f.numero} — montant payé", f.montant_paye, paye, tolerance=centime)
+            if f.statut in ("validee", "payee"):
+                signaler(bloc, (f.statut == "payee") == (f.montant_ttc > 0 and paye >= f.montant_ttc),
+                         f"Facture {f.numero} — statut « {f.get_statut_display()} » pour {gnf(paye)} "
+                         f"payés sur {gnf(f.montant_ttc)}")
+                signaler(bloc, f.ecriture_id is not None, f"Facture {f.numero} — validée sans écriture comptable")
+            if f.ecriture_id and f.type_facture in sens:
+                signe, produit_charge, tva_compte, tiers_compte = sens[f.type_facture]
+                lignes_ec = list(f.ecriture.lignes.select_related("compte"))
+
+                def solde(prefixe):  # crédit − débit des comptes commençant par le préfixe
+                    return sum((l.montant_credit - l.montant_debit for l in lignes_ec
+                                if l.compte.numero_compte.startswith(prefixe)), ZERO)
+                controler(bloc, f"Facture {f.numero} — écriture : HT en classe {produit_charge}",
+                          signe * solde(produit_charge), f.montant_ht, tolerance=centime)
+                controler(bloc, f"Facture {f.numero} — écriture : TVA au compte {tva_compte}",
+                          signe * solde(tva_compte), f.montant_tva, tolerance=centime)
+                controler(bloc, f"Facture {f.numero} — écriture : TTC au compte du tiers ({tiers_compte})",
+                          -signe * solde(tiers_compte), f.montant_ttc, tolerance=centime)
+
+        for r in Reglement.objects.filter(entreprise=entreprise, ecriture__isnull=False).prefetch_related("ecriture__lignes"):
+            controler(bloc, f"Règlement {r.numero} — montant de l'écriture",
+                      sum((l.montant_debit for l in r.ecriture.lignes.all()), ZERO), r.montant, tolerance=centime)
+
+        # Soldes des comptes de tiers = factures comptabilisées − règlements comptabilisés
+        signes = {"vente": 1, "acompte": 1, "avoir_client": -1, "achat": -1, "avoir_fournisseur": 1}
+        for t in Tiers.objects.filter(entreprise=entreprise, compte_comptable__isnull=False).select_related("compte_comptable"):
+            attendu = ZERO  # solde débiteur attendu
+            for f in Facture.objects.filter(tiers=t, ecriture__isnull=False).prefetch_related("reglements"):
+                regle = sum((r.montant for r in f.reglements.all() if r.ecriture_id), ZERO)
+                attendu += signes.get(f.type_facture, 0) * (f.montant_ttc - regle)
+            controler(bloc, f"Tiers {t.code} ({t.raison_sociale[:40]}) — solde du compte {t.compte_comptable.numero_compte}",
+                      par_compte[t.compte_comptable_id], attendu, tolerance=centime,
+                      detail="factures comptabilisées − règlements")
+
+        # Paie : les écritures de salaires reprennent les bulletins du mois
+        for (annee, mois), montants in sorted(paie.items()):
+            bulletins = (BulletinPaie.objects.filter(employe__entreprise=entreprise, annee_paie=annee, mois_paie=mois)
+                         .exclude(statut_bulletin="brouillon").aggregate(brut=Sum("salaire_brut"), net=Sum("net_a_payer")))
+            controler(bloc, f"Salaires {mois:02d}/{annee} — compte 6611 = brut des bulletins", montants["brut"],
+                      bulletins["brut"] or ZERO)
+            controler(bloc, f"Salaires {mois:02d}/{annee} — compte 4221 = nets des bulletins", montants["net"],
+                      bulletins["net"] or ZERO)

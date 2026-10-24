@@ -55,7 +55,7 @@ class ChargerDemoTests(TestCase):
 
     def _charger(self):
         sortie = StringIO()
-        call_command("charger_demo", utilisateur="myschool", stdout=sortie)
+        call_command("charger_demo", utilisateur="myschool", volume="standard", stdout=sortie)
         return sortie.getvalue()
 
     def test_bulletins_conformes_au_recalcul_independant(self):
@@ -135,6 +135,22 @@ class ChargerDemoTests(TestCase):
             self.assertFalse(Produit.objects.exists())
             self.assertFalse(Vehicule.all_objects.exists())
         self._charger()  # rechargeable après suppression
+
+    def test_grand_volume_sans_aucun_ecart(self):
+        from comptabilite.models import EcritureComptable, Facture
+        from paie.models import BulletinPaie
+        sortie = StringIO()
+        call_command("charger_demo", utilisateur="Myschool", stdout=sortie)  # volume « grand » par défaut
+        self.assertEqual(BulletinPaie.objects.filter(employe__matricule__startswith="D").count(), 45 * 12)
+        self.assertGreater(Facture.objects.filter(entreprise=self.entreprise).count(), 100)
+        self.assertGreater(EcritureComptable.objects.filter(entreprise=self.entreprise).count(), 300)
+        verification = StringIO()
+        call_command("verifier_calculs", utilisateur="Myschool", stdout=verification)
+        self.assertIn("Résultat : aucun écart", verification.getvalue(), verification.getvalue())
+        self.assertIn("[OK] Comptabilité", verification.getvalue())
+        call_command("charger_demo", utilisateur="Myschool", supprimer=True, stdout=StringIO())
+        self.assertFalse(EcritureComptable.objects.filter(entreprise=self.entreprise).exists())
+        self.assertFalse(DonneeDemo.objects.exists())
 
     def test_utilisateur_inconnu(self):
         with self.assertRaises(CommandError):
